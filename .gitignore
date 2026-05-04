@@ -1,0 +1,91 @@
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# ===== Secrets / Credentials (NEVER commit) =====
+.env
+.env.*
+!.env.example
+**/serviceAccountKey.json
+**/service-account*.json
+**/*credentials*.json
+*.pem
+*.p12
+*.keystore
+*.jks
+key.properties
+
+# ===== Backend (Node.js) =====
+backend/node_modules/
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+backend/.npm
+backend/coverage/
+
+# ===== Backend (Python recommender) =====
+backend/recommender/.venv/
+backend/recommender/__pycache__/
+backend/recommender/**/__pycache__/
+*.pyc
+*.pyo
+
+# ===== Flutter / Dart =====
+flutter/.dart_tool/
+flutter/.flutter-plugins
+flutter/.flutter-plugins-dependencies
+flutter/.pub-cache/
+flutter/.pub/
+flutter/build/
+flutter/coverage/
+flutter/**/doc/api/
+flutter/**/ios/Flutter/.last_build_id
+
+# Symbolication / Obfuscation
+flutter/app.*.symbols
+flutter/app.*.map.json
+
+# Flutter sensitive Firebase configs
+flutter/lib/firebase_options.dart
+flutter/ios/Runner/GoogleService-Info.plist
+flutter/android/app/google-services.json
+
+# Android
+flutter/android/app/debug/
+flutter/android/app/profile/
+flutter/android/app/release/
+flutter/android/.gradle/
+flutter/android/local.properties
+flutter/android/captures/
+flutter/android/gradlew
+flutter/android/gradlew.bat
+flutter/android/.idea/
+
+# iOS
+flutter/ios/Pods/
+flutter/ios/.symlinks/
+flutter/ios/Flutter/Flutter.framework
+flutter/ios/Flutter/Flutter.podspec
+flutter/ios/Flutter/flutter_export_environment.sh
+flutter/ios/Flutter/App.framework
+flutter/ios/Flutter/Generated.xcconfig
+flutter/ios/Flutter/ephemeral/
+flutter/ios/.generated/
+flutter/ios/ServiceDefinitions.json
+flutter/ios/Runner/GeneratedPluginRegistrant.*
+
+# macOS / Linux / Windows ephemeral
+flutter/macos/Flutter/ephemeral/
+flutter/linux/flutter/ephemeral/
+flutter/windows/flutter/ephemeral/
+
+# Misc
+*.log
+*.class
+.history

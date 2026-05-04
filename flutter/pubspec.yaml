@@ -1,0 +1,49 @@
+name: loadout
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.1
+  http: ^1.2.0
+  firebase_core: ^3.0.0
+  firebase_auth: ^5.0.0
+  cupertino_icons: ^1.0.8
+  url_launcher: ^6.3.0
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
+  http_parser: ^4.0.2
+  font_awesome_flutter: ^10.7.0
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter_native_splash:
+  color: "#424242"
+  image: web/icons/loadoutICon_fg.png
+  android_12:
+    color: "#424242"
+    image: web/icons/loadoutICon_fg.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "web/icons/loadoutICon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  adaptive_icon_background: "#424242"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
