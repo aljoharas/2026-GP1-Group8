@@ -55,8 +55,17 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
       result.add('Switch');
     }
 
-    // PC is always available
-    result.add('PC');
+    // Include PC if RAWG lists it, or for pre-2014 games (reliable emulation era)
+    final hasPcInRawg = lower.any((n) =>
+        n == 'pc' || n.contains('windows') || n.contains('mac') || n.contains('linux'));
+    int? releaseYear;
+    final releasedRaw = widget.game['released']?.toString();
+    if (releasedRaw != null && releasedRaw.length >= 4) {
+      releaseYear = int.tryParse(releasedRaw.substring(0, 4));
+    }
+    if (hasPcInRawg || (releaseYear != null && releaseYear < 2014)) {
+      result.add('PC');
+    }
 
     return result;
   }
