@@ -93,8 +93,8 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(child: _buildHeader(username)),
               const SliverToBoxAdapter(child: SizedBox(height: 28)),
               SliverToBoxAdapter(
-                  child: _buildSectionHeader('RECOMMENDED',
-                      onSeeAll: () => _showAllGames('RECOMMENDED', home.recommendedGames))),
+                  child: _buildSectionHeader('RECOMMENDED FOR YOU',
+                      onSeeAll: () => _showAllGames('RECOMMENDED FOR YOU', home.recommendedGames))),
               const SliverToBoxAdapter(child: SizedBox(height: 14)),
               SliverToBoxAdapter(child: _buildRecommendedRow(home)),
               const SliverToBoxAdapter(child: SizedBox(height: 28)),

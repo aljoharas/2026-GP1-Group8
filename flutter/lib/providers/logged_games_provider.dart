@@ -99,9 +99,8 @@ class LoggedGamesProvider extends ChangeNotifier {
   }
 
   List<LoggedGame> get currentlyPlaying {
-    // First find the most recent entry per game, then keep only unfinished ones.
-    // Without this, an older unfinished entry would keep showing a game that was
-    // later re-logged as finished.
+    // First find the most recent entry per game, then keep only unfinished ones
+    // Without this, an older unfinished entry would keep showing a game that was later re-logged as finished
     final Map<Object, LoggedGame> latestByGame = {};
     for (final g in _games) {
       final key = g.rawgId ?? g.name as Object;
