@@ -561,7 +561,10 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
                     final isDeletingReview = hadReview && reviewText.isEmpty;
                     Navigator.pop(ctx);
                     final bool ok;
-                    if (reviewText.isNotEmpty || hadReview) {
+                    if (ratingToSave == 0) {
+                      if (hadReview) await gp.submitReview(rawgId, '', 0);
+                      ok = await gp.rateGame(rawgId, 0);
+                    } else if (reviewText.isNotEmpty || hadReview) {
                       ok = await gp.submitReview(rawgId, reviewText, ratingToSave);
                     } else {
                       ok = await gp.rateGame(rawgId, ratingToSave);
@@ -577,13 +580,13 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: selected == 0 ? danger : accent,
+                    backgroundColor: (selected == 0 && gp.userRating != null) ? danger : accent,
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: Text(
-                    selected == 0 ? 'Remove Rating' : 'Save',
+                    (selected == 0 && gp.userRating != null) ? 'Remove Rating' : 'Save',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -642,7 +645,13 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
     final gp = context.watch<GameProvider>();
     final hasRated = gp.userRating != null;
     return GestureDetector(
-      onTap: () => _guardLogged(game, () => _showRatingSheet(game)),
+      onTap: () {
+        if (gp.userRating != null) {
+          _showRatingSheet(game);
+        } else {
+          _guardLogged(game, () => _showRatingSheet(game));
+        }
+      },
       child: Container(
         width: 72,
         padding: const EdgeInsets.symmetric(vertical: 12),
