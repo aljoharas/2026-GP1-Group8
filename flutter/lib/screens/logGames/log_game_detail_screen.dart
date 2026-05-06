@@ -45,27 +45,32 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
     final result = <String>[];
     final lower = names.map((n) => n.toLowerCase()).toList();
 
-    if (lower.any((n) => n.contains('playstation') || n.startsWith('ps'))) {
-      result.add('PlayStation');
-    }
-    if (lower.any((n) => n.contains('xbox'))) {
-      result.add('Xbox');
-    }
-    if (lower.any((n) => n.contains('switch') || n.contains('nintendo'))) {
-      result.add('Switch');
-    }
+    bool isPlayStation(String n) => n.contains('playstation') || n.startsWith('ps');
+    bool isXbox(String n) => n.contains('xbox');
+    bool isSwitch(String n) => n.contains('switch') || n.contains('nintendo');
+    bool isPc(String n) =>
+        n == 'pc' || n.contains('windows') || n.contains('mac') || n.contains('linux');
+
+    if (lower.any(isPlayStation)) result.add('PlayStation');
+    if (lower.any(isXbox)) result.add('Xbox');
+    if (lower.any(isSwitch)) result.add('Switch');
 
     // Include PC if RAWG lists it, or for pre-2014 games (reliable emulation era)
-    final hasPcInRawg = lower.any((n) =>
-        n == 'pc' || n.contains('windows') || n.contains('mac') || n.contains('linux'));
     int? releaseYear;
     final releasedRaw = widget.game['released']?.toString();
     if (releasedRaw != null && releasedRaw.length >= 4) {
       releaseYear = int.tryParse(releasedRaw.substring(0, 4));
     }
-    if (hasPcInRawg || (releaseYear != null && releaseYear < 2014)) {
+    if (lower.any(isPc) || (releaseYear != null && releaseYear < 2014)) {
       result.add('PC');
     }
+
+    // Anything that didn't fall into the four known families (mobile, web,
+    // Stadia, retro consoles on a post-2014 game, etc.) gets bucketed as Other
+    // so the user always has somewhere to log it.
+    final hasUnmatched = lower.any((n) =>
+        !isPlayStation(n) && !isXbox(n) && !isSwitch(n) && !isPc(n));
+    if (hasUnmatched) result.add('Other');
 
     return result;
   }
