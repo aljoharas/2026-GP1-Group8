@@ -100,8 +100,14 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: Colors.white),
-              title: const Text('Choose from library', style: TextStyle(color: Colors.white)),
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                color: Colors.white,
+              ),
+              title: const Text(
+                'Choose from library',
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () async {
                 Navigator.pop(ctx);
                 final picked = await picker.pickImage(
@@ -114,8 +120,14 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: Colors.white),
-              title: const Text('Take a photo', style: TextStyle(color: Colors.white)),
+              leading: const Icon(
+                Icons.camera_alt_outlined,
+                color: Colors.white,
+              ),
+              title: const Text(
+                'Take a photo',
+                style: TextStyle(color: Colors.white),
+              ),
               onTap: () async {
                 Navigator.pop(ctx);
                 final picked = await picker.pickImage(
@@ -129,8 +141,14 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             if (_profileImage != null)
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Color(0xFFF87171)),
-                title: const Text('Remove photo', style: TextStyle(color: Color(0xFFF87171))),
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFF87171),
+                ),
+                title: const Text(
+                  'Remove photo',
+                  style: TextStyle(color: Color(0xFFF87171)),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() => _profileImage = null);
@@ -522,7 +540,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       _isRegister
                           ? 'Create an account to continue.'
-                          : 'Please sign in to continue.',
+                          : 'Please log in to continue.',
                       style: const TextStyle(color: muted, fontSize: 14),
                     ),
                     const SizedBox(height: 28),
@@ -551,7 +569,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Register-only fields
                     if (_isRegister) ...[
-
                       // Profile picture
                       GestureDetector(
                         onTap: _pickImage,
@@ -565,8 +582,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? FileImage(File(_profileImage!.path))
                                   : null,
                               child: _profileImage == null
-                                  ? const Icon(Icons.person_outline,
-                                      size: 40, color: muted)
+                                  ? const Icon(
+                                      Icons.person_outline,
+                                      size: 40,
+                                      color: muted,
+                                    )
                                   : null,
                             ),
                             Container(
@@ -575,8 +595,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: accent,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.camera_alt,
-                                  size: 14, color: Colors.white),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                size: 14,
+                                color: Colors.white,
+                              ),
                             ),
                           ],
                         ),

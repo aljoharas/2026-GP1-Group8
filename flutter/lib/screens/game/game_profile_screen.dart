@@ -437,29 +437,52 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E2E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           'Log this game first',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
         ),
         content: const Text(
-          "You haven't logged this game as played. Mark it as finished so you can rate and review it.",
+          "You haven't logged this game as played. Log it to keep track, or continue anyway.",
           style: TextStyle(color: Color(0xFF9090A0), fontSize: 13, height: 1.5),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF9090A0))),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => LogGameDetailScreen(game: logGame)),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6C63FF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Log Game', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => LogGameDetailScreen(game: logGame)),
-              );
-            },
-            child: const Text('Log Game', style: TextStyle(color: Color(0xFF6C63FF), fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                onLogged();
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white70,
+                side: const BorderSide(color: Color(0xFF3A3A4A)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Continue Without Logging', style: TextStyle(fontSize: 14)),
+            ),
           ),
         ],
       ),
@@ -576,7 +599,17 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
     final gp = context.watch<GameProvider>();
     final fav = gp.isFavorite;
     return GestureDetector(
-      onTap: () => context.read<GameProvider>().toggleFavorite(widget.rawgId),
+      onTap: () {
+        final gp = context.read<GameProvider>();
+        if (gp.isFavorite) {
+          gp.toggleFavorite(widget.rawgId);
+        } else {
+          _guardLogged(
+            gp.selectedGame ?? {},
+            () => gp.toggleFavorite(widget.rawgId),
+          );
+        }
+      },
       child: Container(
         width: 72,
         padding: const EdgeInsets.symmetric(vertical: 12),
