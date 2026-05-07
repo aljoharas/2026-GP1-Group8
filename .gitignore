@@ -90,3 +90,4 @@ flutter/windows/flutter/ephemeral/
 *.class
 .history
 flutter/lib/core/constants.dart
+flutter/lib/core/constants.dart

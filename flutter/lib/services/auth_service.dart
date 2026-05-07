@@ -42,6 +42,26 @@ class AuthService {
     }
   }
 
+  // Check whether a username is available. Public endpoint — no auth needed.
+  // Returns null if available, or an error message if not.
+  Future<String?> _checkUsernameAvailable(String username) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${AppConstants.baseUrl}/auth/check-username/${Uri.encodeComponent(username)}',
+        ),
+      );
+      if (response.statusCode != 200) {
+        return 'Could not verify username. Try again.';
+      }
+      final data = jsonDecode(response.body);
+      if (data['available'] == true) return null;
+      return data['message'] as String? ?? 'Username already taken';
+    } catch (_) {
+      return 'Could not reach server. Check your connection.';
+    }
+  }
+
   // REGISTER
   Future<Map<String, dynamic>> register({
     required String email,
@@ -51,6 +71,13 @@ class AuthService {
     String? bio,
   }) async {
     try {
+      // Step 0: Check username before touching Firebase, so a taken username
+      // doesn't leave the email locked in Firebase if anything later fails.
+      final usernameError = await _checkUsernameAvailable(username);
+      if (usernameError != null) {
+        return {'success': false, 'message': usernameError};
+      }
+
       // Step 1: Create user in Firebase
       final credential = await _firebase.createUserWithEmailAndPassword(
         email: email,

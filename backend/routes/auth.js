@@ -3,6 +3,31 @@ const router = express.Router();
 const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
 
+// CHECK USERNAME AVAILABILITY
+// Public — called by Flutter before creating the Firebase user, so a taken
+// username doesn't leave a half-registered email behind in Firebase.
+router.get('/check-username/:username', async (req, res) => {
+  const username = (req.params.username || '').trim();
+
+  if (username.length < 3) {
+    return res.status(200).json({
+      available: false,
+      message: 'Username must be at least 3 characters',
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT 1 FROM users WHERE username = $1',
+      [username]
+    );
+    return res.status(200).json({ available: result.rows.length === 0 });
+  } catch (error) {
+    console.error('Check username error:', error.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // REGISTER
 // Called after Firebase creates the user in Flutter
 router.post('/register', verifyToken, async (req, res) => {
