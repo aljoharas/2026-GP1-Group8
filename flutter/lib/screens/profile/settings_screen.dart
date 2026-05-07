@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/logged_games_provider.dart';
@@ -50,7 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _card([
             _infoRow('Username', username),
             _divider(),
-            _infoRow('Email', email),
+            _copyableRow('Email', email),
           ]),
 
           const SizedBox(height: 24),
@@ -184,6 +185,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Text(value, style: const TextStyle(color: kText, fontSize: 14,
           fontWeight: FontWeight.w600)),
     ]),
+  );
+
+  Widget _copyableRow(String label, String value) => InkWell(
+    onTap: value == '—'
+        ? null
+        : () async {
+            await Clipboard.setData(ClipboardData(text: value));
+            if (!mounted) return;
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(
+                content: Text('$label copied'),
+                backgroundColor: surface2,
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ));
+          },
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(label, style: const TextStyle(color: muted, fontSize: 14)),
+        Flexible(
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Flexible(
+              child: Text(
+                value,
+                style: const TextStyle(
+                    color: kText, fontSize: 14, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.copy_outlined, color: muted, size: 14),
+          ]),
+        ),
+      ]),
+    ),
   );
 
   Widget _toggleRow({required IconData icon, required String label,

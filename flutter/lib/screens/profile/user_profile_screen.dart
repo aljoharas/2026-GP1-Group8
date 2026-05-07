@@ -591,11 +591,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     MaterialPageRoute(builder: (_) => const HelpCenterScreen()));
               }),
               _menuDivider(),
-              _menuItem(Icons.notifications_outlined, 'Reminders', () {
-                Navigator.pop(context);
-                _sprint2('Reminders');
-              }, sub: 'Coming GP2', isMuted: true),
-              _menuDivider(),
               _menuItem(Icons.shield_outlined, 'Privacy & Legal', () {
                 Navigator.pop(context);
                 Navigator.push(context,
@@ -955,11 +950,48 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       grouped[key]!.add(g);
     }
 
+    // Sort games by their most recent entry, newest first.
+    order.sort((a, b) {
+      final aLatest = grouped[a]!
+          .map((e) => e.loggedAt)
+          .reduce((x, y) => x.isAfter(y) ? x : y);
+      final bLatest = grouped[b]!
+          .map((e) => e.loggedAt)
+          .reduce((x, y) => x.isAfter(y) ? x : y);
+      return bLatest.compareTo(aLatest);
+    });
+
+    const limit = 10;
+    final hasMore = order.length > limit;
+    final visibleOrder = hasMore ? order.take(limit).toList() : order;
+
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 90),
-      itemCount: order.length,
+      itemCount: visibleOrder.length + (hasMore ? 1 : 0),
       itemBuilder: (ctx, i) {
-        final key = order[i];
+        if (hasMore && i == 0) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
+            child: Row(children: [
+              const Text('Recent',
+                  style: TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w700, color: kText)),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _JournalAllScreen(games: games),
+                  ),
+                ),
+                behavior: HitTestBehavior.opaque,
+                child: const Text('See All',
+                    style: TextStyle(fontSize: 13, color: muted)),
+              ),
+            ]),
+          );
+        }
+        final key = visibleOrder[hasMore ? i - 1 : i];
         final entries = grouped[key]!;
         final rep = entries.reduce(
             (a, b) => a.loggedAt.isAfter(b.loggedAt) ? a : b);
@@ -2576,4 +2608,297 @@ class _StickyTabBar extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_StickyTabBar old) => old.tabBar != tabBar;
+}
+
+class _JournalAllScreen extends StatefulWidget {
+  final List<LoggedGame> games;
+  const _JournalAllScreen({required this.games});
+
+  @override
+  State<_JournalAllScreen> createState() => _JournalAllScreenState();
+}
+
+class _JournalAllScreenState extends State<_JournalAllScreen> {
+  static const bg      = Color(0xFF0E0E12);
+  static const surface = Color(0xFF16161E);
+  static const surface2= Color(0xFF1E1E2A);
+  static const accent  = Color(0xFFE8002D);
+  static const gold    = Color(0xFFF5C842);
+  static const kText   = Color(0xFFF0F0F0);
+  static const muted   = Color(0xFF6B6B80);
+  static const border  = Color(0x12FFFFFF);
+
+  final _searchCtrl = TextEditingController();
+  final Set<String> _expanded = {};
+  bool _isSearching = false;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _searchCtrl.text.trim().toLowerCase();
+
+    final Map<String, List<LoggedGame>> grouped = {};
+    final List<String> order = [];
+    for (final g in widget.games) {
+      final key = g.rawgId?.toString() ?? g.name;
+      if (!grouped.containsKey(key)) {
+        grouped[key] = [];
+        order.add(key);
+      }
+      grouped[key]!.add(g);
+    }
+
+    order.sort((a, b) {
+      final aLatest = grouped[a]!
+          .map((e) => e.loggedAt)
+          .reduce((x, y) => x.isAfter(y) ? x : y);
+      final bLatest = grouped[b]!
+          .map((e) => e.loggedAt)
+          .reduce((x, y) => x.isAfter(y) ? x : y);
+      return bLatest.compareTo(aLatest);
+    });
+
+    final filtered = query.isEmpty
+        ? order
+        : order.where((k) {
+            final rep = grouped[k]!.first;
+            return rep.name.toLowerCase().contains(query);
+          }).toList();
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: AppBar(
+        backgroundColor: bg,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: kText, size: 18),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: _isSearching
+            ? TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                style: const TextStyle(color: kText, fontSize: 15),
+                cursorColor: accent,
+                decoration: const InputDecoration(
+                  hintText: 'Search journal...',
+                  hintStyle: TextStyle(color: muted, fontSize: 15),
+                  border: InputBorder.none,
+                ),
+                onChanged: (_) => setState(() {}),
+              )
+            : const Text('Journal',
+                style: TextStyle(
+                    color: kText, fontSize: 17, fontWeight: FontWeight.w700)),
+        centerTitle: !_isSearching,
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search,
+                color: kText, size: 22),
+            onPressed: () => setState(() {
+              if (_isSearching) {
+                _searchCtrl.clear();
+                _isSearching = false;
+              } else {
+                _isSearching = true;
+              }
+            }),
+          ),
+        ],
+      ),
+      body: filtered.isEmpty
+          ? const Center(
+              child: Text('No games found',
+                  style: TextStyle(color: muted, fontSize: 14)),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.only(top: 8, bottom: 24),
+              itemCount: filtered.length,
+              itemBuilder: (ctx, i) {
+                final key = filtered[i];
+                final entries = grouped[key]!;
+                final rep = entries.reduce(
+                    (a, b) => a.loggedAt.isAfter(b.loggedAt) ? a : b);
+                final isExpanded = _expanded.contains(key);
+
+                return Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: border),
+                    ),
+                    child: Column(children: [
+                      GestureDetector(
+                        onTap: () => setState(() {
+                          isExpanded ? _expanded.remove(key) : _expanded.add(key);
+                        }),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          child: Row(children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: SizedBox(
+                                width: 44, height: 58,
+                                child: rep.displayImage != null
+                                    ? Image.network(
+                                        rep.displayImage!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            _thumb(),
+                                      )
+                                    : _thumb(),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(rep.name,
+                                      style: const TextStyle(
+                                          color: kText,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${entries.length} ${entries.length == 1 ? "entry" : "entries"}',
+                                    style: const TextStyle(
+                                        color: muted, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            AnimatedRotation(
+                              turns: isExpanded ? 0.25 : 0,
+                              duration: const Duration(milliseconds: 250),
+                              child: Icon(Icons.chevron_right,
+                                  color: isExpanded ? accent : muted),
+                            ),
+                          ]),
+                        ),
+                      ),
+                      AnimatedCrossFade(
+                        duration: const Duration(milliseconds: 250),
+                        crossFadeState: isExpanded
+                            ? CrossFadeState.showSecond
+                            : CrossFadeState.showFirst,
+                        firstChild: const SizedBox.shrink(),
+                        secondChild: Column(children: [
+                          const Divider(color: border, height: 1),
+                          ...entries.map((e) => _entry(e)),
+                        ]),
+                      ),
+                    ]),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  Widget _thumb() => Container(
+        color: surface2,
+        child: const Icon(Icons.sports_esports, color: muted, size: 20),
+      );
+
+  Widget _entry(LoggedGame entry) {
+    const months = [
+      'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec',
+    ];
+    final d = entry.loggedAt;
+    final dateStr = '${months[d.month - 1]} ${d.day}, ${d.year}';
+
+    return GestureDetector(
+      onTap: () {
+        if (entry.rawgId != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => GameProfileScreen(
+                  rawgId: entry.rawgId!, gameName: entry.name),
+            ),
+          );
+        }
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration:
+            const BoxDecoration(border: Border(bottom: BorderSide(color: border))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.calendar_today_outlined, color: muted, size: 12),
+            const SizedBox(width: 4),
+            Text(dateStr, style: const TextStyle(color: muted, fontSize: 11)),
+            if (entry.hoursPlayed != null) ...[
+              const SizedBox(width: 12),
+              const Icon(Icons.access_time, color: muted, size: 12),
+              const SizedBox(width: 4),
+              Text(
+                '${entry.hoursPlayed!.toStringAsFixed(entry.hoursPlayed! % 1 == 0 ? 0 : 1)} hrs',
+                style: const TextStyle(color: muted, fontSize: 11),
+              ),
+            ],
+            if (entry.achievements.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              const Icon(Icons.military_tech_outlined, color: muted, size: 12),
+              const SizedBox(width: 4),
+              Text('${entry.achievements.length}',
+                  style: const TextStyle(color: muted, fontSize: 11)),
+            ],
+            if (entry.platform != null) ...[
+              const SizedBox(width: 12),
+              const Icon(Icons.videogame_asset_outlined, color: muted, size: 12),
+              const SizedBox(width: 4),
+              Text(entry.platform!,
+                  style: const TextStyle(color: muted, fontSize: 11)),
+            ],
+          ]),
+          if (entry.comment != null && entry.comment!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(entry.comment!,
+                style: const TextStyle(
+                    color: Color(0xCCF0F0F0), fontSize: 12, height: 1.4),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis),
+          ],
+          if (entry.achievements.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6, runSpacing: 4,
+              children: entry.achievements.map((a) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: gold.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: gold.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(a,
+                      style: const TextStyle(
+                          color: gold,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
 }
