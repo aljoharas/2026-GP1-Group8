@@ -93,7 +93,19 @@ router.patch('/me', verifyToken, async (req, res) => {
   const values = [];
   let i = 1;
 
-  if (username) { fields.push(`username = $${i++}`); values.push(username); }
+  // If the client explicitly sent a username, it must be valid. Treating an
+  // empty string as "no change" would silently drop the field and return 200,
+  // which makes the UI claim the save succeeded.
+  if (username !== undefined) {
+    const trimmed = typeof username === 'string' ? username.trim() : '';
+    if (trimmed.length < 3) {
+      return res.status(400).json({
+        message: 'Username must be at least 3 characters',
+      });
+    }
+    fields.push(`username = $${i++}`);
+    values.push(trimmed);
+  }
   if (bio !== undefined) { fields.push(`bio = $${i++}`); values.push(bio); }
   if (avatar_url) { fields.push(`avatar_url = $${i++}`); values.push(avatar_url); }
 

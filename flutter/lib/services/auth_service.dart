@@ -209,10 +209,14 @@ class AuthService {
 
   String _readableError(String code) {
     switch (code) {
+      // Newer Firebase SDKs collapse user-not-found and wrong-password into
+      // invalid-credential / invalid-login-credentials so attackers can't
+      // probe which emails are registered. Map all four to the same message.
       case 'user-not-found':
-        return 'No account found with this email.';
       case 'wrong-password':
-        return 'Incorrect password.';
+      case 'invalid-credential':
+      case 'invalid-login-credentials':
+        return 'The login information you entered is incorrect. Please try again';
       case 'email-already-in-use':
         return 'This email is already registered.';
       case 'invalid-email':

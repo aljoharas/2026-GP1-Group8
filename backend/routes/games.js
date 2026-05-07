@@ -219,15 +219,13 @@ router.get('/search', verifyToken, async (req, res) => {
       return res.status(200).json({ games: local.rows, source: 'cache' });
     }
 
-    // Otherwise fetch from RAWG
+    // Otherwise fetch from RAWG and return as a thin passthrough.
+    // We deliberately do NOT pre-save these games here. saveGameToDB does
+    // ~30+ sequential queries plus an IGDB call per game; running that in
+    // the background for every search exhausts the Supabase pool (15 conn
+    // limit). /games/:id saves the game lazily when the user actually opens
+    // it, which is the only time we truly need it cached.
     const rawgData = await fetchFromRawg(`/games?search=${encodeURIComponent(q)}&page_size=20&`);
-
-    // Save each result to our database for next time
-    for (const game of rawgData.results) {
-      await saveGameToDB(game);
-    }
-    triggerRecommenderRefresh();
-
     return res.status(200).json({ games: rawgData.results, source: 'rawg' });
 
   } catch (error) {

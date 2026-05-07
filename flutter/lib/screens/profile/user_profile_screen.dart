@@ -424,6 +424,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   onPressed: saving
                       ? null
                       : () async {
+                          final newUsername = usernameCtrl.text.trim();
+                          if (newUsername.isEmpty) {
+                            setSheetState(() => errorText = 'Username is required');
+                            return;
+                          }
+                          if (newUsername.length < 3) {
+                            setSheetState(() => errorText =
+                                'Username must be at least 3 characters');
+                            return;
+                          }
+
                           setSheetState(() { saving = true; errorText = null; });
                           final auth = context.read<AuthProvider>();
                           final token = await _getToken();
@@ -447,7 +458,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           }
 
                           final error = await auth.updateProfile(
-                            username: usernameCtrl.text.trim(),
+                            username: newUsername,
                             bio: bioCtrl.text.trim(),
                             token: token,
                             avatarUrl: newAvatarUrl,
