@@ -574,7 +574,7 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
                         content: Text(ok
                           ? (ratingToSave == 0 ? 'Rating removed!' : isDeletingReview ? 'Review removed!' : reviewText.isNotEmpty ? 'Review submitted!' : 'Rating saved!')
                           : 'Could not save'),
-                        backgroundColor: ok ? surface2 : danger,
+                        backgroundColor: ok ? const Color(0xFF2E7D32) : danger,
                         duration: const Duration(seconds: 2),
                       ));
                     }

@@ -775,7 +775,7 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Date Logged',
+                        const Text('Date Played',
                             style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
