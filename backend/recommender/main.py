@@ -255,11 +255,11 @@ def get_recommendations(
 
     item_similarity = _collab_cache["item_similarity"]
 
-    # Use cached matrix — only games with rawg_rating_count > 500 are candidates,
+    # Use cached matrix — only games with rawg_rating_count > 200 are candidates,
     # but library games stay in scope so the taste profile can be built
     eligible_games = [
         g for g in _state["all_games"]
-        if (g["rawg_rating_count"] is not None and g["rawg_rating_count"] > 500)
+        if (g["rawg_rating_count"] is not None and g["rawg_rating_count"] > 200)
         or g["id"] in user_library_game_ids
     ]
 

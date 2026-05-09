@@ -86,13 +86,18 @@ def build_feature_matrix(games, all_genre_ids, all_theme_names=None, all_mode_na
             if col is not None:
                 matrix[row, n_genres + n_themes + col] = 1.0
 
+        # Quality features are scaled down so they don't dominate cosine similarity
+        # over the binary one-hot genre/theme/mode columns (otherwise any high-rated
+        # game looks similar to every user's profile)
+        QUALITY_WEIGHT = 0.15
+
         # Metacritic — second-to-last column
         mc = game.get("metacritic_score")
-        matrix[row, n_genres + n_themes + n_modes] = (float(mc) / 100.0) if mc is not None else 0.5
+        matrix[row, n_genres + n_themes + n_modes] = QUALITY_WEIGHT * ((float(mc) / 100.0) if mc is not None else 0.5)
 
         # RAWG rating — last column
         rr = game.get("rawg_rating")
-        matrix[row, n_genres + n_themes + n_modes + 1] = (float(rr) / 5.0) if rr is not None else 0.5
+        matrix[row, n_genres + n_themes + n_modes + 1] = QUALITY_WEIGHT * ((float(rr) / 5.0) if rr is not None else 0.5)
 
     return matrix
 
