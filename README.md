@@ -6,11 +6,13 @@ loadout is a cross-platform gaming activity tracker and analytics application de
 
 ---
 
-# Introduction
+## Introduction
 
-Modern gamers often use multiple platforms such as PlayStation, Xbox, Steam, Nintendo, and mobile devices. Since each platform stores player progress separately, gaming data becomes fragmented and difficult to manage.
+Modern gamers often play across multiple platforms such as PlayStation, Xbox, Steam, Nintendo,
+and mobile devices. Since each platform stores player progress separately, gaming data becomes
+fragmented and difficult to manage.
 
-loadout addresses this problem by providing a unified system where users can:
+loadout addresses this by providing a centralized platform where users can:
 
 - Track gameplay activity across multiple platforms
 - Manage achievements and trophies
@@ -21,8 +23,9 @@ loadout addresses this problem by providing a unified system where users can:
 - View yearly gaming summaries and player insights
 - Interact with friends through activity feeds
 
-The goal of loadout is to transform scattered gaming records into meaningful analytics and personalized experiences that help users better understand and enjoy their gaming habits.
-
+The goal of loadout is to transform fragmented, platform-specific records into an organized and
+meaningful system that supports progress tracking, behavioral understanding, and informed game
+discovery.
 ---
 
 # Technologies Used
@@ -179,16 +182,3 @@ flutter/android/app/google-services.json
 
 ---
 
-# Main Features
-
-- Cross-platform game tracking
-- Personal game library management
-- Achievement and trophy tracking
-- Playtime logging
-- Game ratings and reviews
-- Personalized game recommendations
-- AI-powered trophy guidance
-- Friend activity feed
-- Custom game lists
-- Annual gaming summaries
-- Player archetype analysis
