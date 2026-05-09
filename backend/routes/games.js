@@ -314,8 +314,8 @@ router.post('/:id/rate', verifyToken, async (req, res) => {
 
     if (updated.rowCount === 0 && ratingValue !== null) {
       await pool.query(
-        `INSERT INTO library_entries (user_id, game_id, user_rating, status, added_at, updated_at)
-         VALUES ($1, $2, $3, 'completed', now(), now())`,
+        `INSERT INTO library_entries (user_id, game_id, user_rating, status, logged_at, added_at, updated_at)
+         VALUES ($1, $2, $3, 'completed', NULL, now(), now())`,
         [userId, gameId, ratingValue]
       );
     }
@@ -363,8 +363,8 @@ router.post('/:id/review', verifyToken, async (req, res) => {
 
     if (updated.rowCount === 0 && reviewText !== null) {
       await pool.query(
-        `INSERT INTO library_entries (user_id, game_id, review_text, user_rating, status, added_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'completed', now(), now())`,
+        `INSERT INTO library_entries (user_id, game_id, review_text, user_rating, status, logged_at, added_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'completed', NULL, now(), now())`,
         [userId, gameId, reviewText, ratingNum]
       );
     }

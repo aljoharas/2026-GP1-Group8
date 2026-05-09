@@ -199,7 +199,7 @@ router.get('/me/games', verifyToken, async (req, res) => {
        FROM library_entries le
        JOIN games g ON le.game_id = g.id
        LEFT JOIN platforms p ON le.platform_id = p.id
-       WHERE le.user_id = $1
+       WHERE le.user_id = $1 AND le.logged_at IS NOT NULL
        ORDER BY le.logged_at DESC`,
       [uid]
     );
