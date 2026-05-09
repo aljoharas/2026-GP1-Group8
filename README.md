@@ -8,10 +8,9 @@ loadout is a cross-platform gaming activity tracker and analytics application de
 
 ## Introduction
 
-The gaming industry has grown into a multi-billion-dollar global market, yet players who engage
-across multiple platforms — such as PlayStation, Xbox, Steam, Nintendo, and mobile — are left
-with fragmented records and no unified view of their activity, as each platform stores progress
-and data in isolation.
+Modern gamers often play across multiple platforms such as PlayStation, Xbox, Steam, Nintendo,
+and mobile devices. Since each platform stores player progress separately, gaming data becomes
+fragmented and difficult to manage.
 
 loadout addresses this by providing a centralized platform where users can:
 
