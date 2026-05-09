@@ -182,16 +182,3 @@ flutter/android/app/google-services.json
 
 ---
 
-# Main Features
-
-- Cross-platform game tracking
-- Personal game library management
-- Achievement and trophy tracking
-- Playtime logging
-- Game ratings and reviews
-- Personalized game recommendations
-- AI-powered trophy guidance
-- Friend activity feed
-- Custom game lists
-- Annual gaming summaries
-- Player archetype analysis
