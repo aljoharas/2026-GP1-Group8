@@ -23,8 +23,9 @@ loadout addresses this by providing a centralized platform where users can:
 - View yearly gaming summaries and player insights
 - Interact with friends through activity feeds
 
-The goal of loadout is to consolidate scattered gaming data into meaningful analytics and
-personalized experiences, helping users better understand and engage with their gaming habits.
+The goal of loadout is to transform fragmented, platform-specific records into an organized and
+meaningful system that supports progress tracking, behavioral understanding, and informed game
+discovery.
 ---
 
 # Technologies Used
