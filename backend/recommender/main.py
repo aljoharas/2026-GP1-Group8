@@ -10,6 +10,7 @@ User-library data for collaborative filtering is fetched fresh per request
 but cached for _COLLAB_TTL seconds to avoid hammering the DB.
 """
 
+import asyncio
 import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
@@ -106,11 +107,29 @@ def _load_matrix():
 
 # --- App lifecycle ------------------------------------------------------------
 
+async def _periodic_collab_refresh():
+    """Rebuild the collab cache on a schedule so /recommend never blocks on it."""
+    while True:
+        await asyncio.sleep(_COLLAB_TTL)
+        try:
+            await asyncio.to_thread(_load_collab_cache, True)
+        except Exception as e:
+            print(f"[recommender] background collab refresh failed: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     count = _load_matrix()
     print(f"[recommender] matrix ready — {count} games loaded")
-    yield
+    try:
+        _load_collab_cache(force=True)
+    except Exception as e:
+        print(f"[recommender] startup collab warm failed: {e}")
+    refresh_task = asyncio.create_task(_periodic_collab_refresh())
+    try:
+        yield
+    finally:
+        refresh_task.cancel()
 
 
 app = FastAPI(title="Loadout Recommender", version="1.0.0", lifespan=lifespan)
@@ -140,12 +159,12 @@ def refresh():
     return {"status": "ok", "game_count": count}
 
 
-def _load_collab_cache():
+def _load_collab_cache(force=False):
     """Fetch every user's library, group by user_id, and rebuild the item-similarity
     matrix used by item-based CF. Cached for _COLLAB_TTL seconds.
     """
     now = time.time()
-    if now - _collab_cache["timestamp"] < _COLLAB_TTL:
+    if not force and now - _collab_cache["timestamp"] < _COLLAB_TTL:
         return
 
     conn = get_connection()
@@ -247,12 +266,7 @@ def get_recommendations(
 
     user_library_game_ids = {entry["game_id"] for entry in user_library}
 
-    # Refresh collaborative cache if stale (rebuilds item-similarity matrix)
-    try:
-        _load_collab_cache()
-    except Exception as e:
-        print(f"[recommender] collab cache refresh failed (non-fatal): {e}")
-
+    # Cache is kept warm by the background task in lifespan — no inline rebuild.
     item_similarity = _collab_cache["item_similarity"]
 
     # Use cached matrix — only games with rawg_rating_count > 200 are candidates,

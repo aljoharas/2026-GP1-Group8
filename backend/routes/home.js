@@ -11,7 +11,7 @@ router.get('/recommended', verifyToken, async (req, res) => {
   // Try the Python recommender service first
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const pyRes = await fetch(
       `${RECOMMENDER_URL}/recommend?uid=${encodeURIComponent(uid)}&limit=10`,
       { signal: controller.signal }
