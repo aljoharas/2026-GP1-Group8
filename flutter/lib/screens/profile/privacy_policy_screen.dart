@@ -68,7 +68,7 @@ class _PolicyTab extends StatelessWidget {
         ],
         const Center(
           child: Text(
-            'Loadout · Graduation Project 2026',
+            'loadout · Graduation Project 2026',
             style: TextStyle(
                 color: PrivacyPolicyScreen.muted, fontSize: 11),
           ),
@@ -148,8 +148,7 @@ const _privacyContent = [
   ),
   _PolicySection(
     'Your Rights',
-    'You can update your profile anytime. To delete your account and data, '
-    'contact us through the Help Center.',
+    'You can update your profile anytime.',
   ),
 ];
 
@@ -161,7 +160,7 @@ const _termsContent = [
   ),
   _PolicySection(
     'Eligibility',
-    'Loadout is for users aged 13 and older.',
+    'loadout is for users aged 13 and older.',
   ),
   _PolicySection(
     'Your Account',
@@ -176,7 +175,7 @@ const _termsContent = [
   ),
   _PolicySection(
     'Disclaimer',
-    'Loadout is a graduation project provided "as is". We are not liable '
+    'loadout is a graduation project provided "as is". We are not liable '
     'for data loss or service interruptions.',
   ),
 ];

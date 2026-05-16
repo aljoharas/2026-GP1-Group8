@@ -152,7 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ]),
           ]),
           GestureDetector(
-            onTap: () => _sprint2('Notifications'),
+            onTap: () => _sprint2('Reminders'),
             child: Container(
               width: 42, height: 42,
               decoration: BoxDecoration(
