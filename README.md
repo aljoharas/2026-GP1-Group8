@@ -175,6 +175,7 @@ flutter run
 ```bash
 flutter/lib/firebase_options.dart
 flutter/ios/Runner/GoogleService-Info.plist
+
 flutter/android/app/google-services.json
 ```
 
