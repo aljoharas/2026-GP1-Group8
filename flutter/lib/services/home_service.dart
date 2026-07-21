@@ -13,7 +13,7 @@ class HomeService {
   }
 
   // GET RECOMMENDED GAMES
-  // GET /home/recommended — ألعاب بتقييم عالي مش في مكتبة المستخدم
+  // GET /home/recommended 
   Future<Map<String, dynamic>> getRecommended() async {
     try {
       final token = await _getToken();
@@ -35,7 +35,7 @@ class HomeService {
   }
 
   // GET POPULAR GAMES
-  // GET /home/popular — أعلى rawg_rating
+  // GET /home/popular 
   Future<Map<String, dynamic>> getPopular() async {
     try {
       final token = await _getToken();
@@ -57,7 +57,7 @@ class HomeService {
   }
 
   // GET FRIEND ACTIVITY
-  // GET /home/friends-activity — نشاط الأصدقاء من activity_feed
+  // GET /home/friends-activity — 
   Future<Map<String, dynamic>> getFriendActivity() async {
     try {
       final token = await _getToken();

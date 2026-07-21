@@ -15,7 +15,7 @@ class GameService {
   }
 
   // SEARCH GAMES
-  // Calls GET /games/search?q=query on your Node backend
+  // Calls GET /games/search?q=query on  Node backend
   // Node checks your DB first, then RAWG if not found
   Future<Map<String, dynamic>> searchGames(String query) async {
     try {
@@ -46,7 +46,7 @@ class GameService {
   }
 
   // GET ACHIEVEMENTS FOR A GAME
-  // Calls GET /games/:id/achievements on your Node backend
+  // Calls GET /games/:id/achievements on Node backend
   // Node should proxy: GET https://api.rawg.io/api/games/{rawgId}/achievements?key={KEY}
   Future<Map<String, dynamic>> getAchievements(int rawgId) async {
     try {
@@ -307,7 +307,7 @@ class GameService {
   }
 
   // GET SINGLE GAME
-  // Calls GET /games/:id on your Node backend
+  // Calls GET /games/:id on Node backend
   Future<Map<String, dynamic>> getGame(int rawgId) async {
     try {
       final token = await _getToken();

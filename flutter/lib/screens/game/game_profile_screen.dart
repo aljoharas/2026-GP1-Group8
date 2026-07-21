@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/logged_games_provider.dart';
+import '../../services/list_service.dart';
 import '../logGames/log_game_detail_screen.dart';
 import 'achievements_screen.dart';
 
@@ -409,10 +410,214 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
             const SizedBox(width: 8),
             _rateBtn(game),
             const SizedBox(width: 8),
-            _actionBtn(Icons.list_outlined, 'Add to List'),
+            _actionBtn(Icons.list_outlined, 'Add to List',
+                onTap: _showAddToListSheet),
             const SizedBox(width: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Add to List ───────────────────────────────────────────────────────────
+
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: surface2,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Sheet of the user's lists with a check against the ones already holding
+  /// this game. Tapping a row toggles membership and writes through right away.
+  void _showAddToListSheet() {
+    final service = ListService();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        var lists = <Map<String, dynamic>>[];
+        var loading = true;
+        var busy = false;
+        var requested = false;
+
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            Future<void> reload() async {
+              final result = await service.getLists();
+              if (!sheetCtx.mounted) return;
+              setSheetState(() {
+                lists = List<Map<String, dynamic>>.from(result['lists'] ?? []);
+                loading = false;
+              });
+            }
+
+            // Kick off the first fetch once, not on every rebuild.
+            if (!requested) {
+              requested = true;
+              reload();
+            }
+
+            bool holdsGame(Map<String, dynamic> list) =>
+                (list['games'] as List? ?? []).any(
+                  (g) => (g as Map)['rawg_id'] == widget.rawgId,
+                );
+
+            Future<void> toggle(Map<String, dynamic> list) async {
+              if (busy) return;
+              setSheetState(() => busy = true);
+
+              final listId = list['id'] as int;
+              final response = holdsGame(list)
+                  ? await service.removeGame(listId, widget.rawgId)
+                  : await service.addGame(listId, widget.rawgId);
+
+              if (response['success'] != true) {
+                _toast(response['message'] ?? 'Something went wrong');
+              }
+              await reload();
+              if (sheetCtx.mounted) setSheetState(() => busy = false);
+            }
+
+            Future<void> createAndAdd() async {
+              final name = await _promptListName(sheetCtx);
+              if (name == null) return;
+
+              final created = await service.createList(name: name);
+              if (created['success'] != true) {
+                _toast(created['message'] ?? 'Could not create list');
+                return;
+              }
+              final added = await service.addGame(
+                  created['list']['id'] as int, widget.rawgId);
+              if (added['success'] != true) {
+                _toast(added['message'] ?? 'Could not add game');
+              }
+              await reload();
+            }
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: muted.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const Text('Add to List',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 16),
+                  if (loading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: CircularProgressIndicator(color: accent),
+                      ),
+                    )
+                  else if (lists.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Text('You have no lists yet.',
+                          style: TextStyle(color: muted, fontSize: 13)),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(sheetCtx).size.height * 0.45,
+                      ),
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: lists.map((list) {
+                          final inList = holdsGame(list);
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            onTap: () => toggle(list),
+                            leading: Text(list['emoji'] as String,
+                                style: const TextStyle(fontSize: 20)),
+                            title: Text(list['name'] as String,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 15)),
+                            trailing: Icon(
+                              inList
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: inList ? accent : muted,
+                              size: 22,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: createAndAdd,
+                    icon: const Icon(Icons.add, color: accent, size: 18),
+                    label: const Text('New list',
+                        style: TextStyle(color: accent, fontSize: 14)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<String?> _promptListName(BuildContext sheetCtx) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: sheetCtx,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: surface2,
+        title: const Text('New List',
+            style: TextStyle(color: Colors.white, fontSize: 17)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 50,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'List name',
+            hintStyle: TextStyle(color: muted),
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: muted)),
+          ),
+          TextButton(
+            onPressed: () {
+              final typed = controller.text.trim();
+              if (typed.isEmpty) return;
+              Navigator.pop(ctx, typed);
+            },
+            child: const Text('Create', style: TextStyle(color: accent)),
+          ),
+        ],
       ),
     );
   }

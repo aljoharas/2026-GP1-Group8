@@ -8,10 +8,12 @@ import '../../providers/auth_provider.dart';
 import '../../providers/game_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_service.dart';
+import '../../services/list_service.dart';
 import '../game/game_profile_screen.dart';
 import '../game/game_search_screen.dart';
 import '../home/home_screen.dart';
 import '../logGames/log_game_search_screen.dart';
+import 'list_detail_screen.dart';
 import 'privacy_policy_screen.dart';
 import '../../providers/logged_games_provider.dart';
 import 'settings_screen.dart';
@@ -23,8 +25,15 @@ class UserProfileScreen extends StatefulWidget {
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
+/// What the create/edit sheet hands back once the user hits Save.
+class _ListDraft {
+  final String name;
+  final String emoji;
+  final bool isPublic;
+  const _ListDraft(this.name, this.emoji, this.isPublic);
+}
+
 class _UserProfileScreenState extends State<UserProfileScreen> {
-  final Set<int> _openLists = {};
   final Set<String> _expandedJournalGames = {};
   final Map<String, Map<String, dynamic>> _resolved = {};
 
@@ -48,53 +57,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   List<Map<String, dynamic>> _favorites = [];
   int _friendsCount = 0;
 
-  final _lists = [
-    {
-      'emoji': '🩸',
-      'name': 'Horror Games',
-      'games': [
-        {'name': 'Resident Evil 2', 'meta': 'Survival Horror · PS5'},
-        {'name': 'Resident Evil 3', 'meta': 'Survival Horror · PS5'},
-        {'name': 'Resident Evil 4', 'meta': 'Survival Horror · PS5'},
-        {'name': 'Resident Evil 7', 'meta': 'Survival Horror · PS4'},
-        {'name': 'Resident Evil Village', 'meta': 'Survival Horror · PS5'},
-        {'name': 'Silent Hill 2', 'meta': 'Psychological Horror · PS5'},
-        {'name': 'Dead Space', 'meta': 'Sci-Fi Horror · PS5'},
-      ],
-    },
-    {
-      'emoji': '🌍',
-      'name': 'Open World Games',
-      'games': [
-        {'name': 'Red Dead Redemption 2', 'meta': 'Open World · PS4'},
-        {'name': 'Elden Ring', 'meta': 'Action RPG · PS5'},
-        {'name': 'Grand Theft Auto VI', 'meta': 'Open World · PS5'},
-        {'name': 'Cyberpunk 2077', 'meta': 'Action RPG · PS5'},
-        {'name': 'The Witcher 3: Wild Hunt', 'meta': 'Open World RPG · PS5'},
-      ],
-    },
-    {
-      'emoji': '⚔️',
-      'name': 'Action & Adventure',
-      'games': [
-        {'name': 'God of War (2018)', 'meta': 'Action · PS5'},
-        {'name': "Marvel's Spider-Man 2", 'meta': 'Action · PS5'},
-        {'name': 'Horizon Forbidden West', 'meta': 'Action RPG · PS5'},
-        {'name': 'Sekiro: Shadows Die Twice', 'meta': 'Action · PS4'},
-      ],
-    },
-    {
-      'emoji': '📖',
-      'name': 'Story-Driven Games',
-      'games': [
-        {'name': 'The Last of Us Part I', 'meta': 'Story · PS5'},
-        {'name': 'Detroit: Become Human', 'meta': 'Interactive Drama · PS4'},
-        {'name': 'Disco Elysium', 'meta': 'RPG · PS5'},
-        {'name': 'Ghost of Tsushima', 'meta': 'Action · PS5'},
-        {'name': 'A Plague Tale: Requiem', 'meta': 'Story · PS5'},
-      ],
-    },
-  ];
+  List<Map<String, dynamic>> _lists = [];
+  bool _listsLoading = true;
 
   @override
   void initState() {
@@ -104,6 +68,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       context.read<LoggedGamesProvider>().loadFromBackend();
       _loadFavorites();
       _loadFriendsCount();
+      _loadLists();
     });
   }
 
@@ -111,9 +76,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final gp = context.read<GameProvider>();
     final allNames = <String>{};
     for (final g in _currentlyPlaying) allNames.add(g['name'] as String);
-    for (final list in _lists) {
-      for (final g in list['games'] as List) allNames.add(g['name'] as String);
-    }
     final futures = allNames.map((name) async {
       if (_resolved.containsKey(name)) return;
       final data = await gp.searchGameForId(name);
@@ -129,6 +91,250 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         _favorites = List<Map<String, dynamic>>.from(result['favorites'] ?? []);
       });
     }
+  }
+
+  // ── Lists ─────────────────────────────────────────────────────────────────
+
+  Future<void> _loadLists() async {
+    final result = await ListService().getLists();
+    if (!mounted) return;
+    setState(() {
+      _lists = List<Map<String, dynamic>>.from(result['lists'] ?? []);
+      _listsLoading = false;
+    });
+  }
+
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: surface2,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _createList() async {
+    final result = await _showListEditor(title: 'New List');
+    if (result == null) return;
+
+    final response = await ListService().createList(
+      name: result.name,
+      emoji: result.emoji,
+      isPublic: result.isPublic,
+    );
+    if (response['success'] == true) {
+      await _loadLists();
+    } else {
+      _toast(response['message'] ?? 'Could not create list');
+    }
+  }
+
+  Future<void> _editList(Map<String, dynamic> list) async {
+    final result = await _showListEditor(
+      title: 'Edit List',
+      name: list['name'] as String,
+      emoji: list['emoji'] as String,
+      isPublic: list['is_public'] == true,
+    );
+    if (result == null) return;
+
+    final response = await ListService().updateList(
+      list['id'] as int,
+      name: result.name,
+      emoji: result.emoji,
+      isPublic: result.isPublic,
+    );
+    if (response['success'] == true) {
+      await _loadLists();
+    } else {
+      _toast(response['message'] ?? 'Could not update list');
+    }
+  }
+
+  Future<void> _deleteList(Map<String, dynamic> list) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: surface2,
+        title: Text('Delete "${list['name']}"?',
+            style: const TextStyle(color: kText, fontSize: 17)),
+        content: const Text(
+          'The list and everything in it will be removed. This cannot be undone.',
+          style: TextStyle(color: muted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: accent)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final response = await ListService().deleteList(list['id'] as int);
+    if (response['success'] == true) {
+      await _loadLists();
+    } else {
+      _toast(response['message'] ?? 'Could not delete list');
+    }
+  }
+
+  /// Opens the list's own page; refetches only if something changed in there.
+  Future<void> _openList(Map<String, dynamic> list) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => ListDetailScreen(list: list)),
+    );
+    if (changed == true) await _loadLists();
+  }
+
+  /// Shared create/edit sheet. Returns null if the user backs out.
+  Future<_ListDraft?> _showListEditor({
+    required String title,
+    String name = '',
+    String emoji = '🎮',
+    bool isPublic = false,
+  }) {
+    final controller = TextEditingController(text: name);
+    var pickedEmoji = emoji;
+    var pickedPublic = isPublic;
+
+    const emojiChoices = [
+      '🎮', '🩸', '🌍', '⚔️', '📖', '🏆', '👻', '🚀', '🧩', '❤️', '🔥', '⭐'
+    ];
+
+    return showModalBottomSheet<_ListDraft>(
+      context: context,
+      backgroundColor: surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: muted.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(title,
+                  style: const TextStyle(
+                      color: kText, fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 18),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLength: 50,
+                style: const TextStyle(color: kText, fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: 'List name',
+                  hintStyle: const TextStyle(color: muted),
+                  counterText: '',
+                  filled: true,
+                  fillColor: surface2,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text('Icon',
+                  style: TextStyle(
+                      color: muted, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: emojiChoices.map((e) {
+                  final selected = e == pickedEmoji;
+                  return GestureDetector(
+                    onTap: () => setSheetState(() => pickedEmoji = e),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected ? accent.withValues(alpha: 0.15) : surface2,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: selected ? accent : Colors.transparent,
+                        ),
+                      ),
+                      child: Text(e, style: const TextStyle(fontSize: 20)),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: accent,
+                value: pickedPublic,
+                onChanged: (v) => setSheetState(() => pickedPublic = v),
+                title: const Text('Public list',
+                    style: TextStyle(color: kText, fontSize: 14)),
+                subtitle: Text(
+                  pickedPublic
+                      ? 'Anyone can see this on your profile'
+                      : 'Only you can see this',
+                  style: const TextStyle(color: muted, fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    final typed = controller.text.trim();
+                    if (typed.isEmpty) return;
+                    Navigator.pop(
+                      ctx,
+                      _ListDraft(typed, pickedEmoji, pickedPublic),
+                    );
+                  },
+                  child: const Text('Save',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadFriendsCount() async {
@@ -219,8 +425,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
     );
   }
-
-  String? _imageUrl(String name) => _resolved[name]?['imageUrl'] as String?;
 
   void _sprint2(String label) {
     showModalBottomSheet(
@@ -893,15 +1097,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         }),
         _buildFavoritesScroll(),
         const SizedBox(height: 24),
-        _sectionHeader('My Lists', '+ New List'),
+        _sectionHeader('My Lists', '+ New List', onAction: _createList),
         const SizedBox(height: 8),
-        ...List.generate(
-          _lists.length,
-          (i) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
-            child: _buildCollapsibleList(i),
+        if (_listsLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            child: Text('Loading lists...',
+                style: TextStyle(color: muted, fontSize: 13)),
+          )
+        else if (_lists.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            child: Text('Make a list to group games your own way',
+                style: TextStyle(color: muted, fontSize: 13)),
+          )
+        else
+          ..._lists.map(
+            (list) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+              child: _buildListCard(list),
+            ),
           ),
-        ),
         const SizedBox(height: 16),
       ],
     );
@@ -1679,125 +1895,69 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     ),
   );
 
-  // ── Collapsible List ──────────────────────────────────────────────────────
-  Widget _buildCollapsibleList(int i) {
-    final list = _lists[i];
-    final isOpen = _openLists.contains(i);
-    final games = list['games'] as List<Map<String, dynamic>>;
-    return Container(
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border),
-      ),
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: () => setState(() {
-              isOpen ? _openLists.remove(i) : _openLists.add(i);
-            }),
-            child: Container(
-              color: Colors.transparent,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 14),
-              child: Row(
-                children: [
-                  Text(list['emoji'] as String,
-                      style: const TextStyle(fontSize: 22)),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(list['name'] as String,
-                          style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: kText)),
-                      const SizedBox(height: 2),
-                      Text('${games.length} games',
-                          style: const TextStyle(
-                              fontSize: 12, color: muted)),
-                    ],
-                  ),
-                  const Spacer(),
-                  AnimatedRotation(
-                    turns: isOpen ? 0.25 : 0,
-                    duration: const Duration(milliseconds: 250),
-                    child: Icon(Icons.chevron_right,
-                        color: isOpen ? accent : muted),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 250),
-            crossFadeState: isOpen
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            firstChild: const SizedBox.shrink(),
-            secondChild: Column(
-              children: [
-                const Divider(color: border, height: 1),
-                ...games.map((g) => _gameRowItem(g)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _gameRowItem(Map<String, dynamic> game) {
-    final name = game['name'] as String;
-    final url = _imageUrl(name);
+  // ── List Card ─────────────────────────────────────────────────────────────
+  Widget _buildListCard(Map<String, dynamic> list) {
+    final games = List<Map<String, dynamic>>.from(list['games'] ?? []);
+    final isPublic = list['is_public'] == true;
     return GestureDetector(
-      onTap: () => _goToGame(name),
+      onTap: () => _openList(list),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: border))),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(7),
-              child: SizedBox(
-                width: 40, height: 52,
-                child: url != null
-                    ? CachedNetworkImage(imageUrl: url, fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Container(
-                          color: surface2,
-                          child: const Icon(Icons.sports_esports,
-                              color: muted, size: 18),
-                        ))
-                    : Container(
-                        color: surface2,
-                        child: const Icon(Icons.sports_esports,
-                            color: muted, size: 18),
-                      ),
-              ),
-            ),
+            Text(list['emoji'] as String,
+                style: const TextStyle(fontSize: 22)),
             const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: kText)),
-                  const SizedBox(height: 3),
-                  Text(game['meta'] as String,
-                      style: const TextStyle(fontSize: 11, color: muted)),
-                ],
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(list['name'] as String,
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: kText)),
+                    if (isPublic) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.public, size: 13, color: muted),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                    games.length == 1 ? '1 game' : '${games.length} games',
+                    style: const TextStyle(fontSize: 12, color: muted)),
+              ],
             ),
-            const Text('✓',
-                style: TextStyle(
-                    color: accent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700)),
+            const Spacer(),
+            PopupMenuButton<String>(
+              color: surface2,
+              icon: const Icon(Icons.more_horiz, color: muted, size: 20),
+              onSelected: (value) {
+                if (value == 'edit') _editList(list);
+                if (value == 'delete') _deleteList(list);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Edit list',
+                      style: TextStyle(color: kText, fontSize: 14)),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete list',
+                      style: TextStyle(color: accent, fontSize: 14)),
+                ),
+              ],
+            ),
+            const Icon(Icons.chevron_right, color: muted),
           ],
         ),
       ),
