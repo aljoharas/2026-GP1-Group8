@@ -9,6 +9,7 @@ import '../../providers/game_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_service.dart';
 import '../../services/list_service.dart';
+import '../friends/friends_screen.dart';
 import '../game/game_profile_screen.dart';
 import '../game/game_search_screen.dart';
 import '../home/home_screen.dart';
@@ -1467,7 +1468,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       children: [
         Row(
           children: [
-            _followItem('$_friendsCount', 'Friends', false),
+            GestureDetector(
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const FriendsScreen(initialTab: 1)))
+                  .then((_) {
+                // The count can change while they're in there (accepting a
+                // request, removing someone), so re-read it on the way back.
+                if (mounted) _loadFriendsCount();
+              }),
+              behavior: HitTestBehavior.opaque,
+              child: _followItem('$_friendsCount', 'Friends', false),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -2007,7 +2018,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             CustomPaint(
                 size: const Size(22, 22),
                 painter: _FriendsPainter(false)),
-            () => _sprint2('Friends'),
+            () => Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (_) => const FriendsScreen())),
           ),
           _navBtn(
             CustomPaint(

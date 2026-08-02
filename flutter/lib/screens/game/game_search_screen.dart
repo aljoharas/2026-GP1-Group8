@@ -1,13 +1,21 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/game_provider.dart';
+import '../../services/friend_service.dart';
 import 'game_profile_screen.dart';
+import '../friends/friends_screen.dart';
 import '../logGames/log_game_search_screen.dart';
+import '../profile/public_profile_screen.dart';
 import '../profile/user_profile_screen.dart';
 import '../home/home_screen.dart';
 
 class GameSearchScreen extends StatefulWidget {
-  const GameSearchScreen({super.key});
+  /// 0 = Games, 1 = Users. The Friends screen deep-links straight to Users
+  /// when someone taps "Find people".
+  final int initialTab;
+
+  const GameSearchScreen({super.key, this.initialTab = 0});
 
   @override
   State<GameSearchScreen> createState() => _GameSearchScreenState();
@@ -15,6 +23,7 @@ class GameSearchScreen extends StatefulWidget {
 
 class _GameSearchScreenState extends State<GameSearchScreen> {
   final _searchCtrl = TextEditingController();
+  final FriendService _friendService = FriendService();
 
   static const bg      = Color(0xFF0E0E12);
   static const surface = Color(0xFF16161E);
@@ -22,6 +31,20 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
   static const accent  = Color(0xFF4ADE80);
   static const muted   = Color(0xFF6B6B80);
   static const border  = Color(0x12FFFFFF);
+
+  late int _tab;
+
+  // User results are transient — they don't survive leaving the screen and
+  // nothing else needs them, so they live here instead of in a provider.
+  List<Map<String, dynamic>> _userResults = [];
+  bool _isSearchingUsers = false;
+  bool _hasSearchedUsers = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = widget.initialTab;
+  }
 
   @override
   void dispose() {
@@ -31,44 +54,51 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
 
   void _onSearchChanged(String value) {
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (_searchCtrl.text == value) {
+      // The text can change again while the delay runs; only the last keystroke
+      // should reach the network.
+      if (_searchCtrl.text != value) return;
+      if (_tab == 0) {
         context.read<GameProvider>().searchGames(value);
+      } else {
+        _searchUsers(value);
       }
     });
   }
 
-  void _sprint2(String label) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 40, height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: muted.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const Text('🚧', style: TextStyle(fontSize: 36)),
-          const SizedBox(height: 12),
-          Text(
-            '$label coming in GP2!',
-            style: const TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          const Text('This feature is on its way.',
-              style: TextStyle(color: muted, fontSize: 13)),
-          const SizedBox(height: 24),
-        ]),
-      ),
-    );
+  Future<void> _searchUsers(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _userResults = [];
+        _hasSearchedUsers = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearchingUsers = true);
+    final result = await _friendService.searchUsers(trimmed);
+
+    if (!mounted || _searchCtrl.text.trim() != trimmed) return;
+    setState(() {
+      _userResults = List<Map<String, dynamic>>.from(result['users'] ?? []);
+      _isSearchingUsers = false;
+      _hasSearchedUsers = true;
+    });
+  }
+
+  void _switchTab(int tab) {
+    if (_tab == tab) return;
+    setState(() => _tab = tab);
+
+    // Re-run whatever is already typed against the other index, so flipping the
+    // toggle mid-search shows results instead of an empty pane.
+    final query = _searchCtrl.text.trim();
+    if (query.length < 2) return;
+    if (tab == 0) {
+      context.read<GameProvider>().searchGames(query);
+    } else {
+      _searchUsers(query);
+    }
   }
 
   @override
@@ -82,9 +112,9 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
         backgroundColor: bg,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: const Text(
-          'Search Games',
-          style: TextStyle(
+        title: Text(
+          _tab == 0 ? 'Search Games' : 'Find People',
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.w700,
@@ -104,7 +134,9 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                   autofocus: false,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Search for a game...',
+                    hintText: _tab == 0
+                        ? 'Search for a game...'
+                        : 'Search by username...',
                     hintStyle: const TextStyle(color: muted),
                     prefixIcon: const Icon(Icons.search, color: muted),
                     suffixIcon: _searchCtrl.text.isNotEmpty
@@ -113,6 +145,10 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                             onPressed: () {
                               _searchCtrl.clear();
                               context.read<GameProvider>().clearSearch();
+                              setState(() {
+                                _userResults = [];
+                                _hasSearchedUsers = false;
+                              });
                             },
                           )
                         : null,
@@ -132,9 +168,13 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
                 ),
               ),
 
+              // Games / Users toggle
+              _buildTabToggle(),
+              const SizedBox(height: 14),
+
               // Results — extra bottom padding so content isn't behind nav bar
               Expanded(
-                child: _buildResults(games),
+                child: _tab == 0 ? _buildResults(games) : _buildUserResults(),
               ),
 
               // Space for nav bar
@@ -151,6 +191,173 @@ class _GameSearchScreenState extends State<GameSearchScreen> {
       ),
     );
   }
+
+  // ── Games / Users toggle ──────────────────────────────────────────────────
+  Widget _buildTabToggle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border),
+        ),
+        child: Row(children: [
+          Expanded(child: _toggleOption('Games', Icons.sports_esports, 0)),
+          Expanded(child: _toggleOption('Users', Icons.person_outline, 1)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _toggleOption(String label, IconData icon, int tab) {
+    final selected = _tab == tab;
+    return GestureDetector(
+      onTap: () => _switchTab(tab),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          color: selected ? accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 16, color: selected ? bg : muted),
+          const SizedBox(width: 7),
+          Text(label,
+              style: TextStyle(
+                  color: selected ? bg : muted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700)),
+        ]),
+      ),
+    );
+  }
+
+  // ── User results ──────────────────────────────────────────────────────────
+  Widget _buildUserResults() {
+    if (_isSearchingUsers) {
+      return const Center(child: CircularProgressIndicator(color: accent));
+    }
+    if (!_hasSearchedUsers && _userResults.isEmpty) {
+      return const Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.person_search_outlined, color: muted, size: 48),
+          SizedBox(height: 12),
+          Text('Search for someone by username',
+              style: TextStyle(color: muted, fontSize: 15)),
+        ]),
+      );
+    }
+    if (_userResults.isEmpty) {
+      return const Center(
+        child: Text('No users found', style: TextStyle(color: muted, fontSize: 15)),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _userResults.length,
+      itemBuilder: (context, index) => _buildUserTile(_userResults[index]),
+    );
+  }
+
+  Widget _buildUserTile(Map<String, dynamic> user) {
+    final username = user['username'] as String? ?? '';
+    final bio = (user['bio'] as String?)?.trim();
+    final avatarUrl = user['avatar_url'] as String?;
+    final status = user['friend_status'] as String? ?? 'none';
+
+    // A one-word status is enough here — the full Add friend button lives on
+    // the profile the tap leads to.
+    final statusLabel = switch (status) {
+      'friends' => 'Friends',
+      'pending_outgoing' => 'Requested',
+      'pending_incoming' => 'Wants to add you',
+      _ => null,
+    };
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PublicProfileScreen(
+            userId: user['id'] as String,
+            initialUsername: username,
+            initialAvatarUrl: avatarUrl,
+          ),
+        ),
+      ).then((_) {
+        // Coming back from a profile, the relationship may have changed —
+        // re-run the search so the label on this row isn't stale.
+        if (mounted) _searchUsers(_searchCtrl.text);
+      }),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: border),
+        ),
+        child: Row(children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(
+                shape: BoxShape.circle, color: surface2),
+            clipBehavior: Clip.antiAlias,
+            child: avatarUrl != null && avatarUrl.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: avatarUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _userInitial(username),
+                  )
+                : _userInitial(username),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('@$username',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700)),
+                if (bio != null && bio.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(bio,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: muted, fontSize: 11.5)),
+                ],
+                if (statusLabel != null) ...[
+                  const SizedBox(height: 5),
+                  Text(statusLabel,
+                      style: const TextStyle(
+                          color: accent,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: muted),
+        ]),
+      ),
+    );
+  }
+
+  Widget _userInitial(String username) => Center(
+        child: Text(
+          username.isNotEmpty ? username[0].toUpperCase() : '?',
+          style: const TextStyle(
+              color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold),
+        ),
+      );
 
   // ── Results ───────────────────────────────────────────────────────────────
   Widget _buildResults(GameProvider games) {
@@ -294,10 +501,11 @@ _navBtn(
               child: CustomPaint(painter: _PlusPainter()),
             ),
           ),
-          // Friends — sprint 2
+          // Friends — feed, friends list, and pending requests
           _navBtn(
             child: CustomPaint(size: const Size(22,22), painter: _FriendsPainter(false)),
-            onTap: () => _sprint2('Friends'),
+            onTap: () => Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (_) => const FriendsScreen())),
           ),
           // Profile — goes to UserProfileScreen
           _navBtn(

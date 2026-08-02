@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
+const { recordActivity } = require('../lib/activity');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 
@@ -178,6 +179,20 @@ router.post('/me/games', verifyToken, async (req, res) => {
       [uid, game_id, platform_id, hours_played || null, comment || null, achievements || [], logged_at || new Date(), status]
     );
 
+    // Post to the friend feed. No dedupe key: logging the same game twice is a
+    // real second play-through, not an edit of the first.
+    await recordActivity({
+      userId: uid,
+      type: 'game_logged',
+      gameId: game_id,
+      payload: {
+        status,
+        hours_played: hours_played || null,
+        comment: comment || null,
+        platform_name: platform_name || null,
+      },
+    });
+
     return res.status(201).json({ entry: result.rows[0] });
   } catch (error) {
     console.error('Log game error:', error.message);
@@ -275,14 +290,63 @@ router.get('/me/favorites', verifyToken, async (req, res) => {
   }
 });
 
-// GET another user's public profile
+// SEARCH USERS — GET /users/search?q=sara
+// Declared before /:id so "search" isn't swallowed as a user id.
+router.get('/search', verifyToken, async (req, res) => {
+  const { uid } = req.user;
+  const q = (req.query.q || '').trim();
+
+  if (q.length < 2) {
+    return res.status(400).json({ message: 'Search query too short' });
+  }
+
+  try {
+    // Two match tiers in one query: a prefix hit ranks above a mid-string hit,
+    // so typing "sa" surfaces @sara before @lisandra. Excluding the signed-in
+    // user keeps them from finding themselves and tapping "Add friend".
+    const result = await pool.query(
+      `SELECT u.id, u.username, u.avatar_url, u.bio,
+              CASE
+                WHEN f.status = 'accepted' THEN 'friends'
+                WHEN f.status = 'pending' AND f.requester_id = $1 THEN 'pending_outgoing'
+                WHEN f.status = 'pending' THEN 'pending_incoming'
+                ELSE 'none'
+              END AS friend_status
+       FROM users u
+       LEFT JOIN friendships f
+              ON (f.requester_id = $1 AND f.addressee_id = u.id)
+              OR (f.addressee_id = $1 AND f.requester_id = u.id)
+       WHERE u.id <> $1
+         AND u.username ILIKE $2
+       ORDER BY (lower(u.username) LIKE lower($3)) DESC, lower(u.username)
+       LIMIT 20`,
+      [uid, `%${q}%`, `${q}%`]
+    );
+
+    return res.status(200).json({ users: result.rows });
+  } catch (error) {
+    console.error('Search users error:', error.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET another user's public profile, with everything the profile screen needs
+// to render in one trip: counts, and where the viewer stands with them.
 router.get('/:id', verifyToken, async (req, res) => {
+  const { uid } = req.user;
   const { id } = req.params;
 
   try {
     const result = await pool.query(
-      `SELECT id, username, bio, avatar_url, created_at
-       FROM users WHERE id = $1`,
+      `SELECT u.id, u.username, u.bio, u.avatar_url, u.created_at,
+              (SELECT COUNT(*) FROM friendships f
+                WHERE (f.requester_id = u.id OR f.addressee_id = u.id)
+                  AND f.status = 'accepted')            AS friends_count,
+              (SELECT COUNT(*) FROM library_entries le
+                WHERE le.user_id = u.id)                AS games_count,
+              (SELECT COUNT(*) FROM lists l
+                WHERE l.user_id = u.id AND l.is_public)  AS public_lists_count
+       FROM users u WHERE u.id = $1`,
       [id]
     );
 
@@ -290,10 +354,63 @@ router.get('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    return res.status(200).json({ user: result.rows[0] });
+    let friendStatus = 'self';
+    let requestId = null;
+
+    if (id !== uid) {
+      const rel = await pool.query(
+        `SELECT id, requester_id, status FROM friendships
+         WHERE (requester_id = $1 AND addressee_id = $2)
+            OR (requester_id = $2 AND addressee_id = $1)`,
+        [uid, id]
+      );
+      const row = rel.rows[0];
+      // A declined request reads as no relationship to both sides, so either
+      // one can ask again without the button looking stuck.
+      if (!row || row.status === 'declined') {
+        friendStatus = 'none';
+      } else if (row.status === 'accepted') {
+        friendStatus = 'friends';
+        requestId = row.id;
+      } else {
+        friendStatus = row.requester_id === uid ? 'pending_outgoing' : 'pending_incoming';
+        requestId = row.id;
+      }
+    }
+
+    return res.status(200).json({
+      user: result.rows[0],
+      friendStatus,
+      requestId,
+    });
 
   } catch (error) {
     console.error('Get user error:', error.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /users/:id/games — another user's logged games, newest first.
+router.get('/:id/games', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
+
+  try {
+    const result = await pool.query(
+      `SELECT le.id, le.hours_played, le.comment, le.review_text,
+              CAST(le.user_rating AS INTEGER) AS user_rating,
+              le.status, le.logged_at,
+              g.rawg_id, g.name, g.background_image, g.cover_image
+       FROM library_entries le
+       JOIN games g ON le.game_id = g.id
+       WHERE le.user_id = $1 AND le.logged_at IS NOT NULL
+       ORDER BY le.logged_at DESC
+       LIMIT $2`,
+      [id, limit]
+    );
+    return res.status(200).json({ games: result.rows });
+  } catch (error) {
+    console.error('Get user games error:', error.message);
     return res.status(500).json({ message: 'Server error' });
   }
 });

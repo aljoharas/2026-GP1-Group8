@@ -56,9 +56,13 @@ class HomeService {
     }
   }
 
-  // GET FRIEND ACTIVITY
-  // GET /home/friends-activity — 
-  Future<Map<String, dynamic>> getFriendActivity() async {
+  // GET WHAT FRIENDS ARE PLAYING
+  // GET /home/friends-activity
+  //
+  // Returns game rows in the same shape as /popular and /recommended, with the
+  // friend who is playing each one attached (friend_username, friend_avatar_url).
+  // The chronological feed lives on the Friends screen instead.
+  Future<Map<String, dynamic>> getFriendGames() async {
     try {
       final token = await _getToken();
       if (token == null) return {'success': false, 'message': 'Not logged in'};
@@ -70,7 +74,7 @@ class HomeService {
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return {'success': true, 'activities': data['activities']};
+        return {'success': true, 'games': data['games'] ?? []};
       }
       return {'success': false, 'message': data['message']};
     } catch (e) {

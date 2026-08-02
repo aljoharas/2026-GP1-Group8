@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/home_provider.dart';
-import '../../screens/game/game_profile_screen.dart';  
+import '../../providers/notifications_provider.dart';
+import '../../screens/game/game_profile_screen.dart';
 import '../../screens/game/game_search_screen.dart';
+import '../friends/friends_screen.dart';
 import '../logGames/log_game_search_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../profile/user_profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -28,6 +31,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeProvider>().loadHomeData();
+      // Just the count, not the list — the bell only needs to know whether to
+      // show its dot.
+      context.read<NotificationsProvider>().refreshUnreadCount();
     });
   }
 
@@ -36,38 +42,6 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => _GameGridScreen(title: title, games: games),
-      ),
-    );
-  }
-
-  void _sprint2(String label) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 40, height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: muted.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const Text('🚧', style: TextStyle(fontSize: 36)),
-          const SizedBox(height: 12),
-          Text('$label coming in GP2!',
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          const Text('This feature is on its way.',
-              style: TextStyle(color: muted, fontSize: 13)),
-          const SizedBox(height: 24),
-        ]),
       ),
     );
   }
@@ -106,7 +80,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SliverToBoxAdapter(child: SizedBox(height: 28)),
               SliverToBoxAdapter(
                   child: _buildSectionHeader('NEW FROM FRIENDS',
-                      onSeeAll: () => _sprint2('See All'))),
+                      onSeeAll: () => Navigator.pushReplacement(context,
+                          MaterialPageRoute(builder: (_) => const FriendsScreen())))),
               const SliverToBoxAdapter(child: SizedBox(height: 14)),
               SliverToBoxAdapter(child: _buildFriendsRow(home)),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -152,7 +127,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ]),
           ]),
           GestureDetector(
-            onTap: () => _sprint2('Reminders'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ).then((_) {
+              // Requests answered on that screen change the count, so re-read
+              // it rather than leaving a dot for something already handled.
+              if (mounted) {
+                context.read<NotificationsProvider>().refreshUnreadCount();
+              }
+            }),
             child: Container(
               width: 42, height: 42,
               decoration: BoxDecoration(
@@ -163,14 +147,16 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Stack(children: [
                 const Center(child: Icon(Icons.notifications_outlined,
                     color: Colors.white, size: 20)),
-                Positioned(
-                  right: 10, top: 10,
-                  child: Container(
-                    width: 7, height: 7,
-                    decoration: const BoxDecoration(
-                        color: accent, shape: BoxShape.circle),
+                // The dot is real now — it only shows when something is unread.
+                if (context.watch<NotificationsProvider>().hasUnread)
+                  Positioned(
+                    right: 10, top: 10,
+                    child: Container(
+                      width: 7, height: 7,
+                      decoration: const BoxDecoration(
+                          color: accent, shape: BoxShape.circle),
+                    ),
                   ),
-                ),
               ]),
             ),
           ),
@@ -260,7 +246,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildGameCard(Map<String, dynamic> game) {
+  // [rightMargin] is the gap to the next card. The friends row wraps this card
+  // in a column that owns its own spacing, so it passes 0 to avoid adding the
+  // gap twice and overflowing the row.
+  Widget _buildGameCard(Map<String, dynamic> game, {double rightMargin = 10}) {
     final imageUrl = (game['cover_image'] ?? game['background_image']) as String?;
     final name = game['name'] as String? ?? '';
     return GestureDetector(
@@ -272,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Container(
         width: 90,
-        margin: const EdgeInsets.only(right: 10),
+        margin: EdgeInsets.only(right: rightMargin),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: surface2,
@@ -320,102 +309,88 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildFriendsRow(HomeProvider home) {
     if (home.isLoadingFriends) {
-      return const SizedBox(height: 105,
+      return const SizedBox(height: 152,
           child: Center(child: CircularProgressIndicator(color: accent)));
     }
-    if (home.friendActivities.isEmpty) {
+    if (home.friendGames.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: surface, borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: border),
+        child: GestureDetector(
+          onTap: () => Navigator.pushReplacement(context,
+              MaterialPageRoute(builder: (_) => const FriendsScreen())),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: surface, borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: border),
+            ),
+            child: const Row(children: [
+              Icon(Icons.people_outline, color: muted, size: 22),
+              SizedBox(width: 12),
+              Expanded(child: Text("Add friends to see what they're playing",
+                  style: TextStyle(color: muted, fontSize: 12))),
+              Icon(Icons.chevron_right, color: muted, size: 18),
+            ]),
           ),
-          child: const Row(children: [
-            Icon(Icons.people_outline, color: muted, size: 22),
-            SizedBox(width: 12),
-            Expanded(child: Text("Add friends to see what they're playing",
-                style: TextStyle(color: muted, fontSize: 12))),
-          ]),
         ),
       );
     }
+    // Taller than the other rows: the same cover card, with the friend's name
+    // underneath so it's clear whose activity this is.
     return SizedBox(
-      height: 105,
+      height: 152,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: home.friendActivities.length,
-        itemBuilder: (_, i) => _buildFriendCard(
-            home.friendActivities[i] as Map<String, dynamic>, i),
+        padding: const EdgeInsets.only(left: 20),
+        itemCount: home.friendGames.length,
+        itemBuilder: (_, i) => _buildFriendGameCard(
+            home.friendGames[i] as Map<String, dynamic>),
       ),
     );
   }
 
-  Widget _buildFriendCard(Map<String, dynamic> activity, int index) {
-    final avatarColors = [
-      const Color(0xFFE53935), const Color(0xFFFF8F00),
-      const Color(0xFF1E88E5), const Color(0xFF43A047),
-      const Color(0xFF8E24AA), const Color(0xFF00ACC1),
-    ];
-    final color    = avatarColors[index % avatarColors.length];
-    final username = activity['username'] as String? ?? '';
-    final gameName = activity['game_name'] as String?;
-    final imageUrl = activity['cover_image'] as String?;
-    final action   = HomeProvider.actionLabel(activity);
-    final time     = HomeProvider.timeAgo(activity['created_at'] as String?);
+  Widget _buildFriendGameCard(Map<String, dynamic> game) {
+    final username = game['friend_username'] as String? ?? '';
+    final avatarUrl = game['friend_avatar_url'] as String?;
 
     return Container(
-      width: 195,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: surface, borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: border),
-      ),
-      child: Row(children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-              color: color, borderRadius: BorderRadius.circular(10)),
-          child: imageUrl != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: CachedNetworkImage(
-                      imageUrl: imageUrl, fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _avatarFallback(username, color)),
-                )
-              : _avatarFallback(username, color),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('@$username',
-                  style: const TextStyle(color: accent, fontSize: 11,
-                      fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 2),
-              Text(action, style: const TextStyle(color: muted, fontSize: 10)),
-              if (gameName != null) ...[
-                const SizedBox(height: 1),
-                Text(gameName,
-                    style: const TextStyle(color: Colors.white,
-                        fontSize: 11, fontWeight: FontWeight.w700),
-                    overflow: TextOverflow.ellipsis),
-              ],
-              const SizedBox(height: 3),
-              Text(time, style: const TextStyle(color: muted, fontSize: 9)),
-            ],
+      width: 90,
+      margin: const EdgeInsets.only(right: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(height: 130, child: _buildGameCard(game, rightMargin: 0)),
+        const SizedBox(height: 6),
+        Row(children: [
+          Container(
+            width: 14, height: 14,
+            decoration: const BoxDecoration(
+                shape: BoxShape.circle, color: surface2),
+            clipBehavior: Clip.antiAlias,
+            child: avatarUrl != null && avatarUrl.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: avatarUrl, fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _tinyInitial(username))
+                : _tinyInitial(username),
           ),
-        ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text('@$username',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: muted, fontSize: 9.5, fontWeight: FontWeight.w600)),
+          ),
+        ]),
       ]),
     );
   }
+
+  Widget _tinyInitial(String username) => Center(
+        child: Text(
+          username.isNotEmpty ? username[0].toUpperCase() : '?',
+          style: const TextStyle(
+              color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+        ),
+      );
 
   // ── Bottom Nav ─────────────────────────────────────────────────────────────
 
@@ -453,7 +428,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           _navBtn(
             child: CustomPaint(size: const Size(22, 22), painter: _FriendsPainter(false)),
-            onTap: () => _sprint2('Friends'),
+            onTap: () => Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (_) => const FriendsScreen())),
           ),
           _navBtn(
             child: CustomPaint(size: const Size(22, 22), painter: _ProfilePainter(false)),
@@ -476,19 +452,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-
-  Widget _avatarFallback(String username, Color color) {
-    return Container(
-      color: color,
-      child: Center(
-        child: Text(
-          username.isNotEmpty ? username[0].toUpperCase() : '?',
-          style: const TextStyle(color: Colors.white,
-              fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
 
 }
 

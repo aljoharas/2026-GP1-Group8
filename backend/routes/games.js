@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
+const { recordActivity } = require('../lib/activity');
 require('dotenv').config();
 
 const RAWG_KEY = process.env.RAWG_API_KEY;
@@ -320,6 +321,23 @@ router.post('/:id/rate', verifyToken, async (req, res) => {
       );
     }
 
+    // Clearing a rating shouldn't announce itself, and re-rating should move
+    // the existing card rather than stack a new one — hence the dedupe key.
+    if (ratingValue !== null) {
+      await recordActivity({
+        userId,
+        type: 'game_rated',
+        gameId,
+        payload: { rating: ratingValue },
+        dedupeKey: `rating:${userId}:${gameId}`,
+      });
+    } else {
+      await pool.query(
+        'DELETE FROM activity_feed WHERE dedupe_key = $1',
+        [`rating:${userId}:${gameId}`]
+      );
+    }
+
     return res.status(200).json({ message: ratingValue === null ? 'Rating removed' : 'Rating saved' });
   } catch (error) {
     console.error('Rate error:', error.message);
@@ -366,6 +384,23 @@ router.post('/:id/review', verifyToken, async (req, res) => {
         `INSERT INTO library_entries (user_id, game_id, review_text, user_rating, status, logged_at, added_at, updated_at)
          VALUES ($1, $2, $3, $4, 'completed', NULL, now(), now())`,
         [userId, gameId, reviewText, ratingNum]
+      );
+    }
+
+    // Same edit-not-event reasoning as ratings: one card per user per game,
+    // refreshed when they rewrite it, removed when they clear the text.
+    if (reviewText !== null) {
+      await recordActivity({
+        userId,
+        type: 'game_reviewed',
+        gameId,
+        payload: { review_text: reviewText, rating: ratingNum },
+        dedupeKey: `review:${userId}:${gameId}`,
+      });
+    } else {
+      await pool.query(
+        'DELETE FROM activity_feed WHERE dedupe_key = $1',
+        [`review:${userId}:${gameId}`]
       );
     }
 

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
+const { recordActivity } = require('../lib/activity');
 
 // Every list row we send back carries its games inline. json_agg keeps this to
 // one round trip instead of a query per list.
@@ -29,10 +30,24 @@ const LIST_SELECT = `
 // Returns the row, or null so the caller can 404.
 async function findOwnedList(listId, uid) {
   const result = await pool.query(
-    'SELECT id FROM lists WHERE id = $1 AND user_id = $2',
+    'SELECT id, name, emoji, is_public FROM lists WHERE id = $1 AND user_id = $2',
     [listId, uid]
   );
   return result.rows[0] || null;
+}
+
+// A list that goes private has to leave the feed with it, including the cards
+// for every game added to it while it was public.
+async function removeListActivity(listId) {
+  try {
+    await pool.query(
+      `DELETE FROM activity_feed
+       WHERE dedupe_key = $1 OR dedupe_key LIKE $2`,
+      [`list:${listId}`, `list_game:${listId}:%`]
+    );
+  } catch (error) {
+    console.error('[activity] failed to clear list activity:', error.message);
+  }
 }
 
 // GET /lists — the signed-in user's lists
@@ -84,6 +99,22 @@ router.post('/', verifyToken, async (req, res) => {
        RETURNING id, name, emoji, is_public, created_at`,
       [uid, name, emoji, isPublic]
     );
+    // Private lists stay private — only a public one is worth announcing.
+    // The dedupe key means flipping a list private then public again refreshes
+    // the original card instead of re-announcing the same list.
+    if (isPublic) {
+      await recordActivity({
+        userId: uid,
+        type: 'list_created',
+        payload: {
+          list_id: result.rows[0].id,
+          list_name: result.rows[0].name,
+          emoji: result.rows[0].emoji,
+        },
+        dedupeKey: `list:${result.rows[0].id}`,
+      });
+    }
+
     return res.status(201).json({ list: { ...result.rows[0], games: [] } });
   } catch (error) {
     // 23505 = unique violation on lists_user_name_key
@@ -124,7 +155,8 @@ router.patch('/:id', verifyToken, async (req, res) => {
   }
 
   try {
-    if (!(await findOwnedList(id, uid))) {
+    const before = await findOwnedList(id, uid);
+    if (!before) {
       return res.status(404).json({ message: 'List not found' });
     }
 
@@ -135,6 +167,19 @@ router.patch('/:id', verifyToken, async (req, res) => {
        RETURNING id, name, emoji, is_public, created_at`,
       values
     );
+
+    const after = result.rows[0];
+    if (!before.is_public && after.is_public) {
+      await recordActivity({
+        userId: uid,
+        type: 'list_created',
+        payload: { list_id: after.id, list_name: after.name, emoji: after.emoji },
+        dedupeKey: `list:${after.id}`,
+      });
+    } else if (before.is_public && !after.is_public) {
+      await removeListActivity(after.id);
+    }
+
     return res.status(200).json({ list: result.rows[0] });
   } catch (error) {
     if (error.code === '23505') {
@@ -170,6 +215,11 @@ router.delete('/:id', verifyToken, async (req, res) => {
     await client.query('DELETE FROM lists WHERE id = $1 AND user_id = $2', [id, uid]);
 
     await client.query('COMMIT');
+
+    // activity_feed has no foreign key to lists, so a deleted list would leave
+    // feed cards pointing at a list that 404s when tapped.
+    await removeListActivity(id);
+
     return res.status(200).json({ deleted: true });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -189,7 +239,8 @@ router.post('/:id/games', verifyToken, async (req, res) => {
   if (!rawgId) return res.status(400).json({ message: 'rawgId is required' });
 
   try {
-    if (!(await findOwnedList(id, uid))) {
+    const list = await findOwnedList(id, uid);
+    if (!list) {
       return res.status(404).json({ message: 'List not found' });
     }
 
@@ -206,6 +257,18 @@ router.post('/:id/games', verifyToken, async (req, res) => {
        ON CONFLICT (list_id, game_id) DO NOTHING`,
       [id, game.rows[0].id]
     );
+
+    // Keyed on list+game so removing and re-adding a game doesn't post twice.
+    if (list.is_public) {
+      await recordActivity({
+        userId: uid,
+        type: 'list_game_added',
+        gameId: game.rows[0].id,
+        payload: { list_id: list.id, list_name: list.name, emoji: list.emoji },
+        dedupeKey: `list_game:${list.id}:${game.rows[0].id}`,
+      });
+    }
+
     return res.status(200).json({ added: true });
   } catch (error) {
     console.error('Add game to list error:', error.message);
@@ -228,6 +291,14 @@ router.delete('/:id/games/:rawgId', verifyToken, async (req, res) => {
          AND game_id = (SELECT id FROM games WHERE rawg_id = $2)`,
       [id, rawgId]
     );
+
+    await pool.query(
+      `DELETE FROM activity_feed
+       WHERE dedupe_key = 'list_game:' || $1 || ':' ||
+             COALESCE((SELECT id::text FROM games WHERE rawg_id = $2), '')`,
+      [id, rawgId]
+    );
+
     return res.status(200).json({ removed: true });
   } catch (error) {
     console.error('Remove game from list error:', error.message);

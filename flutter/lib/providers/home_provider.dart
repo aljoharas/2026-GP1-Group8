@@ -12,7 +12,7 @@ class HomeProvider extends ChangeNotifier {
 
   List<dynamic> _recommendedGames  = [];
   List<dynamic> _popularGames      = [];
-  List<dynamic> _friendActivities  = [];
+  List<dynamic> _friendGames       = [];
 
   String _errorMessage = '';
 
@@ -24,7 +24,10 @@ class HomeProvider extends ChangeNotifier {
 
   List<dynamic> get recommendedGames  => _recommendedGames;
   List<dynamic> get popularGames      => _popularGames;
-  List<dynamic> get friendActivities  => _friendActivities;
+
+  /// Games friends are currently playing — same row shape as the other two
+  /// lists, plus friend_username / friend_avatar_url for attribution.
+  List<dynamic> get friendGames       => _friendGames;
 
   String get errorMessage => _errorMessage;
 
@@ -41,7 +44,7 @@ class HomeProvider extends ChangeNotifier {
     await Future.wait([
       _fetchRecommended(),
       _fetchPopular(),
-      _fetchFriendActivity(),
+      _fetchFriendGames(),
     ]);
   }
 
@@ -73,10 +76,10 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _fetchFriendActivity() async {
-    final result = await _homeService.getFriendActivity();
+  Future<void> _fetchFriendGames() async {
+    final result = await _homeService.getFriendGames();
     if (result['success']) {
-      _friendActivities = result['activities'];
+      _friendGames = result['games'];
       _friendsStatus = HomeStatus.success;
     } else {
       _errorMessage = result['message'];
@@ -94,36 +97,4 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // نوع النشاط → نص مقروء (من جدول activity_feed في السكيما)
-  static String actionLabel(Map<String, dynamic> activity) {
-    final type    = activity['type'] as String? ?? '';
-    final payload = activity['payload'] as Map<String, dynamic>?;
-    switch (type) {
-      case 'status_changed':
-        final s = payload?['new_status'] as String?;
-        if (s == 'completed')    return 'just completed';
-        if (s == 'playing')      return 'started playing';
-        if (s == 'paused')       return 'paused';
-        if (s == 'plan_to_play') return 'wants to play';
-        return 'updated';
-      case 'game_added':          return 'added to library';
-      case 'game_rated':
-        final r = payload?['rating'];
-        return r != null ? 'rated $r ⭐' : 'rated';
-      case 'achievement_unlocked': return 'unlocked an achievement in';
-      case 'list_created':         return 'created a new list';
-      default:                     return 'updated';
-    }
-  }
-
-  static String timeAgo(String? createdAt) {
-    if (createdAt == null) return '';
-    try {
-      final diff = DateTime.now().difference(DateTime.parse(createdAt));
-      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-      if (diff.inHours   < 24) return '${diff.inHours}h ago';
-      if (diff.inDays    < 7)  return '${diff.inDays}d ago';
-      return '${(diff.inDays / 7).floor()}w ago';
-    } catch (_) { return ''; }
-  }
 }

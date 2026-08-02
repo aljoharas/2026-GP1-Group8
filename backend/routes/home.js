@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const verifyToken = require('../middleware/verifyToken');
+const { getFriendIds } = require('../lib/activity');
 
 const RECOMMENDER_URL = process.env.RECOMMENDER_URL || 'http://localhost:8000';
 
@@ -84,44 +85,48 @@ router.get('/popular', verifyToken, async (req, res) => {
   }
 });
 
-//  Friends Activity
+// NEW FROM FRIENDS — the games friends are currently playing.
+//
+// Returns the same row shape as /popular and /recommended so the home screen
+// renders it with the identical cover-art card, plus who is playing it. The
+// friend feed itself (the chronological cards) lives at /friends/feed.
 router.get('/friends-activity', verifyToken, async (req, res) => {
   const { uid } = req.user;
 
   try {
-  
-    const friendsResult = await pool.query(`
-      SELECT 
-        CASE 
-          WHEN requester_id = $1 THEN addressee_id
-          ELSE requester_id
-        END as friend_id
-      FROM friendships
-      WHERE (requester_id = $1 OR addressee_id = $1)
-        AND status = 'accepted'
-    `, [uid]);
-
-    const friendIds = friendsResult.rows.map(r => r.friend_id);
+    const friendIds = await getFriendIds(uid);
 
     if (friendIds.length === 0) {
-      return res.json({ activities: [] });
+      return res.json({ games: [] });
     }
 
-    
+    // DISTINCT ON collapses the row to one per game, so two friends playing
+    // the same thing produce one card rather than a duplicate. The ORDER BY
+    // inside picks which friend gets the credit — the most recent one.
     const result = await pool.query(`
-      SELECT 
-        af.id, af.type, af.payload, af.created_at,
-        u.username, u.avatar_url,
-        g.name as game_name, COALESCE(g.cover_image, g.background_image) as cover_image
-      FROM activity_feed af
-      JOIN users u ON af.user_id = u.id
-      LEFT JOIN games g ON af.game_id = g.id
-      WHERE af.user_id = ANY($1::text[])
-      ORDER BY af.created_at DESC
-      LIMIT 10
+      SELECT DISTINCT ON (g.id)
+        g.id, g.rawg_id, g.name, g.background_image, g.cover_image,
+        g.rawg_rating, g.rawg_rating_count, g.metacritic_score,
+        u.id AS friend_id, u.username AS friend_username,
+        u.avatar_url AS friend_avatar_url,
+        le.status AS friend_status, le.logged_at
+      FROM library_entries le
+      JOIN games g ON g.id = le.game_id
+      JOIN users u ON u.id = le.user_id
+      WHERE le.user_id = ANY($1::text[])
+        AND le.status = 'playing'
+        AND le.logged_at IS NOT NULL
+      ORDER BY g.id, le.logged_at DESC
+      LIMIT 20
     `, [friendIds]);
 
-    res.json({ activities: result.rows });
+    // DISTINCT ON forces an ORDER BY on the distinct column, so the newest-first
+    // ordering the row is meant to have has to be applied after the fact.
+    const games = result.rows
+      .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at))
+      .slice(0, 10);
+
+    res.json({ games });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

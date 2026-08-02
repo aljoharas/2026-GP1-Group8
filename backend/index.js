@@ -7,6 +7,8 @@ const userRoutes  = require('./routes/users');
 const gameRoutes  = require('./routes/games');
 const homeRoutes = require('./routes/home');
 const listRoutes = require('./routes/lists');
+const friendRoutes = require('./routes/friends');
+const notificationRoutes = require('./routes/notifications');
 
 
 const app = express();
@@ -21,6 +23,8 @@ app.use('/users', userRoutes);
 app.use('/games', gameRoutes);
 app.use('/home', homeRoutes);
 app.use('/lists', listRoutes);
+app.use('/friends', friendRoutes);
+app.use('/notifications', notificationRoutes);
 
 // Health check
 app.get('/', (req, res) => {
