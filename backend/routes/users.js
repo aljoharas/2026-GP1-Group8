@@ -391,18 +391,32 @@ router.get('/:id', verifyToken, async (req, res) => {
 });
 
 // GET /users/:id/games — another user's logged games, newest first.
+//
+// Deliberately the same row shape as /users/me/games, including the
+// is_finished / is_paused booleans derived from status and the platform name.
+// The public profile renders the same Currently Playing / Games / Journal
+// sections as your own profile, and it parses them with the same LoggedGame
+// model — anything missing here shows up as a section that silently differs
+// between the two screens.
+//
+// The default limit is higher than the feed's because the journal groups
+// entries by game: 30 rows can collapse to only three or four games.
 router.get('/:id/games', verifyToken, async (req, res) => {
   const { id } = req.params;
-  const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
+  const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
 
   try {
     const result = await pool.query(
       `SELECT le.id, le.hours_played, le.comment, le.review_text,
               CAST(le.user_rating AS INTEGER) AS user_rating,
-              le.status, le.logged_at,
-              g.rawg_id, g.name, g.background_image, g.cover_image
+              le.achievements, le.status, le.logged_at,
+              (le.status = 'completed') AS is_finished,
+              (le.status = 'paused')    AS is_paused,
+              g.rawg_id, g.name, g.background_image, g.cover_image,
+              p.name AS platform_name
        FROM library_entries le
        JOIN games g ON le.game_id = g.id
+       LEFT JOIN platforms p ON le.platform_id = p.id
        WHERE le.user_id = $1 AND le.logged_at IS NOT NULL
        ORDER BY le.logged_at DESC
        LIMIT $2`,
@@ -411,6 +425,29 @@ router.get('/:id/games', verifyToken, async (req, res) => {
     return res.status(200).json({ games: result.rows });
   } catch (error) {
     console.error('Get user games error:', error.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /users/:id/favorites — another user's favourite games.
+//
+// Favourites are not private: they already show on your own profile and a
+// friend's profile has the same Favorite Games section, so this is the same
+// query as /users/me/favorites with the id coming from the path.
+router.get('/:id/favorites', verifyToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT g.rawg_id, g.name, g.background_image, g.cover_image
+       FROM favorites f
+       JOIN games g ON f.game_id = g.id
+       WHERE f.user_id = $1
+       ORDER BY f.created_at DESC`,
+      [id]
+    );
+    return res.status(200).json({ favorites: result.rows });
+  } catch (error) {
+    console.error('Get user favorites error:', error.message);
     return res.status(500).json({ message: 'Server error' });
   }
 });

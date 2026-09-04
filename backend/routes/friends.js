@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
-const { notify, getFriendIds } = require('../lib/activity');
+const { notify } = require('../lib/activity');
 
 // A friendship is one row, stored from the requester's side. There is no
 // mirrored row, so "the other person" is always a CASE on which column holds
@@ -63,29 +63,42 @@ router.get('/requests', verifyToken, async (req, res) => {
 });
 
 // GET /friends/feed — the friend activity feed, newest first.
+//
+// Only activity from after the friendship was accepted shows up. Adding
+// someone should not hand you their entire back catalogue at once, and the
+// cards read as news ("she just rated this") rather than history. The cutoff
+// is per friend, so an older friendship keeps its older cards while a new one
+// starts empty and fills in as they do things.
 router.get('/feed', verifyToken, async (req, res) => {
   const { uid } = req.user;
   const limit = Math.min(parseInt(req.query.limit, 10) || 30, 100);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
 
   try {
-    const friendIds = await getFriendIds(uid);
-    if (friendIds.length === 0) {
-      return res.status(200).json({ activities: [], hasMore: false });
-    }
-
+    // friendships.updated_at is stamped when the request is accepted, which is
+    // the same value GET /friends reports as friends_since. Unfriending drops
+    // the row, so re-adding someone later starts a fresh cutoff rather than
+    // reviving what they did while you were not friends.
     const result = await pool.query(
-      `SELECT af.id, af.type, af.payload, af.created_at,
+      `WITH friends AS (
+         SELECT ${OTHER_USER} AS friend_id,
+                f.updated_at AS friends_since
+         FROM friendships f
+         WHERE (f.requester_id = $1 OR f.addressee_id = $1)
+           AND f.status = 'accepted'
+       )
+       SELECT af.id, af.type, af.payload, af.created_at,
               u.id AS user_id, u.username, u.avatar_url,
               g.rawg_id, g.name AS game_name,
               COALESCE(g.cover_image, g.background_image) AS cover_image
        FROM activity_feed af
+       JOIN friends fr ON fr.friend_id = af.user_id
+                      AND af.created_at >= fr.friends_since
        JOIN users u ON u.id = af.user_id
        LEFT JOIN games g ON g.id = af.game_id
-       WHERE af.user_id = ANY($1::text[])
        ORDER BY af.created_at DESC
        LIMIT $2 OFFSET $3`,
-      [friendIds, limit + 1, offset]
+      [uid, limit + 1, offset]
     );
 
     // Asking for one extra row is how we know whether another page exists

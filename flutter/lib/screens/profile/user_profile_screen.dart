@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../core/sticky_tab_bar.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/game_provider.dart';
 import '../../services/auth_service.dart';
@@ -15,6 +16,7 @@ import '../game/game_search_screen.dart';
 import '../home/home_screen.dart';
 import '../logGames/log_game_search_screen.dart';
 import 'list_detail_screen.dart';
+import 'list_editor_sheet.dart';
 import 'privacy_policy_screen.dart';
 import '../../providers/logged_games_provider.dart';
 import 'settings_screen.dart';
@@ -26,14 +28,6 @@ class UserProfileScreen extends StatefulWidget {
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-/// What the create/edit sheet hands back once the user hits Save.
-class _ListDraft {
-  final String name;
-  final String emoji;
-  final bool isPublic;
-  const _ListDraft(this.name, this.emoji, this.isPublic);
-}
-
 class _UserProfileScreenState extends State<UserProfileScreen> {
   final Set<String> _expandedJournalGames = {};
   final Map<String, Map<String, dynamic>> _resolved = {};
@@ -42,6 +36,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   static const surface = Color(0xFF16161E);
   static const surface2 = Color(0xFF1E1E2A);
   static const accent = Color(0xFFE8002D);
+  // Confirming that something worked is green; red stays on the action that
+  // does the deleting, not on the receipt for it.
+  static const successGreen = Color(0xFF4ADE80);
   static const gold = Color(0xFFF5C842);
   static const kText = Color(0xFFF0F0F0);
   static const muted = Color(0xFF6B6B80);
@@ -105,19 +102,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
   }
 
-  void _toast(String message) {
+  /// Plain dark toast for problems; green for "that worked". Only the
+  /// confirmation is green — the button that did the deleting stays red.
+  void _toast(String message, {bool success = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: surface2,
+        content: Text(message,
+            style: TextStyle(
+                color: success ? Colors.black : Colors.white,
+                fontWeight: success ? FontWeight.w600 : FontWeight.normal)),
+        backgroundColor: success ? successGreen : surface2,
         duration: const Duration(seconds: 2),
       ),
     );
   }
 
   Future<void> _createList() async {
-    final result = await _showListEditor(title: 'New List');
+    final result = await showListEditor(context, title: 'New List');
     if (result == null) return;
 
     final response = await ListService().createList(
@@ -127,13 +129,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
     if (response['success'] == true) {
       await _loadLists();
+      _toast('List created successfully', success: true);
     } else {
       _toast(response['message'] ?? 'Could not create list');
     }
   }
 
   Future<void> _editList(Map<String, dynamic> list) async {
-    final result = await _showListEditor(
+    final result = await showListEditor(
+      context,
       title: 'Edit List',
       name: list['name'] as String,
       emoji: list['emoji'] as String,
@@ -149,6 +153,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
     if (response['success'] == true) {
       await _loadLists();
+      _toast('List edited successfully', success: true);
     } else {
       _toast(response['message'] ?? 'Could not update list');
     }
@@ -182,6 +187,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final response = await ListService().deleteList(list['id'] as int);
     if (response['success'] == true) {
       await _loadLists();
+      _toast('List deleted successfully', success: true);
     } else {
       _toast(response['message'] ?? 'Could not delete list');
     }
@@ -194,148 +200,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       MaterialPageRoute(builder: (_) => ListDetailScreen(list: list)),
     );
     if (changed == true) await _loadLists();
-  }
-
-  /// Shared create/edit sheet. Returns null if the user backs out.
-  Future<_ListDraft?> _showListEditor({
-    required String title,
-    String name = '',
-    String emoji = '🎮',
-    bool isPublic = false,
-  }) {
-    final controller = TextEditingController(text: name);
-    var pickedEmoji = emoji;
-    var pickedPublic = isPublic;
-
-    const emojiChoices = [
-      '🎮', '🩸', '🌍', '⚔️', '📖', '🏆', '👻', '🚀', '🧩', '❤️', '🔥', '⭐'
-    ];
-
-    return showModalBottomSheet<_ListDraft>(
-      context: context,
-      backgroundColor: surface,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: muted.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(title,
-                  style: const TextStyle(
-                      color: kText, fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 18),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLength: 50,
-                style: const TextStyle(color: kText, fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: 'List name',
-                  hintStyle: const TextStyle(color: muted),
-                  counterText: '',
-                  filled: true,
-                  fillColor: surface2,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text('Icon',
-                  style: TextStyle(
-                      color: muted, fontSize: 12, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: emojiChoices.map((e) {
-                  final selected = e == pickedEmoji;
-                  return GestureDetector(
-                    onTap: () => setSheetState(() => pickedEmoji = e),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected ? accent.withValues(alpha: 0.15) : surface2,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: selected ? accent : Colors.transparent,
-                        ),
-                      ),
-                      child: Text(e, style: const TextStyle(fontSize: 20)),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                activeThumbColor: accent,
-                value: pickedPublic,
-                onChanged: (v) => setSheetState(() => pickedPublic = v),
-                title: const Text('Public list',
-                    style: TextStyle(color: kText, fontSize: 14)),
-                subtitle: Text(
-                  pickedPublic
-                      ? 'Anyone can see this on your profile'
-                      : 'Only you can see this',
-                  style: const TextStyle(color: muted, fontSize: 12),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    final typed = controller.text.trim();
-                    if (typed.isEmpty) return;
-                    Navigator.pop(
-                      ctx,
-                      _ListDraft(typed, pickedEmoji, pickedPublic),
-                    );
-                  },
-                  child: const Text('Save',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Future<void> _loadFriendsCount() async {
@@ -857,7 +721,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
                 SliverPersistentHeader(
                   pinned: true,
-                  delegate: _StickyTabBar(
+                  delegate: StickyTabBar(
                     TabBar(
                       indicatorColor: accent,
                       indicatorSize: TabBarIndicatorSize.label,
@@ -1416,7 +1280,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               onPressed: () => Navigator.pop(ctx, true),
                               child: const Text('Remove',
                                   style: TextStyle(
-                                      color: Color(0xFFE8002D),
+                                      color: accent,
                                       fontWeight: FontWeight.w700)),
                             ),
                           ],
@@ -1704,8 +1568,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               Navigator.pop(ctx);
               context.read<LoggedGamesProvider>().removeGame(game.rawgId!);
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text('"${game.name}" removed from your library'),
-                backgroundColor: accent,
+                // Green needs dark content text to stay readable.
+                content: Text('"${game.name}" removed from your library',
+                    style: const TextStyle(
+                        color: Colors.black, fontWeight: FontWeight.w600)),
+                backgroundColor: successGreen,
                 behavior: SnackBarBehavior.floating,
                 duration: const Duration(seconds: 3),
               ));
@@ -2062,6 +1929,7 @@ class _MyGamesAllScreenState extends State<_MyGamesAllScreen> {
   static const surface = Color(0xFF16161E);
   static const surface2= Color(0xFF1E1E2A);
   static const accent  = Color(0xFFE8002D);
+  static const successGreen = Color(0xFF4ADE80);
   static const kText   = Color(0xFFF0F0F0);
   static const muted   = Color(0xFF6B6B80);
   static const border  = Color(0x12FFFFFF);
@@ -2226,8 +2094,11 @@ class _MyGamesAllScreenState extends State<_MyGamesAllScreen> {
               Navigator.pop(ctx);
               context.read<LoggedGamesProvider>().removeGame(game.rawgId!);
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text('"${game.name}" removed from your library'),
-                backgroundColor: accent,
+                // Green needs dark content text to stay readable.
+                content: Text('"${game.name}" removed from your library',
+                    style: const TextStyle(
+                        color: Colors.black, fontWeight: FontWeight.w600)),
+                backgroundColor: successGreen,
                 behavior: SnackBarBehavior.floating,
                 duration: const Duration(seconds: 3),
               ));
@@ -2752,36 +2623,6 @@ class _PlusPainter extends CustomPainter {
 }
 
 // ── Sticky Tab Bar Delegate ───────────────────────────────────────────────────
-class _StickyTabBar extends SliverPersistentHeaderDelegate {
-  final TabBar tabBar;
-  const _StickyTabBar(this.tabBar);
-
-  static const bg = Color(0xFF0E0E12);
-  static const border = Color(0x12FFFFFF);
-
-  @override
-  double get minExtent => tabBar.preferredSize.height + 1;
-  @override
-  double get maxExtent => tabBar.preferredSize.height + 1;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: bg,
-      child: Column(
-        children: [
-          tabBar,
-          const Divider(height: 1, color: border),
-        ],
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_StickyTabBar old) => old.tabBar != tabBar;
-}
-
 class _JournalAllScreen extends StatefulWidget {
   final List<LoggedGame> games;
   const _JournalAllScreen({required this.games});

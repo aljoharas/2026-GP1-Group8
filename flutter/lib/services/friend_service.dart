@@ -248,6 +248,10 @@ class FriendService {
   }
 
   // ANOTHER USER'S LOGGED GAMES — GET /users/:id/games
+  //
+  // Rows come back in the same shape as /users/me/games, so the caller can
+  // parse them with LoggedGame.fromJson and group them exactly the way your
+  // own profile does.
   Future<List<Map<String, dynamic>>> getUserGames(String userId) async {
     try {
       final token = await _getToken();
@@ -261,6 +265,27 @@ class FriendService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return List<Map<String, dynamic>>.from(data['games'] ?? []);
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // ANOTHER USER'S FAVOURITES — GET /users/:id/favorites
+  Future<List<Map<String, dynamic>>> getUserFavorites(String userId) async {
+    try {
+      final token = await _getToken();
+      if (token == null) return [];
+
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/favorites'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['favorites'] ?? []);
       }
       return [];
     } catch (e) {

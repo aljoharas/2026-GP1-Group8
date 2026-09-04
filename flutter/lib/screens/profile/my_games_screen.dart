@@ -10,6 +10,9 @@ class MyGamesScreen extends StatelessWidget {
   static const surface = Color(0xFF16161E);
   static const surface2 = Color(0xFF1E1E2A);
   static const accent = Color(0xFFE8002D);
+  // Confirming that something worked is green; red stays on the action that
+  // does the deleting, not on the receipt for it.
+  static const successGreen = Color(0xFF4ADE80);
   static const muted = Color(0xFF6B6B80);
   static const kText = Color(0xFFF0F0F0);
   static const border = Color(0x12FFFFFF);
@@ -196,8 +199,13 @@ class MyGamesScreen extends StatelessWidget {
               context.read<LoggedGamesProvider>().removeGame(game.rawgId!);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('"${game.name}" removed from your library'),
-                  backgroundColor: accent,
+                  // Green is bright enough that the default white content
+                  // text is hard to read on it; the app already pairs its
+                  // greens with black.
+                  content: Text('"${game.name}" removed from your library',
+                      style: const TextStyle(
+                          color: Colors.black, fontWeight: FontWeight.w600)),
+                  backgroundColor: successGreen,
                   behavior: SnackBarBehavior.floating,
                   duration: const Duration(seconds: 3),
                 ),

@@ -22,6 +22,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   static const accent = Color(0xFF4ADE80);
   static const muted = Color(0xFF6B6B80);
   static const border = Color(0x12FFFFFF);
+  static const danger = Color(0xFFE8002D);
 
   /// Request ids currently mid-flight, so a double tap can't fire twice.
   final Set<int> _busy = {};
@@ -183,10 +184,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         padding: const EdgeInsets.only(right: 20),
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFE8002D).withValues(alpha: 0.15),
+          color: danger.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(14),
         ),
-        child: const Icon(Icons.delete_outline, color: Color(0xFFE8002D)),
+        child: const Icon(Icons.delete_outline, color: danger),
       ),
       onDismissed: (_) =>
           context.read<NotificationsProvider>().delete(notification['id'] as int),

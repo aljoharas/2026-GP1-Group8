@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/logged_games_provider.dart';
 import '../../services/list_service.dart';
+import '../profile/list_editor_sheet.dart';
 import '../logGames/log_game_detail_screen.dart';
 import 'achievements_screen.dart';
 
@@ -421,12 +422,16 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
 
   // ── Add to List ───────────────────────────────────────────────────────────
 
-  void _toast(String message) {
+  /// Plain dark toast for problems; green for "that worked".
+  void _toast(String message, {bool success = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: surface2,
+        content: Text(message,
+            style: TextStyle(
+                color: success ? Colors.black : Colors.white,
+                fontWeight: success ? FontWeight.w600 : FontWeight.normal)),
+        backgroundColor: success ? accent : surface2,
         duration: const Duration(seconds: 2),
       ),
     );
@@ -488,11 +493,18 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
               if (sheetCtx.mounted) setSheetState(() => busy = false);
             }
 
+            // The same sheet the profile uses, so a list started here can
+            // pick an icon and be made public just like one started there.
             Future<void> createAndAdd() async {
-              final name = await _promptListName(sheetCtx);
-              if (name == null) return;
+              final draft =
+                  await showListEditor(sheetCtx, title: 'New List');
+              if (draft == null) return;
 
-              final created = await service.createList(name: name);
+              final created = await service.createList(
+                name: draft.name,
+                emoji: draft.emoji,
+                isPublic: draft.isPublic,
+              );
               if (created['success'] != true) {
                 _toast(created['message'] ?? 'Could not create list');
                 return;
@@ -501,7 +513,10 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
                   created['list']['id'] as int, widget.rawgId);
               if (added['success'] != true) {
                 _toast(added['message'] ?? 'Could not add game');
+                await reload();
+                return;
               }
+              _toast('Added to "${draft.name}"', success: true);
               await reload();
             }
 
@@ -582,43 +597,6 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
           },
         );
       },
-    );
-  }
-
-  Future<String?> _promptListName(BuildContext sheetCtx) {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: sheetCtx,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: surface2,
-        title: const Text('New List',
-            style: TextStyle(color: Colors.white, fontSize: 17)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 50,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'List name',
-            hintStyle: TextStyle(color: muted),
-            counterText: '',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: muted)),
-          ),
-          TextButton(
-            onPressed: () {
-              final typed = controller.text.trim();
-              if (typed.isEmpty) return;
-              Navigator.pop(ctx, typed);
-            },
-            child: const Text('Create', style: TextStyle(color: accent)),
-          ),
-        ],
-      ),
     );
   }
 
@@ -776,10 +754,16 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
                     }
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(ok
-                          ? (ratingToSave == 0 ? 'Rating removed!' : isDeletingReview ? 'Review removed!' : reviewText.isNotEmpty ? 'Review submitted!' : 'Rating saved!')
-                          : 'Could not save'),
-                        backgroundColor: ok ? const Color(0xFF2E7D32) : danger,
+                        content: Text(
+                          ok
+                            ? (ratingToSave == 0 ? 'Rating removed!' : isDeletingReview ? 'Review removed!' : reviewText.isNotEmpty ? 'Review submitted!' : 'Rating saved!')
+                            : 'Could not save',
+                          // Accent green is bright; the app pairs it with black.
+                          style: TextStyle(
+                              color: ok ? Colors.black : Colors.white,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        backgroundColor: ok ? accent : danger,
                         duration: const Duration(seconds: 2),
                       ));
                     }
