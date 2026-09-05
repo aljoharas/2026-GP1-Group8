@@ -155,8 +155,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildTile(Map<String, dynamic> notification) {
     final type = notification['type'] as String? ?? '';
-    final username = notification['actor_username'] as String? ?? 'Someone';
+    final actorId = notification['actor_id'] as String?;
     final isRead = notification['is_read'] == true;
+
+    // System notifications (e.g. paused-game reminders) have no actor — they
+    // read their own message instead of the "@username ..." social layout.
+    if (actorId == null) {
+      return _buildSystemTile(notification, isRead: isRead);
+    }
+
+    final username = notification['actor_username'] as String? ?? 'Someone';
     final friendshipStatus = notification['friendship_status'] as String?;
     final friendshipId = notification['friendship_id'] as int?;
 
@@ -264,6 +272,75 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               ]),
             ],
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSystemTile(Map<String, dynamic> notification, {required bool isRead}) {
+    final message = notification['message'] as String? ?? 'You have a new notification';
+    final icon = switch (notification['type'] as String? ?? '') {
+      'game_paused_reminder' => Icons.pause_circle_outline,
+      'log_reminder' => Icons.edit_note,
+      'list_reminder' => Icons.playlist_add,
+      _ => Icons.notifications_none,
+    };
+
+    return Dismissible(
+      key: ValueKey(notification['id']),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: danger.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.delete_outline, color: danger),
+      ),
+      onDismissed: (_) =>
+          context.read<NotificationsProvider>().delete(notification['id'] as int),
+      child: GestureDetector(
+        onTap: () =>
+            context.read<NotificationsProvider>().markRead(notification['id'] as int),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: isRead ? surface : const Color(0xFF15211A),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: isRead ? border : accent.withValues(alpha: 0.25)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: const BoxDecoration(shape: BoxShape.circle, color: surface2),
+              child: Icon(icon, color: accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(message,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 13, height: 1.35)),
+                  const SizedBox(height: 4),
+                  Text(timeAgo(notification['created_at'] as String?),
+                      style: const TextStyle(color: muted, fontSize: 10.5)),
+                ],
+              ),
+            ),
+            if (!isRead)
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(color: accent, shape: BoxShape.circle),
+              ),
           ]),
         ),
       ),

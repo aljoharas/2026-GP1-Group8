@@ -6,6 +6,8 @@
     <!-- image_picker: photo library (Android 12 and below) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
+    <!-- push notifications (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="loadout"
         android:name="${applicationName}"

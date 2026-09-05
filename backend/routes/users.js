@@ -45,6 +45,33 @@ router.post('/upload-avatar', verifyToken, upload.single('avatar'), async (req, 
   }
 });
 
+// REGISTER A PUSH DEVICE TOKEN — POST /users/me/device-token
+//
+// Upserts on the token itself so a reinstall or refreshed token just updates
+// its row, and a token that moves to a different account (shared/reinstalled
+// device) gets reassigned instead of rejected.
+router.post('/me/device-token', verifyToken, async (req, res) => {
+  const { uid } = req.user;
+  const { token } = req.body;
+
+  if (!token || typeof token !== 'string') {
+    return res.status(400).json({ message: 'token is required' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO device_tokens (token, user_id)
+       VALUES ($1, $2)
+       ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, updated_at = now()`,
+      [token, uid]
+    );
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Register device token error:', error.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // GET my profile
 router.get('/me', verifyToken, async (req, res) => {
   const { uid } = req.user;
@@ -88,7 +115,7 @@ router.get('/me/friends-count', verifyToken, async (req, res) => {
 // UPDATE my profile
 router.patch('/me', verifyToken, async (req, res) => {
   const { uid } = req.user;
-  const { username, bio, avatar_url } = req.body;
+  const { username, bio, avatar_url, notifications_enabled } = req.body;
 
   const fields = [];
   const values = [];
@@ -109,6 +136,10 @@ router.patch('/me', verifyToken, async (req, res) => {
   }
   if (bio !== undefined) { fields.push(`bio = $${i++}`); values.push(bio); }
   if (avatar_url) { fields.push(`avatar_url = $${i++}`); values.push(avatar_url); }
+  if (notifications_enabled !== undefined) {
+    fields.push(`notifications_enabled = $${i++}`);
+    values.push(!!notifications_enabled);
+  }
 
   if (fields.length === 0) {
     return res.status(400).json({ message: 'Nothing to update' });
@@ -121,7 +152,7 @@ router.patch('/me', verifyToken, async (req, res) => {
     const result = await pool.query(
       `UPDATE users SET ${fields.join(', ')}
        WHERE id = $${i}
-       RETURNING id, email, username, bio, avatar_url, updated_at`,
+       RETURNING id, email, username, bio, avatar_url, notifications_enabled, updated_at`,
       values
     );
 

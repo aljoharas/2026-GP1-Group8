@@ -128,7 +128,7 @@ Future<ListDraft?> showListEditor(
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                activeThumbColor: _accent,
+                activeThumbColor: const Color(0xFF4ADE80),
                 value: pickedPublic,
                 onChanged: (v) => setSheetState(() => pickedPublic = v),
                 title: const Text('Public list',

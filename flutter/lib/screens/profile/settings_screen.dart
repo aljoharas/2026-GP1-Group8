@@ -12,8 +12,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _reminders = false;
-
   static const bg      = Color(0xFF0E0E12);
   static const surface = Color(0xFF16161E);
   static const surface2= Color(0xFF1E1E2A);
@@ -28,6 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user     = auth.currentUser;
     final username = user?['username'] as String? ?? '—';
     final email    = user?['email']    as String? ?? '—';
+    final remindersEnabled = user?['notifications_enabled'] as bool? ?? true;
 
     return Scaffold(
       backgroundColor: bg,
@@ -62,9 +61,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _toggleRow(
               icon: Icons.notifications_outlined,
               label: 'Game Reminders',
-              sub: 'Coming in GP2',
-              value: _reminders,
-              onChanged: (_) => _sprint2(),
+              sub: 'Get notified about paused games, logging streaks, and lists',
+              value: remindersEnabled,
+              onChanged: (value) => _toggleReminders(auth, value),
             ),
           ]),
 
@@ -133,30 +132,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _sprint2([String label = 'This feature']) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF16161E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6B6B80).withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(2))),
-          const Text('🚧', style: TextStyle(fontSize: 36)),
-          const SizedBox(height: 12),
-          Text('$label coming in GP2!',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          const Text('This feature is on its way.',
-            style: TextStyle(color: Color(0xFF6B6B80), fontSize: 13)),
-          const SizedBox(height: 24),
-        ]),
-      ),
-    );
+  Future<void> _toggleReminders(AuthProvider auth, bool value) async {
+    final error = await auth.updateReminderSetting(value);
+    if (!mounted || error == null) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(error),
+        backgroundColor: surface2,
+        behavior: SnackBarBehavior.floating,
+      ));
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -239,7 +224,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(sub, style: const TextStyle(color: muted, fontSize: 11)),
           ])),
         Switch(value: value, onChanged: onChanged,
-          activeColor: accent,
+          activeThumbColor: const Color(0xFF4ADE80),
+          activeTrackColor: const Color(0xFF4ADE80).withValues(alpha: 0.4),
           inactiveTrackColor: surface2),
       ]),
     );

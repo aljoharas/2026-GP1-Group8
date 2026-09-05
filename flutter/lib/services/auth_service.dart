@@ -195,6 +195,50 @@ class AuthService {
     }
   }
 
+  // UPDATE NOTIFICATION SETTINGS
+  Future<Map<String, dynamic>> updateNotificationSettings({
+    required bool enabled,
+    required String token,
+  }) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('${AppConstants.baseUrl}/users/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'notifications_enabled': enabled}),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'user': data['user']};
+      }
+      return {'success': false, 'message': data['message']};
+    } catch (e) {
+      return {'success': false, 'message': 'Could not reach server'};
+    }
+  }
+
+  // REGISTER PUSH DEVICE TOKEN — best-effort, so a failure here is silent
+  // rather than shown to the user (push is a bonus, not core functionality).
+  Future<void> registerDeviceToken({
+    required String fcmToken,
+    required String token,
+  }) async {
+    try {
+      await http.post(
+        Uri.parse('${AppConstants.baseUrl}/users/me/device-token'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'token': fcmToken}),
+      );
+    } catch (_) {
+      // Ignored — see comment above.
+    }
+  }
+
   // FORGOT PASSWORD
   Future<Map<String, dynamic>> sendPasswordReset(String email) async {
     try {

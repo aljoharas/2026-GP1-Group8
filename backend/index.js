@@ -9,6 +9,7 @@ const homeRoutes = require('./routes/home');
 const listRoutes = require('./routes/lists');
 const friendRoutes = require('./routes/friends');
 const notificationRoutes = require('./routes/notifications');
+const reminderScheduler = require('./lib/reminderScheduler');
 
 
 const app = express();
@@ -33,4 +34,5 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  reminderScheduler.start();
 });

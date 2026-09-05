@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
+const { checkReminders } = require('../lib/reminders');
 
 // GET /notifications — newest first.
 //
@@ -17,6 +18,11 @@ router.get('/', verifyToken, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
 
   try {
+    // Also self-heals here, not just on unread-count — opening the list
+    // straight from a cold app launch shouldn't depend on the home screen
+    // having loaded first.
+    await checkReminders(uid);
+
     const result = await pool.query(
       `SELECT n.id, n.type, n.message, n.is_read, n.created_at,
               u.id AS actor_id, u.username AS actor_username,
@@ -43,6 +49,10 @@ router.get('/', verifyToken, async (req, res) => {
 router.get('/unread-count', verifyToken, async (req, res) => {
   const { uid } = req.user;
   try {
+    // Called on every home-screen load, which makes it the natural place to
+    // passively surface reminders without a scheduled job.
+    await checkReminders(uid);
+
     const result = await pool.query(
       'SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = FALSE',
       [uid]

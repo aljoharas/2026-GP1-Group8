@@ -6,12 +6,18 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-pool.connect((err) => {
+pool.connect((err, client, release) => {
   if (err) {
     console.error('PostgreSQL connection failed:', err.message);
-  } else {
-    console.log('PostgreSQL connected');
+    return;
   }
+  console.log('PostgreSQL connected');
+  // The pool.connect(callback) form checks a client out and hands it here —
+  // without releasing it, this connection sits held for the process's whole
+  // lifetime instead of going back into the pool for reuse, which matters on
+  // a pooler with a low total session cap (e.g. Supabase's session-mode
+  // pooler defaults to 15).
+  release();
 });
 
 module.exports = pool;

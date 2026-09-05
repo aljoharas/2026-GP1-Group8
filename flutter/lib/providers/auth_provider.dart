@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/push_service.dart';
 
 enum AuthStatus { idle, loading, success, error }
 
@@ -24,6 +26,7 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true) {
       currentUser = result['user'];
       _set(AuthStatus.success);
+      unawaited(PushService().requestPermissionAndRegister());
       return true;
     }
     _errorMessage = result['message'];
@@ -49,6 +52,7 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true) {
       currentUser = result['user'];
       _set(AuthStatus.success);
+      unawaited(PushService().requestPermissionAndRegister());
       return true;
     }
     _errorMessage = result['message'];
@@ -86,6 +90,28 @@ class AuthProvider extends ChangeNotifier {
       return response['message'] as String? ?? 'Failed to update profile';
     } catch (_) {
       return 'Failed to update profile';
+    }
+  }
+
+  // Toggle whether the user receives reminders/notifications.
+  // Returns null on success, or an error message string on failure.
+  Future<String?> updateReminderSetting(bool enabled) async {
+    final token = await getFirebaseToken();
+    if (token == null) return 'Not signed in';
+
+    try {
+      final response = await _authService.updateNotificationSettings(
+        enabled: enabled,
+        token: token,
+      );
+      if (response['success'] == true) {
+        currentUser = response['user'];
+        notifyListeners();
+        return null;
+      }
+      return response['message'] as String? ?? 'Failed to update setting';
+    } catch (_) {
+      return 'Failed to update setting';
     }
   }
 
