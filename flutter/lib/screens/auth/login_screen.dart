@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/push_service.dart';
 import '../home/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -184,10 +186,64 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (success && mounted) {
+      await _handlePostAuthPushSetup();
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
+    }
+  }
+
+  // ── Reminders opt-in ─────────────────────────────────────────────────────────
+  //
+  // Gated on the *device's* permission history, not on login vs. register —
+  // Android/iOS only ever ask once per device, so a friend logging into an
+  // existing account on a laptop/emulator that's never run this app before
+  // needs the same ask a brand-new signup gets. Once this device has an
+  // answer (from any account, granted or denied), never ask again on it —
+  // just keep whichever account is now signed in registered silently.
+  Future<void> _handlePostAuthPushSetup() async {
+    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    if (settings.authorizationStatus == AuthorizationStatus.notDetermined) {
+      await _promptEnableReminders();
+    } else {
+      await PushService().requestPermissionAndRegister();
+    }
+  }
+
+  Future<void> _promptEnableReminders() async {
+    final enable = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF16161E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Enable Reminders?',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        content: const Text(
+          "Get notified about paused games, logging streaks, and lists you haven't organized yet.",
+          style: TextStyle(color: muted, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not Now', style: TextStyle(color: muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enable',
+                style: TextStyle(color: green, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    if (enable == true) {
+      await PushService().requestPermissionAndRegister();
+    } else {
+      await context.read<AuthProvider>().updateReminderSetting(false);
     }
   }
 

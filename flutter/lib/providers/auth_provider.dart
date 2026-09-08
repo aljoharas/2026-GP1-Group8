@@ -1,8 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
-import '../services/push_service.dart';
 
 enum AuthStatus { idle, loading, success, error }
 
@@ -26,7 +24,10 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true) {
       currentUser = result['user'];
       _set(AuthStatus.success);
-      unawaited(PushService().requestPermissionAndRegister());
+      // No auto push-registration here — login_screen.dart decides whether
+      // to show the "enable reminders?" prompt (only if this device has
+      // never been asked) or silently (re)register the device, for both
+      // login and register alike.
       return true;
     }
     _errorMessage = result['message'];
@@ -52,7 +53,9 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true) {
       currentUser = result['user'];
       _set(AuthStatus.success);
-      unawaited(PushService().requestPermissionAndRegister());
+      // No auto push-registration here — the register screen shows an
+      // explicit "enable reminders?" prompt first (see login_screen.dart)
+      // and registers the device itself based on the user's answer.
       return true;
     }
     _errorMessage = result['message'];

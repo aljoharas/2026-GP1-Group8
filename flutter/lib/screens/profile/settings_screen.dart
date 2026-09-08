@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/logged_games_provider.dart';
+import '../../services/push_service.dart';
 import '../auth/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -134,6 +135,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _toggleReminders(AuthProvider auth, bool value) async {
     final error = await auth.updateReminderSetting(value);
+    // Turning it on here covers whoever said "Not Now" at signup (or never
+    // saw that prompt, on an older account) — this is the only other place a
+    // device can end up registered for push.
+    if (value && error == null) {
+      await PushService().requestPermissionAndRegister();
+    }
     if (!mounted || error == null) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
