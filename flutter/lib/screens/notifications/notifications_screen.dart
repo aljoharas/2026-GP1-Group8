@@ -283,7 +283,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final icon = switch (notification['type'] as String? ?? '') {
       'game_paused_reminder' => Icons.pause_circle_outline,
       'log_reminder' => Icons.edit_note,
-      'list_reminder' => Icons.playlist_add,
       _ => Icons.notifications_none,
     };
 

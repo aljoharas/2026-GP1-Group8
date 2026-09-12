@@ -62,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _toggleRow(
               icon: Icons.notifications_outlined,
               label: 'Game Reminders',
-              sub: 'Get notified about paused games, logging streaks, and lists',
+              sub: 'Get notified about paused games and logging streaks',
               value: remindersEnabled,
               onChanged: (value) => _toggleReminders(auth, value),
             ),

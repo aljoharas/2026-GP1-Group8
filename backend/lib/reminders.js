@@ -2,7 +2,6 @@ const pool = require('../db/index');
 
 const PAUSE_THRESHOLD = '3 days';
 const LOG_INACTIVITY_THRESHOLD = '7 days';
-const LIST_GRACE_PERIOD = '1 day';
 
 // How long a repeat reminder of the same kind (same user, same game where
 // applicable) stays suppressed after one was last sent — regardless of
@@ -12,7 +11,7 @@ const LIST_GRACE_PERIOD = '1 day';
 // blocked a second *unread* copy.
 const RENOTIFY_COOLDOWN = '3 days';
 
-// Nudges a user about games/lists they've neglected. Fire-and-forget, same
+// Nudges a user about games they've neglected. Fire-and-forget, same
 // contract as lib/activity.js: called on the way to answering an unrelated
 // request (checking the notification bell), so a failure here must not fail
 // that request.
@@ -22,6 +21,10 @@ const RENOTIFY_COOLDOWN = '3 days';
 // safety net, and each check also excludes anything already reminded within
 // RENOTIFY_COOLDOWN — so calling this on every unread-count check won't stack
 // duplicates, and won't re-fire the moment a reminder is read either.
+//
+// The unlisted-game reminder (list_reminder) that used to live here has been
+// removed at the user's request; db/migrations/006_remove_list_reminder.sql
+// retires its rows and dedupe index rather than leaving them behind unused.
 //
 // Returns the notifications actually inserted this call (empty on a repeat
 // call where nothing has cleared its cooldown yet) — the push scheduler uses
@@ -44,7 +47,6 @@ async function checkReminders(userId) {
     const created = [
       ...(await remindPausedGames(userId)),
       ...(await remindToLog(userId)),
-      ...(await remindToAddToList(userId)),
     ];
     return created;
   } catch (error) {
@@ -113,45 +115,6 @@ async function remindToLog(userId) {
      DO NOTHING
      RETURNING id`,
     [userId, message]
-  );
-  return result.rows.length > 0 ? [{ message }] : [];
-}
-
-// One game at a time, oldest first, so a user with a big ungrouped backlog
-// gets worked through gradually instead of hit with one row per game.
-async function remindToAddToList(userId) {
-  const unlisted = await pool.query(
-    `SELECT le.game_id, g.name
-     FROM library_entries le
-     JOIN games g ON g.id = le.game_id
-     WHERE le.user_id = $1
-       AND le.logged_at IS NOT NULL
-       AND le.logged_at < now() - interval '${LIST_GRACE_PERIOD}'
-       AND NOT EXISTS (
-         SELECT 1 FROM list_games lg
-         JOIN lists l ON l.id = lg.list_id
-         WHERE l.user_id = $1 AND lg.game_id = le.game_id
-       )
-       AND NOT EXISTS (
-         SELECT 1 FROM notifications n
-         WHERE n.user_id = $1 AND n.game_id = le.game_id AND n.type = 'list_reminder'
-           AND n.created_at > now() - interval '${RENOTIFY_COOLDOWN}'
-       )
-     ORDER BY le.logged_at ASC
-     LIMIT 1`,
-    [userId]
-  );
-  if (unlisted.rows.length === 0) return [];
-
-  const { game_id, name } = unlisted.rows[0];
-  const message = `Add ${name} to one of your lists to keep your library organized.`;
-  const result = await pool.query(
-    `INSERT INTO notifications (user_id, type, message, game_id)
-     VALUES ($1, 'list_reminder', $2, $3)
-     ON CONFLICT (user_id, game_id) WHERE type = 'list_reminder' AND is_read = FALSE
-     DO NOTHING
-     RETURNING id`,
-    [userId, message, game_id]
   );
   return result.rows.length > 0 ? [{ message }] : [];
 }
