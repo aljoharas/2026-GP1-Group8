@@ -350,6 +350,7 @@ router.post('/:id/review', verifyToken, async (req, res) => {
   const { id } = req.params;
   const userId = req.user.uid;
   const { text, rating } = req.body;
+  const isSpoiler = req.body.is_spoiler === true;
 
   try {
     const gameRes = await pool.query(
@@ -370,20 +371,21 @@ router.post('/:id/review', verifyToken, async (req, res) => {
       `UPDATE library_entries
        SET review_text = $3,
            user_rating = COALESCE($4, user_rating),
+           is_spoiler = $5,
            updated_at = now()
        WHERE id = (
          SELECT id FROM library_entries
          WHERE user_id = $1 AND game_id = $2
          ORDER BY added_at DESC LIMIT 1
        ) RETURNING id`,
-      [userId, gameId, reviewText, ratingNum]
+      [userId, gameId, reviewText, ratingNum, isSpoiler]
     );
 
     if (updated.rowCount === 0 && reviewText !== null) {
       await pool.query(
-        `INSERT INTO library_entries (user_id, game_id, review_text, user_rating, status, logged_at, added_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'completed', NULL, now(), now())`,
-        [userId, gameId, reviewText, ratingNum]
+        `INSERT INTO library_entries (user_id, game_id, review_text, user_rating, is_spoiler, status, logged_at, added_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, 'completed', NULL, now(), now())`,
+        [userId, gameId, reviewText, ratingNum, isSpoiler]
       );
     }
 
@@ -394,7 +396,7 @@ router.post('/:id/review', verifyToken, async (req, res) => {
         userId,
         type: 'game_reviewed',
         gameId,
-        payload: { review_text: reviewText, rating: ratingNum },
+        payload: { review_text: reviewText, rating: ratingNum, is_spoiler: isSpoiler },
         dedupeKey: `review:${userId}:${gameId}`,
       });
     } else {
@@ -427,8 +429,8 @@ router.get('/:id/reviews', verifyToken, async (req, res) => {
     const gameId = gameRes.rows[0].id;
 
     const reviews = await pool.query(
-      `SELECT CAST(le.user_rating AS INTEGER) as user_rating, le.review_text, le.updated_at,
-              u.username, u.avatar_url,
+      `SELECT le.id, CAST(le.user_rating AS INTEGER) as user_rating, le.review_text, le.updated_at,
+              le.is_spoiler, u.username, u.avatar_url,
               (le.user_id = $2) as is_own
        FROM library_entries le
        LEFT JOIN users u ON le.user_id = u.id

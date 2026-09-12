@@ -211,8 +211,18 @@ class GameProvider extends ChangeNotifier {
   }
 
   // SUBMIT A REVIEW
-  Future<bool> submitReview(int rawgId, String text, int rating) async {
-    final result = await _gameService.submitReview(rawgId, text, rating);
+  Future<bool> submitReview(
+    int rawgId,
+    String text,
+    int rating, {
+    bool isSpoiler = false,
+  }) async {
+    final result = await _gameService.submitReview(
+      rawgId,
+      text,
+      rating,
+      isSpoiler: isSpoiler,
+    );
     if (result['success']) {
       _userRating = rating == 0 ? null : rating;
       notifyListeners();

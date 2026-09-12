@@ -25,6 +25,12 @@ class GameProfileScreen extends StatefulWidget {
 class _GameProfileScreenState extends State<GameProfileScreen> {
   bool _descriptionExpanded = false;
 
+  // Session-only: which spoiler-flagged reviews (by library_entries.id) this
+  // viewer has chosen to reveal. Resets on next screen load, same as how a
+  // spoiler tag behaves elsewhere (Reddit, forums) — not a "seen" record
+  // worth persisting.
+  final Set<int> _revealedReviewIds = {};
+
   static const bg = Color(0xFF0E0E12);
   static const surface = Color(0xFF16161E);
   static const surface2 = Color(0xFF1E1E2A);
@@ -682,6 +688,7 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
     final existingReviewText = ownReview['review_text'] as String? ?? '';
     final hadReview = existingReviewText.isNotEmpty;
     final reviewController = TextEditingController(text: existingReviewText);
+    bool isSpoiler = ownReview['is_spoiler'] == true;
 
     showModalBottomSheet(
       context: context,
@@ -734,7 +741,33 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () => setSheet(() => isSpoiler = !isSpoiler),
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSpoiler
+                            ? Icons.check_box
+                            : Icons.check_box_outline_blank,
+                        color: isSpoiler ? accent : muted,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Contains spoilers',
+                          style: TextStyle(color: Colors.white, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -748,7 +781,12 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
                       if (hadReview) await gp.submitReview(rawgId, '', 0);
                       ok = await gp.rateGame(rawgId, 0);
                     } else if (reviewText.isNotEmpty || hadReview) {
-                      ok = await gp.submitReview(rawgId, reviewText, ratingToSave);
+                      ok = await gp.submitReview(
+                        rawgId,
+                        reviewText,
+                        ratingToSave,
+                        isSpoiler: isSpoiler,
+                      );
                     } else {
                       ok = await gp.rateGame(rawgId, ratingToSave);
                     }
@@ -1306,6 +1344,11 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
     final text = r['review_text'] as String? ?? '';
     final date = _formatDate(r['updated_at'] as String?);
     final isOwn = r['is_own'] == true;
+    final reviewId = r['id'] as int?;
+    // Own reviews never hide from their author — only other viewers get the
+    // spoiler gate, and it's a toggle: reveal it, then hide it again.
+    final isSpoiler = r['is_spoiler'] == true && !isOwn && reviewId != null;
+    final isRevealed = reviewId != null && _revealedReviewIds.contains(reviewId);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1365,6 +1408,100 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
                 )),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          if (!isSpoiler)
+            Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xB3F0F0F5),
+                fontSize: 12,
+                height: 1.65,
+                fontWeight: FontWeight.w300,
+              ),
+            )
+          else
+            _spoilerBlock(
+              text: text,
+              revealed: isRevealed,
+              onTap: () => setState(() {
+                if (isRevealed) {
+                  _revealedReviewIds.remove(reviewId);
+                } else {
+                  _revealedReviewIds.add(reviewId);
+                }
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Shared spoiler treatment for the review list. Collapsed: a centered card
+  // that reads as its own object, not just muted body text with a warning
+  // icon stuck on the front. Revealed: the real text, with a small pill above
+  // it that folds it back — same affordance, so it never feels like a
+  // one-way door.
+  Widget _spoilerBlock({
+    required String text,
+    required bool revealed,
+    required VoidCallback onTap,
+  }) {
+    if (!revealed) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: surface2,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: gold.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.visibility_off_rounded, color: gold, size: 20),
+              const SizedBox(height: 6),
+              const Text('Spoiler',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              const Text('Tap to reveal',
+                  style: TextStyle(color: muted, fontSize: 11)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: gold.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.visibility_rounded, color: gold, size: 11),
+                const SizedBox(width: 4),
+                const Text('Spoiler · tap to hide',
+                    style: TextStyle(
+                        color: gold,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Text(

@@ -35,6 +35,10 @@ class _FriendsScreenState extends State<FriendsScreen>
   late final TabController _tabs;
   final ScrollController _feedScroll = ScrollController();
 
+  // Session-only, same as the reveal set on the game profile's review list —
+  // tap once to reveal a spoiler-flagged review's detail for this viewing.
+  final Set<int> _revealedActivityIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -208,6 +212,10 @@ class _FriendsScreenState extends State<FriendsScreen>
     final username = activity['username'] as String? ?? '';
     final coverImage = activity['cover_image'] as String?;
     final rawgId = activity['rawg_id'];
+    final activityId = activity['id'] as int?;
+    final isSpoiler = line.isSpoiler && activityId != null;
+    final isRevealed =
+        activityId != null && _revealedActivityIds.contains(activityId);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -303,16 +311,94 @@ class _FriendsScreenState extends State<FriendsScreen>
               ),
             ],
             if (line.detail != null) ...[
-              const SizedBox(height: 5),
-              Text(line.detail!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: muted, fontSize: 11.5, height: 1.35)),
+              const SizedBox(height: 6),
+              if (!isSpoiler)
+                Text(line.detail!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: muted, fontSize: 11.5, height: 1.35))
+              else
+                _spoilerTag(
+                  text: line.detail!,
+                  revealed: isRevealed,
+                  onTap: () => setState(() {
+                    if (isRevealed) {
+                      _revealedActivityIds.remove(activityId);
+                    } else {
+                      _revealedActivityIds.add(activityId);
+                    }
+                  }),
+                ),
             ],
           ]),
         ),
       ]),
+    );
+  }
+
+  // Same spoiler pattern as the game profile's review list (see
+  // game_profile_screen.dart's _spoilerBlock), sized for an inline detail
+  // line inside an already-compact feed card rather than a standalone card.
+  Widget _spoilerTag({
+    required String text,
+    required bool revealed,
+    required VoidCallback onTap,
+  }) {
+    const gold = Color(0xFFFBBF24);
+
+    if (!revealed) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            color: gold.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.visibility_off_rounded, color: gold, size: 11),
+              SizedBox(width: 5),
+              Text('Spoiler · tap to reveal',
+                  style: TextStyle(
+                      color: gold, fontSize: 10.5, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: gold.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.visibility_rounded, color: gold, size: 10),
+                SizedBox(width: 4),
+                Text('Spoiler · tap to hide',
+                    style: TextStyle(
+                        color: gold, fontSize: 9.5, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: muted, fontSize: 11.5, height: 1.35)),
+        ],
+      ),
     );
   }
 

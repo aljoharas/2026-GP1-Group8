@@ -17,6 +17,10 @@ class ActivityLine {
   /// Optional third line: review text, list name, hours played.
   final String? detail;
 
+  /// True when `detail` is review text the author marked as spoilers — the
+  /// card hides it behind a reveal tap instead of showing it directly.
+  final bool isSpoiler;
+
   /// 1–5 when the activity carries a rating, otherwise null.
   final int? rating;
 
@@ -27,6 +31,7 @@ class ActivityLine {
     required this.verb,
     this.subject,
     this.detail,
+    this.isSpoiler = false,
     this.rating,
     this.emoji = '🎮',
   });
@@ -71,6 +76,7 @@ ActivityLine describeActivity(Map<String, dynamic> activity) {
         verb: 'reviewed',
         subject: gameName,
         detail: text != null && text.isNotEmpty ? text : null,
+        isSpoiler: payload['is_spoiler'] == true,
         rating: _asInt(payload['rating']),
         emoji: '📝',
       );

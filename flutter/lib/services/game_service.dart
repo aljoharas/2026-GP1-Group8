@@ -159,7 +159,12 @@ class GameService {
   }
 
   // SUBMIT A REVIEW
-  Future<Map<String, dynamic>> submitReview(int rawgId, String text, int rating) async {
+  Future<Map<String, dynamic>> submitReview(
+    int rawgId,
+    String text,
+    int rating, {
+    bool isSpoiler = false,
+  }) async {
     try {
       final token = await _getToken();
       if (token == null) return {'success': false, 'message': 'Not logged in'};
@@ -170,7 +175,7 @@ class GameService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'text': text, 'rating': rating}),
+        body: jsonEncode({'text': text, 'rating': rating, 'is_spoiler': isSpoiler}),
       );
 
       final data = jsonDecode(response.body);
