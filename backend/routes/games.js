@@ -483,7 +483,8 @@ router.get('/:id/achievements', verifyToken, async (req, res) => {
          FROM achievements WHERE game_id = $1 ORDER BY id`,
         [gameId]
       );
-      if (cached.rows.length > 0) {
+      const hasPercentData = cached.rows.some(r => r.percent != null);
+      if (cached.rows.length > 0 && hasPercentData) {
         return res.status(200).json({ achievements: cached.rows });
       }
     }
