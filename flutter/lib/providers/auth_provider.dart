@@ -63,6 +63,17 @@ class AuthProvider extends ChangeNotifier {
     return false;
   }
 
+  // Checks whether an email already has an account, so the login screen can
+  // route to Login or Sign Up before the user picks either one. Returns
+  // null if it couldn't be verified — the caller falls back to letting the
+  // user pick manually.
+  Future<bool?> checkEmailExists(String email) => _authService.checkEmailExists(email);
+
+  // Resolves a login identifier (email or username) to the account's real
+  // email, since Firebase can only sign in with one.
+  Future<Map<String, dynamic>> resolveLoginEmail(String identifier) =>
+      _authService.resolveLoginEmail(identifier);
+
   // Get Firebase token
   Future<String?> getFirebaseToken() async {
     final user = FirebaseAuth.instance.currentUser;

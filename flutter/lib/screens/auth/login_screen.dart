@@ -14,8 +14,14 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+// Which step of the auth flow is showing. Email-first: the user types their
+// email and only then lands on Login or Sign Up, whichever the backend says
+// fits — rather than picking a mode up front.
+enum _AuthStage { emailEntry, form }
+
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _emailEntryFormKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -25,6 +31,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureConfirm = true;
   bool _isRegister = false;
   bool _showSplash = true;
+  _AuthStage _stage = _AuthStage.emailEntry;
+  bool _checkingEmail = false;
+  String? _emailCheckError;
+  // Set only when the user logged in by username: _emailCtrl keeps showing
+  // the username they typed (that's the whole point), so the real email
+  // Firebase needs lives here instead of overwriting the visible field.
+  String? _resolvedLoginEmail;
   XFile? _profileImage;
 
   static const bg = Color(0xFF0E0E12);
@@ -180,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } else {
       success = await auth.login(
-        _emailCtrl.text.trim(),
+        _resolvedLoginEmail ?? _emailCtrl.text.trim(),
         _passwordCtrl.text.trim(),
       );
     }
@@ -564,6 +577,197 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // ── Email entry (email-first routing) ─────────────────────────────────────
+  //
+  // The first thing the user sees after the splash: type an email or
+  // username, and the app decides Login vs. Sign Up for them instead of
+  // making them pick a mode up front.
+  //
+  // Firebase only ever signs in with an email, so a username can only ever
+  // route to Login — resolved to its real email via
+  // AuthProvider.resolveLoginEmail, kept in _resolvedLoginEmail rather than
+  // overwriting the field, so the form still shows the username the user
+  // actually typed. A username that matches no account can't sign up either
+  // (there's no email to create one with) — it routes to Sign Up instead,
+  // pre-filling the username field and leaving email for them to fill in. An
+  // email-shaped entry goes through the original check
+  // (AuthProvider.checkEmailExists, backed by GET /auth/check-email/:email)
+  // and can route to either mode.
+  Future<void> _checkEmailAndContinue() async {
+    if (!_emailEntryFormKey.currentState!.validate()) return;
+
+    setState(() {
+      _checkingEmail = true;
+      _emailCheckError = null;
+      _resolvedLoginEmail = null;
+    });
+
+    final input = _emailCtrl.text.trim();
+    final auth = context.read<AuthProvider>();
+
+    if (!input.contains('@')) {
+      final result = await auth.resolveLoginEmail(input);
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        setState(() {
+          _checkingEmail = false;
+          _isRegister = false;
+          _resolvedLoginEmail = result['email'] as String;
+          _stage = _AuthStage.form;
+        });
+        return;
+      }
+
+      if (result['notFound'] == true) {
+        setState(() {
+          _checkingEmail = false;
+          _isRegister = true;
+          _usernameCtrl.text = input;
+          _emailCtrl.clear();
+          _stage = _AuthStage.form;
+        });
+        return;
+      }
+
+      // A genuine failure (network/server) — not a verdict either way, so
+      // stay put and show it rather than guessing which mode to open.
+      setState(() {
+        _checkingEmail = false;
+        _emailCheckError =
+            result['message'] as String? ?? 'Could not verify. Try again.';
+      });
+      return;
+    }
+
+    final exists = await auth.checkEmailExists(input);
+
+    if (!mounted) return;
+
+    if (exists == null) {
+      setState(() {
+        _checkingEmail = false;
+        _emailCheckError = 'Could not verify email. Try again.';
+      });
+      return;
+    }
+
+    setState(() {
+      _checkingEmail = false;
+      _isRegister = !exists;
+      _stage = _AuthStage.form;
+    });
+  }
+
+  Widget _buildEmailEntryScreen() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildBackground(),
+        SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Form(
+                key: _emailEntryFormKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 320),
+                    const Text(
+                      'Welcome',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Log in with your email or username, or enter your email to sign up.',
+                      style: TextStyle(color: muted, fontSize: 14),
+                    ),
+                    const SizedBox(height: 28),
+
+                    if (_emailCheckError != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0x1AF87171),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0x44F87171)),
+                        ),
+                        child: Text(
+                          _emailCheckError!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: Color(0xFFF87171), fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    _buildField(
+                      controller: _emailCtrl,
+                      hint: 'Email or username',
+                      icon: Icons.alternate_email,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Email or username is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed:
+                            _checkingEmail ? null : _checkEmailAndContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _checkingEmail
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Continue',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Auth screen ───────────────────────────────────────────────────────────
   Widget _buildAuthScreen() {
     final auth = context.watch<AuthProvider>();
@@ -599,7 +803,39 @@ class _LoginScreenState extends State<LoginScreen> {
                           : 'Please log in to continue.',
                       style: const TextStyle(color: muted, fontSize: 14),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 10),
+
+                    // Lets the user back out of whichever mode the email
+                    // check picked, in case it guessed wrong or they typo'd.
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _stage = _AuthStage.emailEntry;
+                          _resolvedLoginEmail = null;
+                        });
+                        context.read<AuthProvider>().clearError();
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.arrow_back, color: muted, size: 14),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              _emailCtrl.text.isEmpty
+                                  ? 'Change email'
+                                  : '${_emailCtrl.text} · change',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: muted,
+                                  fontSize: 12,
+                                  decoration: TextDecoration.underline),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
 
                     // Error message
                     if (auth.status == AuthStatus.error) ...[
@@ -698,13 +934,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Email
                     _buildField(
                       controller: _emailCtrl,
-                      hint: 'Email',
-                      icon: Icons.email_outlined,
+                      hint: _isRegister ? 'Email' : 'Email or username',
+                      icon: _isRegister
+                          ? Icons.email_outlined
+                          : Icons.alternate_email,
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty)
-                          return 'Email is required';
-                        if (!v.contains('@')) return 'Enter a valid email';
+                        if (v == null || v.trim().isEmpty) {
+                          return _isRegister
+                              ? 'Email is required'
+                              : 'Email or username is required';
+                        }
+                        // Sign up always needs a real email; login accepts
+                        // either, since _resolvedLoginEmail (or the field
+                        // itself, when it's an email) supplies the real one.
+                        if (_isRegister && !v.contains('@')) {
+                          return 'Enter a valid email';
+                        }
                         return null;
                       },
                     ),
@@ -879,9 +1125,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Widget body;
+    if (_showSplash) {
+      body = _buildSplashScreen();
+    } else if (_stage == _AuthStage.emailEntry) {
+      body = _buildEmailEntryScreen();
+    } else {
+      body = _buildAuthScreen();
+    }
     return Scaffold(
       backgroundColor: bg,
-      body: _showSplash ? _buildSplashScreen() : _buildAuthScreen(),
+      body: body,
     );
   }
 

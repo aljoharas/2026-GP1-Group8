@@ -62,6 +62,50 @@ class AuthService {
     }
   }
 
+  // Checks whether an email already has an account — public endpoint, used
+  // to route the user to Login or Sign Up before they pick either one.
+  // Returns true/false, or null if it couldn't be verified (caller falls
+  // back to letting the user pick manually).
+  Future<bool?> checkEmailExists(String email) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${AppConstants.baseUrl}/auth/check-email/${Uri.encodeComponent(email)}',
+        ),
+      );
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(response.body);
+      return data['exists'] as bool?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Maps a login identifier (email OR username) to the account's real email
+  // — Firebase only ever signs in with an email, so this is what lets Login
+  // accept a username too. Public endpoint, no auth needed yet.
+  Future<Map<String, dynamic>> resolveLoginEmail(String identifier) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${AppConstants.baseUrl}/auth/resolve-login/${Uri.encodeComponent(identifier)}',
+        ),
+      );
+      if (response.statusCode != 200) {
+        return {'success': false, 'message': 'Could not verify. Try again.'};
+      }
+      final data = jsonDecode(response.body);
+      final email = data['email'] as String?;
+      // notFound is distinct from a network/server failure below — the
+      // caller routes a not-found username to Sign Up, but shouldn't do that
+      // just because the request itself failed.
+      if (email == null) return {'success': false, 'notFound': true};
+      return {'success': true, 'email': email};
+    } catch (_) {
+      return {'success': false, 'message': 'Could not reach server. Check your connection.'};
+    }
+  }
+
   // REGISTER
   Future<Map<String, dynamic>> register({
     required String email,
