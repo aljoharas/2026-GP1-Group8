@@ -180,7 +180,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           : friendshipStatus == 'accepted'
               ? "is now your friend"
               : 'sent you a friend request',
-      'friend_accepted' => 'accepted your friend request',
+      'friend_accepted' => 'You and @$username are now friends!',
       _ => 'sent you a notification',
     };
 
@@ -223,18 +223,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     RichText(
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      text: TextSpan(children: [
-                        TextSpan(
-                            text: '@$username',
-                            style: const TextStyle(
-                                color: accent,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700)),
-                        TextSpan(
-                            text: ' $message',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 13, height: 1.35)),
-                      ]),
+                      // "friend_accepted" reads as one sentence ("You and
+                      // @username are now friends!") instead of the usual
+                      // "@username <message>" layout.
+                      text: type == 'friend_accepted'
+                          ? TextSpan(
+                              text: message,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13, height: 1.35))
+                          : TextSpan(children: [
+                              TextSpan(
+                                  text: '@$username',
+                                  style: const TextStyle(
+                                      color: accent,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700)),
+                              TextSpan(
+                                  text: ' $message',
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 13, height: 1.35)),
+                            ]),
                     ),
                     const SizedBox(height: 4),
                     Text(timeAgo(notification['created_at'] as String?),

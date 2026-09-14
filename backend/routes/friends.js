@@ -254,22 +254,32 @@ router.post('/requests/:id/accept', verifyToken, async (req, res) => {
     const requesterId = result.rows[0].requester_id;
 
     // The request itself is no longer actionable, so it stops being a
-    // notification. The requester gets a new one telling them it was accepted.
+    // notification. Both users get a new one telling them they're now friends.
     await pool.query(
       `DELETE FROM notifications
        WHERE user_id = $1 AND related_user_id = $2 AND type = 'friend_request'`,
       [uid, requesterId]
     );
 
-    const me = await pool.query(
-      'SELECT username FROM users WHERE id = $1',
-      [uid]
+    const names = await pool.query(
+      'SELECT id, username FROM users WHERE id = ANY($1::text[])',
+      [[uid, requesterId]]
     );
+    const usernameOf = (userId) =>
+      names.rows.find((r) => r.id === userId)?.username ?? 'this user';
+
+    // Both sides of the new friendship get told about it.
     await notify({
       userId: requesterId,
       actorId: uid,
       type: 'friend_accepted',
-      message: `@${me.rows[0]?.username ?? 'Someone'} accepted your friend request`,
+      message: `You and @${usernameOf(uid)} are now friends!`,
+    });
+    await notify({
+      userId: uid,
+      actorId: requesterId,
+      type: 'friend_accepted',
+      message: `You and @${usernameOf(requesterId)} are now friends!`,
     });
 
     return res.status(200).json({ status: 'friends' });
