@@ -129,6 +129,9 @@ function normalizeSteamAchievements(schemaAchievements, percentMap) {
     const pct = percentMap.get(a.name);
     return {
       externalId: a.name,
+      // Developer's internal key (DLC1_, EP2_, MP_, COOP_ ...). Kept separate
+      // from `name` (the display name) so the trophy guide can classify on it.
+      internalKey: a.name,
       name: a.displayName || a.name,
       description: a.description || '',
       iconUrl: a.icon || null,
@@ -154,6 +157,7 @@ function normalizeRawgAchievements(results) {
 
     byKey.set(key, {
       externalId: String(a.id),
+      internalKey: null, // RAWG has no developer key
       name,
       description,
       iconUrl: a.image || null,

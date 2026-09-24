@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
 const { recordActivity } = require('../lib/activity');
+const { getOrCreateGuide } = require('../lib/achievementGuide');
 require('dotenv').config();
 
 const RAWG_KEY = process.env.RAWG_API_KEY;
@@ -528,6 +529,24 @@ router.get('/:id/achievements', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Achievements error:', error.message);
     return res.status(500).json({ message: 'Failed to fetch achievements' });
+  }
+});
+
+// GET /games/:id/achievement-guide
+// Trophy guide. Ordering is deterministic (ladders, dependencies, rarity, name);
+// the LLM only adds per-trophy hints. Cached in achievement_guides -- a cached
+// row is reused only if it was produced by the current GUIDE_VERSION, otherwise
+// (or with ?refresh=true) it is regenerated and overwritten.
+router.get('/:id/achievement-guide', verifyToken, async (req, res) => {
+  const rawgId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(rawgId)) return res.status(400).json({ message: 'Invalid game id' });
+  try {
+    const { statusCode, body } = await getOrCreateGuide(rawgId, { forceRefresh: req.query.refresh === 'true' });
+    if (body.meta) delete body.meta; // audit logs stay server-side (stored in achievement_guides.meta)
+    return res.status(statusCode).json(body);
+  } catch (error) {
+    console.error('Achievement guide error:', error.message);
+    return res.status(500).json({ message: 'Failed to generate achievement guide' });
   }
 });
 

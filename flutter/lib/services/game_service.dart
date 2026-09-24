@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import '../core/constants.dart';
+import '../models/achievement_guide.dart';
 
 class GameService {
   final FirebaseAuth _firebase = FirebaseAuth.instance;
@@ -66,6 +67,38 @@ class GameService {
         return {'success': true, 'achievements': data['achievements']};
       }
       return {'success': false, 'message': data['message'] ?? 'Failed to load achievements'};
+    } catch (e) {
+      return {'success': false, 'message': 'Could not reach server'};
+    }
+  }
+
+  // GET ACHIEVEMENT GUIDE FOR A GAME
+  // Calls GET /games/:id/achievement-guide on Node backend.
+  // The server orders trophies deterministically (threshold ladders,
+  // dependencies, rarity) into phases, and adds optional per-trophy hints.
+  // Cached server-side; pass refresh: true to recompute. The first request
+  // for a game can take a while (it generates and caches), so the timeout is
+  // generous.
+  Future<Map<String, dynamic>> getAchievementGuide(int rawgId, {bool refresh = false}) async {
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Not logged in'};
+      }
+
+      final uri = Uri.parse(
+        '${AppConstants.baseUrl}/games/$rawgId/achievement-guide${refresh ? '?refresh=true' : ''}',
+      );
+      final response = await http
+          .get(uri, headers: {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 90));
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'guide': AchievementGuide.fromJson(data as Map<String, dynamic>)};
+      }
+      return {'success': false, 'message': data['message'] ?? 'Failed to load guide'};
     } catch (e) {
       return {'success': false, 'message': 'Could not reach server'};
     }

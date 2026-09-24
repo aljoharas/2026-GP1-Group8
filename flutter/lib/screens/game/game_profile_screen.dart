@@ -7,6 +7,7 @@ import '../../services/list_service.dart';
 import '../profile/list_editor_sheet.dart';
 import '../logGames/log_game_detail_screen.dart';
 import 'achievements_screen.dart';
+import 'achievement_guide_screen.dart';
 
 class GameProfileScreen extends StatefulWidget {
   final int rawgId;
@@ -1151,6 +1152,41 @@ class _GameProfileScreenState extends State<GameProfileScreen> {
             child: Row(
               children: [
                 Expanded(child: _sectionTitle('Trophies')),
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AchievementGuideScreen(
+                        rawgId: widget.rawgId,
+                        gameName: widget.gameName,
+                      ),
+                    ),
+                  ),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: accent2.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: accent2.withValues(alpha: 0.4)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.map_outlined, size: 13, color: accent2),
+                        SizedBox(width: 4),
+                        Text(
+                          'Guide',
+                          style: TextStyle(
+                            color: accent2,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 if (achievements.length > 3)
                   GestureDetector(
                     onTap: () => Navigator.push(

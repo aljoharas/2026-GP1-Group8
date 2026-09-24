@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/achievement_guide.dart';
 import '../services/game_service.dart';
 
 enum GameStatus { idle, loading, success, error }
@@ -9,10 +10,12 @@ class GameProvider extends ChangeNotifier {
   GameStatus _searchStatus = GameStatus.idle;
   GameStatus _profileStatus = GameStatus.idle;
   GameStatus _achievementsStatus = GameStatus.idle;
+  GameStatus _guideStatus = GameStatus.idle;
   GameStatus _reviewsStatus = GameStatus.idle;
   List<dynamic> _searchResults = [];
   Map<String, dynamic>? _selectedGame;
   List<dynamic> _achievements = [];
+  AchievementGuide? _guide;
   List<dynamic> _reviews = [];
   int? _userRating;
   double? _communityRating;
@@ -23,10 +26,12 @@ class GameProvider extends ChangeNotifier {
   GameStatus get searchStatus => _searchStatus;
   GameStatus get profileStatus => _profileStatus;
   GameStatus get achievementsStatus => _achievementsStatus;
+  GameStatus get guideStatus => _guideStatus;
   GameStatus get reviewsStatus => _reviewsStatus;
   List<dynamic> get searchResults => _searchResults;
   Map<String, dynamic>? get selectedGame => _selectedGame;
   List<dynamic> get achievements => _achievements;
+  AchievementGuide? get guide => _guide;
   List<dynamic> get reviews => _reviews;
   int? get userRating => _userRating;
   double? get communityRating => _communityRating;
@@ -36,6 +41,7 @@ class GameProvider extends ChangeNotifier {
   bool get isSearching => _searchStatus == GameStatus.loading;
   bool get isLoadingProfile => _profileStatus == GameStatus.loading;
   bool get isLoadingAchievements => _achievementsStatus == GameStatus.loading;
+  bool get isLoadingGuide => _guideStatus == GameStatus.loading;
   bool get isLoadingReviews => _reviewsStatus == GameStatus.loading;
 
   // SEARCH
@@ -165,6 +171,22 @@ class GameProvider extends ChangeNotifier {
     } else {
       _errorMessage = result['message'];
       _achievementsStatus = GameStatus.error;
+    }
+    notifyListeners();
+  }
+
+  // GET ACHIEVEMENT GUIDE (server-ordered phases, ladders and per-trophy hints)
+  Future<void> getAchievementGuide(int rawgId, {bool refresh = false}) async {
+    _guide = null;
+    _guideStatus = GameStatus.loading;
+    notifyListeners();
+    final result = await _gameService.getAchievementGuide(rawgId, refresh: refresh);
+    if (result['success']) {
+      _guide = result['guide'] as AchievementGuide;
+      _guideStatus = GameStatus.success;
+    } else {
+      _errorMessage = result['message'] ?? 'Failed to load guide';
+      _guideStatus = GameStatus.error;
     }
     notifyListeners();
   }

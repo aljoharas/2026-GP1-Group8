@@ -1,0 +1,251 @@
+{
+  "nodes": [
+    {
+      "id": "A31",
+      "kind": "trophy",
+      "name": "Ain't That a Kick in the Head",
+      "image": null,
+      "order": 1,
+      "phase": "base",
+      "steps": [
+        "Complete Ain't That a Kick in the Head."
+      ],
+      "hidden": false,
+      "rarity": 92,
+      "reason": "92% of players have earned this; placed by earn rate (most common first).",
+      "percent": 92,
+      "category": "base",
+      "dependsOn": [],
+      "phaseName": "Base game",
+      "confidence": "high",
+      "description": "Complete Ain't That a Kick in the Head.",
+      "internalKey": "A31",
+      "categoryVote": "base",
+      "suspectedCategory": null
+    },
+    {
+      "id": "ladder:A01",
+      "kind": "ladder",
+      "name": "New Kid → Up and Comer → The Boss",
+      "image": null,
+      "order": 4,
+      "phase": "base",
+      "steps": [
+        "Reach 10th level."
+      ],
+      "tiers": [
+        {
+          "label": "10",
+          "value": 10,
+          "trophies": [
+            {
+              "id": "A01",
+              "name": "New Kid",
+              "image": null,
+              "steps": [
+                "Reach 10th level."
+              ],
+              "hidden": false,
+              "rarity": 45.6,
+              "confidence": "high",
+              "description": "Reached 10th level.",
+              "internalKey": "A01",
+              "categoryVote": "base"
+            }
+          ],
+          "dependsOn": []
+        },
+        {
+          "label": "20",
+          "value": 20,
+          "trophies": [
+            {
+              "id": "A02",
+              "name": "Up and Comer",
+              "image": null,
+              "steps": [
+                "Reach 20th level."
+              ],
+              "hidden": false,
+              "rarity": 31.9,
+              "confidence": "high",
+              "description": "Reach 20th level.",
+              "internalKey": "A02",
+              "categoryVote": "base"
+            }
+          ],
+          "dependsOn": [
+            "A01"
+          ]
+        },
+        {
+          "label": "30",
+          "value": 30,
+          "trophies": [
+            {
+              "id": "A03",
+              "name": "The Boss",
+              "image": null,
+              "steps": [
+                "Reach 30th level."
+              ],
+              "hidden": false,
+              "rarity": 21.6,
+              "confidence": "high",
+              "description": "Reach 30th level.",
+              "internalKey": "A03",
+              "categoryVote": "base"
+            }
+          ],
+          "dependsOn": [
+            "A02"
+          ]
+        }
+      ],
+      "hidden": false,
+      "rarity": 45.6,
+      "reason": "Progression ladder: 10 → 20 → 30. Tiers must be earned in this order; placed by the first tier's earn rate (45.6%).",
+      "percent": 45.6,
+      "category": "base",
+      "dependsOn": [],
+      "phaseName": "Base game",
+      "confidence": "high",
+      "description": "Reached 10th level.",
+      "internalKey": null,
+      "categoryVote": "base",
+      "suspectedCategory": null
+    },
+    {
+      "id": "A59",
+      "kind": "trophy",
+      "name": "When We Remembered Zion",
+      "image": null,
+      "order": 47,
+      "phase": "dlc",
+      "steps": [
+        "Arrive at Zion."
+      ],
+      "hidden": false,
+      "rarity": 19.2,
+      "reason": "19.2% of players have earned this; placed by earn rate (most common first).",
+      "percent": 19.2,
+      "category": "dlc",
+      "dependsOn": [],
+      "phaseName": "DLC",
+      "confidence": "high",
+      "description": "Arrive at Zion.",
+      "internalKey": "A59",
+      "categoryVote": "base",
+      "suspectedCategory": null
+    },
+    {
+      "id": "ladder:A73",
+      "kind": "ladder",
+      "name": "Up to the Challenge → Combat Veteran → Pros Only",
+      "image": null,
+      "order": 69,
+      "phase": "dlc",
+      "steps": [
+        "Complete any three Gun Runners' Arsenal (GRA) one star (*) Challenges."
+      ],
+      "tiers": [
+        {
+          "label": "1",
+          "value": 1,
+          "trophies": [
+            {
+              "id": "A73",
+              "name": "Up to the Challenge",
+              "image": null,
+              "steps": [
+                "Complete any three Gun Runners' Arsenal (GRA) one star (*) Challenges."
+              ],
+              "hidden": false,
+              "rarity": 2.5,
+              "confidence": "high",
+              "description": "Completed any three Gun Runners' Arsenal (GRA) one star (*) Challenges.",
+              "internalKey": "A73",
+              "categoryVote": "dlc"
+            }
+          ],
+          "dependsOn": []
+        },
+        {
+          "label": "2",
+          "value": 2,
+          "trophies": [
+            {
+              "id": "A74",
+              "name": "Combat Veteran",
+              "image": null,
+              "steps": [
+                "Complete any three Gun Runners' Arsenal (GRA) two star (**) Challenges."
+              ],
+              "hidden": false,
+              "rarity": 2.4,
+              "confidence": "high",
+              "description": "Completed any three Gun Runners' Arsenal (GRA) two star (**) Challenges.",
+              "internalKey": "A74",
+              "categoryVote": "dlc"
+            }
+          ],
+          "dependsOn": [
+            "A73"
+          ]
+        },
+        {
+          "label": "3",
+          "value": 3,
+          "trophies": [
+            {
+              "id": "A75",
+              "name": "Pros Only",
+              "image": null,
+              "steps": [
+                "Complete any three Gun Runners' Arsenal (GRA) three star (***) Challenges."
+              ],
+              "hidden": false,
+              "rarity": 2,
+              "confidence": "high",
+              "description": "Completed any three Gun Runners' Arsenal (GRA) three star (***) Challenges.",
+              "internalKey": "A75",
+              "categoryVote": "dlc"
+            }
+          ],
+          "dependsOn": [
+            "A74"
+          ]
+        }
+      ],
+      "hidden": false,
+      "rarity": 2.5,
+      "reason": "Progression ladder: 1 → 2 → 3. Tiers must be earned in this order; placed by the first tier's earn rate (2.5%).",
+      "percent": 2.5,
+      "category": "dlc",
+      "dependsOn": [],
+      "phaseName": "DLC",
+      "confidence": "high",
+      "description": "Completed any three Gun Runners' Arsenal (GRA) one star (*) Challenges.",
+      "internalKey": null,
+      "categoryVote": "dlc",
+      "suspectedCategory": null
+    }
+  ],
+  "phases": [
+    {
+      "key": "base",
+      "name": "Base game",
+      "count": 46,
+      "startOrder": 1
+    },
+    {
+      "key": "dlc",
+      "name": "DLC",
+      "count": 23,
+      "startOrder": 47
+    }
+  ],
+  "cached": true,
+  "model": "gpt-4o-mini",
+  "promptVersion": "order-5/enrich-1"
+}
