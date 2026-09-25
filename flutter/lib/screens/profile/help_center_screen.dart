@@ -15,7 +15,7 @@ class HelpCenterScreen extends StatelessWidget {
   static const _faqs = [
     {
       'q': 'How do I add a game to my list?',
-      'a': 'Search for a game, open its profile, then tap "Add to List". This feature is coming in GP2.',
+      'a': 'Search for a game, open its profile, then tap "Add to List".',
     },
     {
       'q': 'How do I change my username?',
@@ -27,11 +27,11 @@ class HelpCenterScreen extends StatelessWidget {
     },
     {
       'q': 'How do trophies work?',
-      'a': 'Trophies are earned by completing games and achievements. Full trophy system coming in GP2.',
+      'a': 'Trophies are earned by completing games and achievements. For tips on unlocking them, open a game\'s profile and check its Trophy Guide.',
     },
     {
-      'q': 'How do I follow other players?',
-      'a': 'Friends & following features are coming in GP2.',
+      'q': 'How do I add friends?',
+      'a': 'Open Search, switch to "Users" and find the player. Tap their profile, then tap "Add friend". Once they accept your request, you\'ll be friends.',
     },
   ];
 

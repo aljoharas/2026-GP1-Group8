@@ -910,8 +910,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           _buildFollowRow(),
           const SizedBox(height: 20),
           _buildStatsGrid(lp),
-          const SizedBox(height: 16),
-          _buildTrophyButton(),
           const SizedBox(height: 8),
         ],
       ),
@@ -1415,47 +1413,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             style: const TextStyle(
                 fontSize: 9, color: muted, letterSpacing: 0.4)),
       ],
-    ),
-  );
-
-  // ── Trophy Button ─────────────────────────────────────────────────────────
-  Widget _buildTrophyButton() => GestureDetector(
-    onTap: () => _sprint2('Trophy Guide'),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF2A2200), bg]),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: gold.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-                color: gold.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10)),
-            child: const Center(
-                child: Text('🏆', style: TextStyle(fontSize: 20))),
-          ),
-          const SizedBox(width: 12),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Trophy Guide',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: kText)),
-              SizedBox(height: 2),
-              Text('View tips & unlock strategies',
-                  style: TextStyle(fontSize: 12, color: muted)),
-            ],
-          ),
-          const Spacer(),
-          const Icon(Icons.chevron_right, color: muted),
-        ],
-      ),
     ),
   );
 
