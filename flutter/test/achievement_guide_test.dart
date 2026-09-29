@@ -12,12 +12,12 @@ import 'package:loadout/screens/game/achievement_guide_screen.dart';
 Map<String, dynamic> loadFixture() =>
     jsonDecode(File('test/fixtures/guide_fnv_sample.json').readAsStringSync()) as Map<String, dynamic>;
 
-Future<void> pumpView(WidgetTester tester, AchievementGuide guide) async {
+Future<void> pumpView(WidgetTester tester, AchievementGuide guide, {Set<String> earned = const {}}) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(400, 1400);
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    MaterialApp(home: Scaffold(body: AchievementGuideView(guide: guide))),
+    MaterialApp(home: Scaffold(body: AchievementGuideView(guide: guide, earned: earned))),
   );
 }
 
@@ -87,17 +87,24 @@ void main() {
   });
 
   group('AchievementGuideView', () {
-    testWidgets('shows phase headers for Base game and DLC, with a DLC ownership hint', (tester) async {
+    testWidgets('phases are tabs: base game first, DLC one tap away', (tester) async {
       await pumpView(tester, AchievementGuide.fromJson(loadFixture()));
 
       expect(find.byKey(const Key('guide-phase-base')), findsOneWidget);
       expect(find.byKey(const Key('guide-phase-dlc')), findsOneWidget);
       expect(find.text('Base game'), findsOneWidget);
       expect(find.text('DLC'), findsOneWidget);
+      // Base game is open by default; DLC stops are not on the page yet.
+      expect(find.byKey(const Key('guide-node-4')), findsOneWidget);
+      expect(find.byKey(const Key('guide-node-47')), findsNothing);
+      expect(find.text('May require DLC or expansion content'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('guide-phase-dlc')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('guide-node-47')), findsOneWidget);
+      expect(find.byKey(const Key('guide-node-4')), findsNothing);
       expect(find.text('May require DLC or expansion content'), findsOneWidget);
-      // The DLC header sits below the base-game nodes.
-      expect(tester.getTopLeft(find.byKey(const Key('guide-phase-dlc'))).dy,
-          greaterThan(tester.getTopLeft(find.byKey(const Key('guide-node-4'))).dy));
     });
 
     testWidgets('a single-phase guide has no headers', (tester) async {
@@ -115,8 +122,12 @@ void main() {
 
       expect(find.text("Ain't That a Kick in the Head"), findsOneWidget);
       expect(find.text('New Kid → Up and Comer → The Boss'), findsOneWidget);
-      expect(find.byIcon(Icons.layers), findsNWidgets(2), reason: 'both ladders carry a tier badge');
-      expect(find.text('3'), findsNWidgets(2));
+      expect(find.byIcon(Icons.layers), findsOneWidget, reason: 'the base-game ladder carries a tier badge');
+      expect(find.descendant(of: find.byKey(const Key('guide-node-4')), matching: find.text('3')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('guide-phase-dlc')));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.layers), findsOneWidget, reason: 'the DLC ladder carries a tier badge too');
     });
 
     testWidgets('tapping a ladder opens its tiers in order, with why-here', (tester) async {
@@ -141,6 +152,8 @@ void main() {
     testWidgets('a DLC stop is tagged with its phase in the sheet', (tester) async {
       await pumpView(tester, AchievementGuide.fromJson(loadFixture()));
 
+      await tester.tap(find.byKey(const Key('guide-phase-dlc')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('guide-node-47')));
       await tester.pumpAndSettle();
 
@@ -191,6 +204,84 @@ void main() {
       expect(find.text('Hidden'), findsOneWidget);
       expect(find.byKey(const Key('guide-suspected-note')), findsOneWidget);
       expect(find.textContaining('online or multiplayer play'), findsOneWidget);
+    });
+
+    testWidgets('achievements ticked in logs show as earned on the guide', (tester) async {
+      // Log names come from another endpoint, so casing/punctuation can differ.
+      final earned = {"ain't that a kick in the head", 'New Kid', 'Up and Comer'}.map(trophyKey).toSet();
+      await pumpView(tester, AchievementGuide.fromJson(loadFixture()), earned: earned);
+
+      expect(find.descendant(of: find.byKey(const Key('guide-node-1')), matching: find.byKey(const Key('guide-earned-badge'))),
+          findsOneWidget);
+      // The ladder is only partly done: no check, but its badge shows tiers earned.
+      expect(find.descendant(of: find.byKey(const Key('guide-node-4')), matching: find.byKey(const Key('guide-earned-badge'))),
+          findsNothing);
+      expect(find.descendant(of: find.byKey(const Key('guide-node-4')), matching: find.text('2/3')), findsOneWidget);
+      expect(find.byKey(const Key('guide-progress')), findsOneWidget);
+      expect(find.textContaining("You've earned 3 of"), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('guide-node-4')));
+      await tester.pumpAndSettle();
+      expect(find.text('2/3 earned'), findsOneWidget);
+    });
+
+    testWidgets('nothing logged: no progress bar and no earned badges', (tester) async {
+      await pumpView(tester, AchievementGuide.fromJson(loadFixture()));
+
+      expect(find.byKey(const Key('guide-progress')), findsNothing);
+      expect(find.byKey(const Key('guide-earned-badge')), findsNothing);
+    });
+
+    group('platinum', () {
+      Map<String, dynamic> withPlatinum() => loadFixture()
+        ..['platinum'] = {'name': 'Legend of the West', 'description': null, 'rarity': 0.51, 'generic': false};
+
+      Set<String> allBase(AchievementGuide g) =>
+          g.baseNodes.expand((n) => n.trophyNames).map(trophyKey).toSet();
+
+      testWidgets('is the last stop of the base-game tab, not the DLC tab', (tester) async {
+        await pumpView(tester, AchievementGuide.fromJson(withPlatinum()));
+
+        final plat = find.byKey(const Key('guide-node-platinum'));
+        expect(plat, findsOneWidget);
+        expect(tester.getTopLeft(plat).dy, greaterThan(tester.getTopLeft(find.byKey(const Key('guide-node-4'))).dy));
+        expect(find.byIcon(Icons.star), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('guide-phase-dlc')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('guide-node-platinum')), findsNothing);
+      });
+
+      testWidgets('is earned once every base-game trophy is, even with DLC left', (tester) async {
+        final g = AchievementGuide.fromJson(withPlatinum());
+        await pumpView(tester, g, earned: allBase(g));
+
+        expect(find.descendant(of: find.byKey(const Key('guide-node-platinum')), matching: find.byKey(const Key('guide-earned-badge'))),
+            findsOneWidget);
+        await tester.tap(find.byKey(const Key('guide-node-platinum')));
+        await tester.pumpAndSettle();
+        expect(find.text('Earned'), findsOneWidget);
+      });
+
+      testWidgets('is earned when ticked by name in an old log', (tester) async {
+        await pumpView(tester, AchievementGuide.fromJson(withPlatinum()), earned: {trophyKey('Legend of the West')});
+        expect(find.descendant(of: find.byKey(const Key('guide-node-platinum')), matching: find.byKey(const Key('guide-earned-badge'))),
+            findsOneWidget);
+      });
+
+      testWidgets('shows base-game progress in its sheet when not yet earned', (tester) async {
+        await pumpView(tester, AchievementGuide.fromJson(withPlatinum()), earned: {trophyKey("Ain't That a Kick in the Head")});
+        await tester.tap(find.byKey(const Key('guide-node-platinum')));
+        await tester.pumpAndSettle();
+        expect(find.text('Legend of the West'), findsWidgets);
+        expect(find.byKey(const Key('guide-platinum-progress')), findsOneWidget);
+        expect(find.text('Earned'), findsNothing);
+      });
+
+      testWidgets('no platinum in the response: no platinum stop', (tester) async {
+        await pumpView(tester, AchievementGuide.fromJson(loadFixture()));
+        expect(find.byKey(const Key('guide-node-platinum')), findsNothing);
+      });
     });
   });
 }

@@ -4,6 +4,8 @@ const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
 const { recordActivity } = require('../lib/activity');
 const { getOrCreateGuide } = require('../lib/achievementGuide');
+const { getGameAchievements } = require('../lib/achievements');
+const { getPlatinum } = require('../lib/guide/platinum');
 require('dotenv').config();
 
 const RAWG_KEY = process.env.RAWG_API_KEY;
@@ -473,59 +475,41 @@ router.get('/:id/reviews', verifyToken, async (req, res) => {
 });
 
 // GET /games/:id/achievements
-// Cached in the achievements table — only hits RAWG on a miss, then persists.
+// Serves the same resolved list the trophy guide is built from (Steam first,
+// RAWG fallback, cached in game_achievements -- see lib/achievements.js), so
+// the names a user ticks in their log are exactly the guide's trophy names.
 router.get('/:id/achievements', verifyToken, async (req, res) => {
-  const { id } = req.params; // RAWG id
+  const rawgId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(rawgId)) return res.status(400).json({ message: 'Invalid game id' });
   try {
-    const gameRow = await pool.query('SELECT id FROM games WHERE rawg_id = $1', [id]);
-    const gameId = gameRow.rows[0]?.id;
+    const resolved = await getGameAchievements(rawgId);
+    const achievements = (resolved.achievements || []).map((a, i) => ({
+      id: i + 1, // position in the resolved list; the app only uses it to track selection
+      key: a.externalId,
+      name: a.name,
+      description: a.description || null,
+      image: a.iconUrl || null,
+      percent: Number.isFinite(a.rarityPercent) ? Math.round(a.rarityPercent * 10) / 10 : null,
+      hidden: a.hidden === true,
+    }));
 
-    if (gameId) {
-      const cached = await pool.query(
-        `SELECT id, display_name AS name, description, icon_url AS image, percent
-         FROM achievements WHERE game_id = $1 ORDER BY id`,
-        [gameId]
-      );
-      const hasPercentData = cached.rows.some(r => r.percent != null);
-      if (cached.rows.length > 0 && hasPercentData) {
-        return res.status(200).json({ achievements: cached.rows });
-      }
+    // PlayStation's Platinum isn't on Steam's list; add it first (the checklist
+    // is collapsed to its top rows) so it can be ticked like any other. The
+    // guide gets the same name from getPlatinum.
+    const platinum = await getPlatinum(resolved);
+    if (platinum && !achievements.some((a) => a.name.trim().toLowerCase() === platinum.name.toLowerCase())) {
+      achievements.unshift({
+        id: achievements.length + 1,
+        key: 'platinum',
+        name: platinum.name,
+        description: platinum.description || 'PlayStation Platinum: earn every base-game trophy.',
+        image: platinum.image,
+        percent: Number.isFinite(platinum.rarity) ? Math.round(platinum.rarity * 10) / 10 : null,
+        hidden: false,
+        platinum: true,
+      });
     }
-
-    let all = [];
-    let url = `${RAWG_BASE}/games/${id}/achievements?page_size=40&key=${RAWG_KEY}`;
-    while (url && all.length < 200) {
-      const response = await fetch(url);
-      if (!response.ok) break;
-      const data = await response.json();
-      all = all.concat(data.results || []);
-      url = data.next || null;
-    }
-
-    if (gameId && all.length > 0) {
-      for (const a of all) {
-        const pct = a.percent != null ? parseFloat(a.percent) : null;
-        await pool.query(
-          `INSERT INTO achievements (game_id, api_name, display_name, description, icon_url, percent)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (game_id, api_name) DO UPDATE
-             SET display_name = EXCLUDED.display_name,
-                 description  = EXCLUDED.description,
-                 icon_url     = EXCLUDED.icon_url,
-                 percent      = EXCLUDED.percent`,
-          [gameId, String(a.id), a.name, a.description || null, a.image || null,
-           Number.isFinite(pct) ? pct : null]
-        );
-      }
-      const saved = await pool.query(
-        `SELECT id, display_name AS name, description, icon_url AS image, percent
-         FROM achievements WHERE game_id = $1 ORDER BY id`,
-        [gameId]
-      );
-      return res.status(200).json({ achievements: saved.rows });
-    }
-
-    return res.status(200).json({ achievements: all });
+    return res.status(200).json({ achievements });
   } catch (error) {
     console.error('Achievements error:', error.message);
     return res.status(500).json({ message: 'Failed to fetch achievements' });

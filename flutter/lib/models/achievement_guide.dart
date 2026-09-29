@@ -4,9 +4,20 @@
 // renders them. Parsing is defensive: a missing or oddly-typed field degrades
 // to a sensible default instead of throwing.
 
+import 'dart:math';
+
 double? _num(dynamic v) => v == null ? null : double.tryParse(v.toString());
 
 String _norm(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+/// Key for matching a guide trophy to the achievement names a user ticked in
+/// their logs. Those come from a different endpoint, so casing and
+/// punctuation may differ. Names with no latin letters or digits fall back
+/// to a trimmed lowercase form so they still match themselves.
+String trophyKey(String name) {
+  final k = _norm(name);
+  return k.isNotEmpty ? k : name.trim().toLowerCase();
+}
 
 List<String> _strings(dynamic v) =>
     v is List ? v.whereType<String>().map((s) => s.trim()).where((s) => s.isNotEmpty).toList() : const [];
@@ -136,6 +147,10 @@ class GuideNode {
   final String? suspectedCategory;
   final List<GuideTier> tiers;
 
+  /// The PlayStation Platinum: always the last base-game stop, earned by
+  /// finishing every other base-game trophy.
+  final bool isPlatinum;
+
   const GuideNode({
     required this.order,
     required this.id,
@@ -151,6 +166,7 @@ class GuideNode {
     this.steps = const [],
     this.suspectedCategory,
     this.tiers = const [],
+    this.isPlatinum = false,
   });
 
   factory GuideNode.fromJson(Map<String, dynamic> j) {
@@ -182,12 +198,29 @@ class GuideNode {
       tiers: tiers,
     );
   }
+
+  /// Names of the real trophies behind this stop (a ladder's name is a
+  /// joined label, so its tiers are used instead).
+  List<String> get trophyNames =>
+      isLadder ? [for (final t in tiers) for (final tr in t.trophies) tr.name] : [name];
+
+  int earnedCount(Set<String> earnedKeys) =>
+      trophyNames.where((n) => earnedKeys.contains(trophyKey(n))).length;
+
+  bool isEarned(Set<String> earnedKeys) {
+    final names = trophyNames;
+    return names.isNotEmpty && earnedCount(earnedKeys) == names.length;
+  }
 }
 
 class AchievementGuide {
   final List<GuideNode> nodes;
   final List<GuidePhase> phases;
-  const AchievementGuide({required this.nodes, required this.phases});
+
+  /// Separate from [nodes]: the backend only sends it for PlayStation games.
+  final GuideNode? platinum;
+
+  const AchievementGuide({required this.nodes, required this.phases, this.platinum});
 
   factory AchievementGuide.fromJson(Map<String, dynamic> j) {
     final nodes = (j['nodes'] as List? ?? const [])
@@ -199,8 +232,32 @@ class AchievementGuide {
         .whereType<Map>()
         .map((p) => GuidePhase.fromJson(Map<String, dynamic>.from(p)))
         .toList();
-    return AchievementGuide(nodes: nodes, phases: phases);
+    final p = j['platinum'];
+    GuideNode? platinum;
+    if (p is Map && (p['name'] ?? '').toString().trim().isNotEmpty) {
+      platinum = GuideNode(
+        order: nodes.isEmpty ? 1 : nodes.map((n) => n.order).reduce(max) + 1,
+        id: 'platinum',
+        name: p['name'].toString().trim(),
+        description: (p['description'] as String?)?.isNotEmpty == true ? p['description'] as String : null,
+        image: (p['image'] as String?)?.isNotEmpty == true ? p['image'] as String : null,
+        percent: _num(p['rarity']),
+        isPlatinum: true,
+      );
+    }
+    return AchievementGuide(nodes: nodes, phases: phases, platinum: platinum);
   }
 
   bool get hasMultiplePhases => phases.length > 1;
+
+  List<GuideNode> get baseNodes => nodes.where((n) => n.phase == 'base').toList();
+
+  /// Ticked by name in a log, or implied by every base-game stop being earned.
+  bool platinumEarned(Set<String> earnedKeys) {
+    final p = platinum;
+    if (p == null) return false;
+    if (earnedKeys.contains(trophyKey(p.name))) return true;
+    final base = baseNodes;
+    return base.isNotEmpty && base.every((n) => n.isEarned(earnedKeys));
+  }
 }

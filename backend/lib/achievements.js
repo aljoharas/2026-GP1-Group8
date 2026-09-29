@@ -361,4 +361,5 @@ module.exports = {
   normalizeNameForDedupe,
   fetchSteamAppId,
   fetchAllRawgAchievements,
+  fetchRawgGameDetail,
 };

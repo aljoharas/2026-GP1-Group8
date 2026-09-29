@@ -921,16 +921,24 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            a['name'] ?? '',
-                            style: TextStyle(
-                              color: nameColor,
-                              fontSize: 13,
-                              fontWeight: isChecked ? FontWeight.w700 : FontWeight.w500,
+                          Row(children: [
+                            if (a['platinum'] == true) ...[
+                              const Icon(Icons.star, size: 13, color: Color(0xFFB9D7EA)),
+                              const SizedBox(width: 4),
+                            ],
+                            Flexible(
+                              child: Text(
+                                a['name'] ?? '',
+                                style: TextStyle(
+                                  color: nameColor,
+                                  fontSize: 13,
+                                  fontWeight: isChecked ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          ]),
                           if (isPrev) ...[
                             const SizedBox(height: 3),
                             const Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/achievement_guide.dart';
 import '../services/game_service.dart';
 
 class LoggedGame {
@@ -81,6 +82,13 @@ class LoggedGamesProvider extends ChangeNotifier {
   }
 
   MyGamesSortOrder get sortOrder => _sortOrder;
+
+  // Every achievement ticked across all logs of a game, as trophy-guide keys
+  Set<String> earnedAchievementKeys(int rawgId) => {
+        for (final g in _games)
+          if (g.rawgId == rawgId)
+            for (final a in g.achievements) trophyKey(a),
+      };
 
   int get distinctGameCount =>
       _games.map((g) => g.rawgId ?? g.name).toSet().length;
