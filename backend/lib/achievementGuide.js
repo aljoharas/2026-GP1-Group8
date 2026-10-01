@@ -13,9 +13,10 @@ const { loadOverrides } = require('./guide/overrides');
 const { enrichWithCache } = require('./guide/enrichCache');
 const { formatLadderLog } = require('./guide/ladders');
 const { getGameAchievements } = require('./achievements');
+const { getPlatinum, PLATINUM_VERSION } = require('./guide/platinum');
 
 // Stored with every guide; a cached guide from another version is regenerated.
-const GUIDE_VERSION = `${ALGO_VERSION}/${PROMPT_VERSION}`;
+const GUIDE_VERSION = `${ALGO_VERSION}/${PROMPT_VERSION}/${PLATINUM_VERSION}`;
 
 let _client = null;
 function getClient() {
@@ -100,7 +101,17 @@ async function saveEnrichment(gameId, rows) {
 }
 
 // resolved: result of getGameAchievements() (source, appid, achievements).
+//
+// The PlayStation Platinum is kept out of the ordered stops and returned
+// separately: it is always last and is earned by finishing everything else.
 async function generateAchievementGuide(resolved, { skipLLM = false, logger = console, label = 'game', gameId = null } = {}) {
+  const platinum = await getPlatinum(resolved, { logger });
+  if (platinum && !platinum.generic) {
+    // A RAWG-sourced list contains the Platinum itself; don't also make it a stop.
+    const key = platinum.name.toLowerCase();
+    resolved = { ...resolved, achievements: resolved.achievements.filter((a) => a.name.trim().toLowerCase() !== key) };
+  }
+
   const ctx = await gatherContext(resolved, { logger });
   const deterministic = buildDeterministicGuide(resolved.achievements, ctx);
   logGuide(logger, label, deterministic);
@@ -114,6 +125,7 @@ async function generateAchievementGuide(resolved, { skipLLM = false, logger = co
     source: resolved.source,
     appid: resolved.appid || null,
     phases: deterministic.phases,
+    platinum,
     logs: deterministic.logs,
     overrides: { count: ctx.overrides.size, error: ctx.overridesError },
     enrichment: { status: 'skipped' },
@@ -153,7 +165,7 @@ async function generateAchievementGuide(resolved, { skipLLM = false, logger = co
     }
   }
 
-  return { nodes: guide.nodes, phases: guide.phases, meta };
+  return { nodes: guide.nodes, phases: guide.phases, platinum, meta };
 }
 
 // Full request flow shared by the route and the CLI: serve a current-version
@@ -176,6 +188,7 @@ async function getOrCreateGuide(rawgId, { forceRefresh = false, skipLLM = false,
         body: {
           nodes: row.nodes,
           phases: row.meta?.phases || [],
+          platinum: row.meta?.platinum || null,
           model: row.model,
           promptVersion: row.prompt_version,
           generatedAt: row.generated_at,
@@ -204,7 +217,7 @@ async function getOrCreateGuide(rawgId, { forceRefresh = false, skipLLM = false,
 
   return {
     statusCode: 200,
-    body: { nodes: guide.nodes, phases: guide.phases, model: guide.meta.model, promptVersion: GUIDE_VERSION, cached: false, meta: guide.meta },
+    body: { nodes: guide.nodes, phases: guide.phases, platinum: guide.platinum, model: guide.meta.model, promptVersion: GUIDE_VERSION, cached: false, meta: guide.meta },
   };
 }
 

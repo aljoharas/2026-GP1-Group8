@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/achievement_guide.dart';
 import '../../providers/game_provider.dart';
+import '../../providers/logged_games_provider.dart';
 
 const _bg = Color(0xFF0E0E12);
 const _surface = Color(0xFF16161E);
@@ -14,6 +15,7 @@ const _gold = Color(0xFFFBBF24);
 const _muted = Color(0xFF6B6B80);
 const _online = Color(0xFF60A5FA);
 const _dlc = Color(0xFFF472B6);
+const _platinum = Color(0xFFB9D7EA);
 
 Color _phaseColor(String phase) {
   switch (phase) {
@@ -74,6 +76,7 @@ class _AchievementGuideScreenState extends State<AchievementGuideScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<GameProvider>().getAchievementGuide(widget.rawgId);
+      context.read<LoggedGamesProvider>().loadFromBackend();
     });
   }
 
@@ -169,64 +172,264 @@ class _AchievementGuideScreenState extends State<AchievementGuideScreen> {
         child: Text('No guide available for this game yet.', style: TextStyle(color: _muted, fontSize: 13)),
       );
     }
-    return AchievementGuideView(guide: guide);
+    final earned = context.watch<LoggedGamesProvider>().earnedAchievementKeys(widget.rawgId);
+    return AchievementGuideView(guide: guide, earned: earned);
   }
 }
 
-class _HeaderSlot {
-  final double top;
-  final String phase;
+class _PhaseTab {
+  final String key;
   final String name;
   final int count;
-  const _HeaderSlot(this.top, this.phase, this.name, this.count);
+  final int done;
+  const _PhaseTab(this.key, this.name, this.count, this.done);
 }
 
-/// The winding map for an already-loaded guide. Phase headers (Base game /
-/// Online / DLC) split the path; laddered trophies are one stacked node.
-class AchievementGuideView extends StatelessWidget {
+/// The winding map for an already-loaded guide. When the guide has more than
+/// one phase (Base game / Online / DLC), each phase gets its own tab: the base
+/// game shows first and the others are one tap away instead of far down the
+/// page. Laddered trophies are one stacked node.
+class AchievementGuideView extends StatefulWidget {
   final AchievementGuide guide;
-  const AchievementGuideView({super.key, required this.guide});
+
+  /// [trophyKey]s of achievements the user ticked in their logs.
+  final Set<String> earned;
+
+  const AchievementGuideView({super.key, required this.guide, this.earned = const {}});
 
   static const double nodeSize = 60;
   static const double labelSpace = 40;
   static const double verticalGap = 124;
-  static const double headerHeight = 76;
   static const double topPad = 20;
+  static const double hintHeight = 48;
+
+  static Widget _avatar(String? image, double size, Color color, {double ring = 2}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        shape: BoxShape.circle,
+        border: Border.all(color: color.withValues(alpha: 0.55), width: ring),
+      ),
+      child: ClipOval(
+        child: image != null
+            ? CachedNetworkImage(
+                imageUrl: image,
+                fit: BoxFit.cover,
+                errorWidget: (_, _, _) => Center(child: Text('🏆', style: TextStyle(fontSize: size * 0.33))),
+              )
+            : Center(child: Text('🏆', style: TextStyle(fontSize: size * 0.33))),
+      ),
+    );
+  }
+
+  @override
+  State<AchievementGuideView> createState() => _AchievementGuideViewState();
+}
+
+class _AchievementGuideViewState extends State<AchievementGuideView> {
+  static const double nodeSize = AchievementGuideView.nodeSize;
+  static const double labelSpace = AchievementGuideView.labelSpace;
+
+  String? _selected;
+
+  /// One tab per phase present on the path, base game first, named from the
+  /// backend's phase list when it has an entry.
+  List<_PhaseTab> _tabs() {
+    final guide = widget.guide;
+    final keys = <String>[];
+    for (final n in guide.nodes) {
+      if (!keys.contains(n.phase)) keys.add(n.phase);
+    }
+    if (keys.remove('base')) keys.insert(0, 'base');
+
+    return keys.map((k) {
+      final info = guide.phases.where((p) => p.key == k);
+      final fallback = guide.nodes.firstWhere((n) => n.phase == k).phaseName;
+      final name = info.isNotEmpty && info.first.name.isNotEmpty
+          ? info.first.name
+          : (fallback.isNotEmpty ? fallback : k);
+      final inPhase = guide.nodes.where((n) => n.phase == k);
+      return _PhaseTab(k, name, inPhase.length, inPhase.where((n) => n.isEarned(widget.earned)).length);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tabs = _tabs();
+    final progress = _buildProgress();
+    if (!widget.guide.hasMultiplePhases || tabs.length < 2) {
+      final map = _buildMap(_withPlatinum(widget.guide.nodes), null);
+      if (progress == null) return map;
+      return Column(children: [progress, Expanded(child: map)]);
+    }
+
+    final selected = tabs.any((t) => t.key == _selected) ? _selected! : tabs.first.key;
+    final inPhase = widget.guide.nodes.where((n) => n.phase == selected).toList();
+    final nodes = selected == 'base' ? _withPlatinum(inPhase) : inPhase;
+
+    return Column(
+      children: [
+        ?progress,
+        _buildTabBar(tabs, selected),
+        Expanded(child: _buildMap(nodes, selected)),
+      ],
+    );
+  }
+
+  List<GuideNode> _withPlatinum(List<GuideNode> nodes) {
+    final p = widget.guide.platinum;
+    return p == null ? nodes : [...nodes, p];
+  }
+
+  bool _isEarned(GuideNode node) =>
+      node.isPlatinum ? widget.guide.platinumEarned(widget.earned) : node.isEarned(widget.earned);
+
+  /// "You've earned X of Y trophies", counted per real trophy (ladder tiers
+  /// included). Hidden until the user has logged at least one.
+  Widget? _buildProgress() {
+    var total = 0;
+    var done = 0;
+    for (final n in widget.guide.nodes) {
+      total += n.trophyNames.length;
+      done += n.earnedCount(widget.earned);
+    }
+    if (done == 0 || total == 0) return null;
+
+    return Padding(
+      key: const Key('guide-progress'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.emoji_events, size: 14, color: _accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  "You've earned $done of $total trophies",
+                  style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text('${(done * 100 / total).round()}%', style: const TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: done / total,
+              minHeight: 6,
+              backgroundColor: _surface2,
+              color: _accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar(List<_PhaseTab> tabs, String selected) {
+    return SizedBox(
+      height: 56,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+        itemCount: tabs.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final t = tabs[i];
+          final active = t.key == selected;
+          final color = _phaseColor(t.key);
+          return GestureDetector(
+            key: Key('guide-phase-${t.key}'),
+            onTap: () => setState(() => _selected = t.key),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: active ? color.withValues(alpha: 0.18) : _surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: active ? color : _surface2, width: 1.5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    t.name,
+                    style: TextStyle(
+                      color: active ? color : Colors.white,
+                      fontSize: 13,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    t.done > 0 ? '${t.done}/${t.count}' : '${t.count}',
+                    style: TextStyle(color: t.done == t.count ? _accent : _muted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHint(String phase, String hint) {
+    final color = _phaseColor(phase);
+    return Positioned(
+      left: 16,
+      right: 16,
+      top: 8,
+      child: Container(
+        key: Key('guide-phase-hint-$phase'),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, size: 14, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(hint, style: const TextStyle(color: _muted, fontSize: 11.5))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMap(List<GuideNode> nodes, String? phase) {
+    final hint = phase == null ? null : _phaseHint(phase);
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final centerX = width / 2;
         final amplitude = (width * 0.26).clamp(48.0, 120.0);
-        final nodes = guide.nodes;
 
         final centers = <Offset>[];
-        final headers = <_HeaderSlot>[];
-        final breakBefore = <int>{};
-
-        double y = topPad;
+        double y = AchievementGuideView.topPad + (hint != null ? AchievementGuideView.hintHeight : 0);
         for (int i = 0; i < nodes.length; i++) {
-          final n = nodes[i];
-          final phaseChanged = i == 0 || n.phase != nodes[i - 1].phase;
-          if (guide.hasMultiplePhases && phaseChanged) {
-            final info = guide.phases.where((p) => p.key == n.phase);
-            headers.add(_HeaderSlot(
-              y,
-              n.phase,
-              info.isNotEmpty && info.first.name.isNotEmpty ? info.first.name : n.phaseName,
-              info.isNotEmpty ? info.first.count : 0,
-            ));
-            y += headerHeight;
-            breakBefore.add(i);
-          }
           centers.add(Offset(centerX + amplitude * sin(i * 1.05), y + nodeSize / 2));
-          y += verticalGap;
+          y += AchievementGuideView.verticalGap;
         }
         final totalHeight = y + 16;
 
         return SingleChildScrollView(
+          // Each tab gets its own scroll view, so switching starts at the top.
+          key: ValueKey('guide-map-${phase ?? 'all'}'),
           child: SizedBox(
             width: width,
             height: totalHeight,
@@ -234,9 +437,9 @@ class AchievementGuideView extends StatelessWidget {
               children: [
                 CustomPaint(
                   size: Size(width, totalHeight),
-                  painter: _GuidePathPainter(centers, breakBefore),
+                  painter: _GuidePathPainter(centers),
                 ),
-                for (final h in headers) _buildHeader(h),
+                if (hint != null) _buildHint(phase!, hint),
                 for (int i = 0; i < nodes.length; i++) _buildNode(context, nodes[i], centers[i]),
               ],
             ),
@@ -246,58 +449,13 @@ class AchievementGuideView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(_HeaderSlot h) {
-    final color = _phaseColor(h.phase);
-    final hint = _phaseHint(h.phase);
-    return Positioned(
-      left: 16,
-      right: 16,
-      top: h.top,
-      height: headerHeight - 10,
-      child: Container(
-        key: Key('guide-phase-${h.phase}'),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.35)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    h.name,
-                    style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
-                  if (hint != null)
-                    Text(hint, style: const TextStyle(color: _muted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ],
-              ),
-            ),
-            if (h.count > 0)
-              Text(
-                '${h.count} ${h.count == 1 ? 'stop' : 'stops'}',
-                style: const TextStyle(color: _muted, fontSize: 11),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildNode(BuildContext context, GuideNode node, Offset center) {
-    final color = _rarityColor(node.percent);
+    final earned = _isEarned(node);
+    final color = node.isPlatinum ? _platinum : (earned ? _accent : _rarityColor(node.percent));
     const tileWidth = 124.0;
+    final tiersDone = node.tiers
+        .where((t) => t.trophies.isNotEmpty && t.trophies.every((tr) => widget.earned.contains(trophyKey(tr.name))))
+        .length;
 
     return Positioned(
       left: center.dx - tileWidth / 2,
@@ -305,7 +463,7 @@ class AchievementGuideView extends StatelessWidget {
       width: tileWidth,
       height: nodeSize + labelSpace,
       child: GestureDetector(
-        key: Key('guide-node-${node.order}'),
+        key: Key(node.isPlatinum ? 'guide-node-platinum' : 'guide-node-${node.order}'),
         behavior: HitTestBehavior.opaque,
         onTap: () => _showNodeSheet(context, node),
         child: Column(
@@ -331,11 +489,15 @@ class AchievementGuideView extends StatelessWidget {
                         ),
                       ),
                     ),
-                  _avatar(node.image, nodeSize, color, ring: 2),
+                  AchievementGuideView._avatar(node.image, nodeSize, color, ring: 2),
                   Positioned(
                     right: 2,
                     top: -2,
-                    child: _badge(child: Text('${node.order}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                    child: _badge(
+                      child: node.isPlatinum
+                          ? const Icon(Icons.star, size: 11, color: _platinum)
+                          : Text('${node.order}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ),
                   ),
                   if (node.isLadder)
                     Positioned(
@@ -348,7 +510,10 @@ class AchievementGuideView extends StatelessWidget {
                           children: [
                             const Icon(Icons.layers, size: 10, color: _accent2),
                             const SizedBox(width: 2),
-                            Text('${node.tiers.length}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                            Text(
+                              tiersDone > 0 ? '$tiersDone/${node.tiers.length}' : '${node.tiers.length}',
+                              style: TextStyle(color: tiersDone > 0 ? _accent : Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                            ),
                           ],
                         ),
                       ),
@@ -359,6 +524,12 @@ class AchievementGuideView extends StatelessWidget {
                       bottom: -2,
                       child: _HiddenBadge(),
                     ),
+                  if (earned)
+                    const Positioned(
+                      left: 0,
+                      top: -2,
+                      child: _EarnedBadge(),
+                    ),
                 ],
               ),
             ),
@@ -368,7 +539,12 @@ class AchievementGuideView extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 11, height: 1.15, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: node.isPlatinum ? _platinum : (earned ? _accent : Colors.white),
+                fontSize: 11,
+                height: 1.15,
+                fontWeight: node.isPlatinum ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -377,7 +553,7 @@ class AchievementGuideView extends StatelessWidget {
   }
 
   static Widget _badge({required Widget child, bool wide = false}) => Container(
-        constraints: BoxConstraints(minWidth: 20, minHeight: 20, maxWidth: wide ? 44 : 20),
+        constraints: BoxConstraints(minWidth: 20, minHeight: 20, maxWidth: wide ? 52 : 20),
         padding: EdgeInsets.symmetric(horizontal: wide ? 4 : 0),
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -385,29 +561,8 @@ class AchievementGuideView extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: _bg, width: 2),
         ),
-        child: child,
+        child: wide ? FittedBox(fit: BoxFit.scaleDown, child: child) : child,
       );
-
-  static Widget _avatar(String? image, double size, Color color, {double ring = 2}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
-        shape: BoxShape.circle,
-        border: Border.all(color: color.withValues(alpha: 0.55), width: ring),
-      ),
-      child: ClipOval(
-        child: image != null
-            ? CachedNetworkImage(
-                imageUrl: image,
-                fit: BoxFit.cover,
-                errorWidget: (_, _, _) => Center(child: Text('🏆', style: TextStyle(fontSize: size * 0.33))),
-              )
-            : Center(child: Text('🏆', style: TextStyle(fontSize: size * 0.33))),
-      ),
-    );
-  }
 
   void _showNodeSheet(BuildContext context, GuideNode node) {
     showModalBottomSheet(
@@ -416,7 +571,13 @@ class AchievementGuideView extends StatelessWidget {
       isScrollControlled: true,
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => GuideNodeSheet(node: node),
+      builder: (_) => GuideNodeSheet(
+        node: node,
+        earned: widget.earned,
+        platinumEarned: node.isPlatinum ? widget.guide.platinumEarned(widget.earned) : false,
+        baseDone: node.isPlatinum ? widget.guide.baseNodes.where((n) => n.isEarned(widget.earned)).length : 0,
+        baseTotal: node.isPlatinum ? widget.guide.baseNodes.length : 0,
+      ),
     );
   }
 }
@@ -440,11 +601,29 @@ class _HiddenBadge extends StatelessWidget {
   }
 }
 
+class _EarnedBadge extends StatelessWidget {
+  const _EarnedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('guide-earned-badge'),
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: _accent,
+        shape: BoxShape.circle,
+        border: Border.all(color: _bg, width: 2),
+      ),
+      child: const Icon(Icons.check, size: 12, color: _bg),
+    );
+  }
+}
+
 class _GuidePathPainter extends CustomPainter {
   final List<Offset> points;
-  final Set<int> breakBefore;
 
-  _GuidePathPainter(this.points, this.breakBefore);
+  _GuidePathPainter(this.points);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -460,11 +639,6 @@ class _GuidePathPainter extends CustomPainter {
     for (int i = 1; i < points.length; i++) {
       final prev = points[i - 1];
       final curr = points[i];
-      if (breakBefore.contains(i)) {
-        // Phase boundary: the header sits in the gap, so the line restarts.
-        path.moveTo(curr.dx, curr.dy);
-        continue;
-      }
       final midY = (prev.dy + curr.dy) / 2;
       path.cubicTo(prev.dx, midY, curr.dx, midY, curr.dx, curr.dy);
     }
@@ -472,18 +646,32 @@ class _GuidePathPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _GuidePathPainter old) =>
-      old.points != points || old.breakBefore != breakBefore;
+  bool shouldRepaint(covariant _GuidePathPainter old) => old.points != points;
 }
 
 /// Detail sheet for one stop: a single trophy, or a ladder with its tiers.
 class GuideNodeSheet extends StatelessWidget {
   final GuideNode node;
-  const GuideNodeSheet({super.key, required this.node});
+  final Set<String> earned;
+
+  // Platinum only: its earned state depends on the whole guide, not the node.
+  final bool platinumEarned;
+  final int baseDone;
+  final int baseTotal;
+
+  const GuideNodeSheet({
+    super.key,
+    required this.node,
+    this.earned = const {},
+    this.platinumEarned = false,
+    this.baseDone = 0,
+    this.baseTotal = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final color = _rarityColor(node.percent);
+    final color = node.isPlatinum ? _platinum : _rarityColor(node.percent);
+    final isEarned = node.isPlatinum ? platinumEarned : node.isEarned(earned);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -510,7 +698,7 @@ class GuideNodeSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Step ${node.order}: ${node.name}',
+                        node.isPlatinum ? node.name : 'Step ${node.order}: ${node.name}',
                         style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 6),
@@ -518,10 +706,16 @@ class GuideNodeSheet extends StatelessWidget {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          if (node.percent != null) _chip('${_rarityName(node.percent)} · ${_pct(node.percent!)}', color),
+                          if (node.isPlatinum) _chip('Platinum', _platinum, icon: Icons.star),
+                          if (node.percent != null && !node.isPlatinum) _chip('${_rarityName(node.percent)} · ${_pct(node.percent!)}', color),
+                          if (node.percent != null && node.isPlatinum) _chip(_pct(node.percent!), _platinum),
                           if (node.phase != 'base') _chip(node.phaseName.isNotEmpty ? node.phaseName : node.phase, _phaseColor(node.phase)),
                           if (node.hidden) _chip('Hidden', _muted, icon: Icons.visibility_off),
                           if (node.isLadder) _chip('${node.tiers.length} tiers', _accent2, icon: Icons.layers),
+                          if (isEarned)
+                            _chip('Earned', _accent, icon: Icons.check_circle)
+                          else if (!node.isPlatinum && node.earnedCount(earned) > 0)
+                            _chip('${node.earnedCount(earned)}/${node.trophyNames.length} earned', _accent, icon: Icons.check_circle_outline),
                         ],
                       ),
                     ],
@@ -529,7 +723,12 @@ class GuideNodeSheet extends StatelessWidget {
                 ),
               ],
             ),
-            if (node.isLadder) ..._ladderBody() else ..._trophyBody(),
+            if (node.isPlatinum)
+              ..._platinumBody()
+            else if (node.isLadder)
+              ..._ladderBody()
+            else
+              ..._trophyBody(),
             if (node.suspectedCategory != null) _suspectedNote(),
           ],
         ),
@@ -545,6 +744,37 @@ class GuideNodeSheet extends StatelessWidget {
         if (node.steps.isNotEmpty) ...[
           const SizedBox(height: 16),
           _steps(node.steps),
+        ],
+      ];
+
+  List<Widget> _platinumBody() => [
+        const SizedBox(height: 16),
+        Text(
+          node.description ?? 'The PlayStation Platinum trophy.',
+          style: const TextStyle(color: _muted, fontSize: 13, height: 1.4),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Unlocks automatically once you have earned every base-game trophy. DLC trophies are not needed.',
+          style: TextStyle(color: Colors.white, fontSize: 12.5, height: 1.4),
+        ),
+        if (baseTotal > 0) ...[
+          const SizedBox(height: 14),
+          Text(
+            '$baseDone of $baseTotal base-game stops done',
+            key: const Key('guide-platinum-progress'),
+            style: const TextStyle(color: _platinum, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: baseDone / baseTotal,
+              minHeight: 6,
+              backgroundColor: _surface2,
+              color: _platinum,
+            ),
+          ),
         ],
       ];
 
@@ -595,6 +825,10 @@ class GuideNodeSheet extends StatelessWidget {
                         children: [
                           Row(
                             children: [
+                              if (earned.contains(trophyKey(t.name))) ...[
+                                const Icon(Icons.check_circle, size: 14, color: _accent),
+                                const SizedBox(width: 6),
+                              ],
                               Expanded(
                                 child: Text(t.name, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                               ),

@@ -445,3 +445,55 @@ test('ordinal suffixes are part of the number: 1st/2nd/3rd/10th share one ladder
   assert.deepEqual(extractNumbers('Defeat 3 thugs').values, [3]);
   assert.equal(extractNumbers('Defeat 3 thugs').template, 'defeat # thugs');
 });
+
+// ── platinum ─────────────────────────────────────────────────────────────
+// Cases are real RAWG labels observed in the achievements cache.
+
+const { pickPlatinum } = require('../lib/guide/platinum');
+const rawg = (name, description, percent) => ({ name, description, percent, image: `${name}.png` });
+
+test('platinum: an "all trophies" description is picked with its real name', () => {
+  const p = pickPlatinum([rawg('Lilac and Gooseberries', 'Find Yennefer.', '60'), rawg('The Limits of the Possible', 'Collect all trophies.', '3.02')]);
+  assert.equal(p.name, 'The Limits of the Possible');
+  assert.equal(p.description, 'Collect all trophies.');
+  assert.equal(p.generic, false);
+});
+
+test('platinum: a name-only entry missing from the Steam list is the Platinum (RDR2)', () => {
+  const p = pickPlatinum(
+    [rawg('Legend of the West', 'Legend of the West', '0.51'), rawg('Gold Rush', 'Gold Rush', '20')],
+    ['Gold Rush'],
+  );
+  assert.equal(p.name, 'Legend of the West');
+  assert.equal(p.description, null, 'a description that repeats the name is dropped');
+});
+
+test('platinum: an ordinary PS-only trophy is not mistaken for it', () => {
+  assert.equal(pickPlatinum([rawg("I'm Floundering Up Here", 'Listen to 25 fish jokes.', '1.5')], []), null);
+  assert.equal(pickPlatinum([rawg('A', '', '1'), rawg('B', '', '2')], []), null, 'ambiguous name-only entries are not trusted');
+});
+
+test('platinum: "platinum medals" in a GTA Online trophy is not the Platinum', () => {
+  const list = [
+    rawg('Mastermind', 'GTA Online: Earn 25 platinum medals across Heist Setups and Finales.', '8.42'),
+    rawg('Decorated', 'GTA Online: Earn 30 Platinum Awards.', '18.31'),
+  ];
+  assert.equal(pickPlatinum(list, []), null);
+  assert.equal(pickPlatinum([...list, rawg('Platinum', 'Awarded when all other trophies have been unlocked.', '0.21')], []).name, 'Platinum');
+});
+
+const { platinumFromModel } = require('../lib/guide/platinum');
+
+test('platinum (OpenAI): only a confident, non-Steam name is trusted', () => {
+  const ok = platinumFromModel({ onPlayStation: true, platinumName: 'Los Santos Legend', platinumDescription: null, confident: true }, ['Mastermind']);
+  assert.equal(ok.name, 'Los Santos Legend');
+  assert.equal(ok.generic, false);
+
+  const unsure = platinumFromModel({ onPlayStation: true, platinumName: 'Something', platinumDescription: null, confident: false }, []);
+  assert.equal(unsure.generic, true, 'unsure: generic Platinum stop');
+
+  const regular = platinumFromModel({ onPlayStation: true, platinumName: 'Mastermind', platinumDescription: null, confident: true }, ['Mastermind']);
+  assert.equal(regular.generic, true, 'a regular achievement is never the Platinum');
+
+  assert.equal(platinumFromModel({ onPlayStation: false, platinumName: null, platinumDescription: null, confident: true }, []), null);
+});
