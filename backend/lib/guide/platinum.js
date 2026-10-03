@@ -7,7 +7,11 @@
 //   - the name repeated as the description               (RDR2: "Legend of the West")
 //   - flavour text                                       (GTA V: "Congratulations! ...")
 // So detection is best-effort: a clear match gives the real name and icon,
-// otherwise a PlayStation game still gets a generic "Platinum" stop.
+// otherwise the game gets a generic "Platinum" stop.
+//
+// Every game with achievements gets a Platinum, PlayStation or not: games
+// that aren't on PlayStation (or whose lookup fails) get the generic one,
+// earned the same way, by finishing every other achievement.
 //
 // Sources, in order: RAWG data already saved in the `achievements` table,
 // then RAWG live, then (only if RAWG can't be reached) OpenAI.
@@ -21,7 +25,7 @@ const { fetchAllRawgAchievements, fetchRawgGameDetail } = require('../achievemen
 const { DEFAULT_MODEL } = require('./enrich');
 
 // Part of GUIDE_VERSION and of the cached result, so bumping it recomputes both.
-const PLATINUM_VERSION = 'plat-3';
+const PLATINUM_VERSION = 'plat-4';
 
 // "platinum" alone is too loose: GTA Online has "Earn 25 platinum medals".
 const ALL_TROPHIES_RE = /\b(all (the )?(other )?trophies|every (other )?trophy|platinum trophy)\b/i;
@@ -158,19 +162,21 @@ async function lookupPlatinum(rawgId, guideNames, { logger = console } = {}) {
 
 // resolved: result of getGameAchievements(). The answer is cached on the
 // game_achievements row; a failed lookup is not cached, so it is retried.
-// Never throws: a failure just means "no Platinum" for this request.
+// Never throws: a failure just means the generic Platinum for this request.
+// Only a game with no achievements gets null.
 async function getPlatinum(resolved, { logger = console } = {}) {
-  if (resolved.platinumVersion === PLATINUM_VERSION) return resolved.platinum || null;
+  if (!resolved.achievements || resolved.achievements.length === 0) return null;
+  if (resolved.platinumVersion === PLATINUM_VERSION) return resolved.platinum || GENERIC;
 
   const rawgId = resolved.gameId;
-  if (!rawgId) return null;
+  if (!rawgId) return GENERIC;
 
   let platinum;
   try {
-    platinum = await lookupPlatinum(rawgId, (resolved.achievements || []).map((a) => a.name), { logger });
+    platinum = (await lookupPlatinum(rawgId, resolved.achievements.map((a) => a.name), { logger })) || GENERIC;
   } catch (err) {
     logger.warn(`[guide] platinum lookup failed for rawg ${rawgId}: ${err.message}`);
-    return null;
+    return GENERIC;
   }
 
   try {

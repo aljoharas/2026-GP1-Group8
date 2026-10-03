@@ -16,6 +16,9 @@ class LoggedGame {
   final bool isPaused;
   final String? platform;
 
+  /// Name of the game's Platinum (every game with achievements has one).
+  final String? platinumName;
+
   String? get displayImage => coverImage ?? backgroundImage;
 
   LoggedGame({
@@ -31,6 +34,7 @@ class LoggedGame {
     this.isFinished = false,
     this.isPaused = false,
     this.platform,
+    this.platinumName,
   });
 
   factory LoggedGame.fromJson(Map<String, dynamic> json) {
@@ -57,6 +61,7 @@ class LoggedGame {
       isFinished: json['is_finished'] == true,
       isPaused: json['is_paused'] == true,
       platform: json['platform_name'] as String?,
+      platinumName: json['platinum_name'] as String?,
     );
   }
 }
@@ -89,6 +94,16 @@ class LoggedGamesProvider extends ChangeNotifier {
           if (g.rawgId == rawgId)
             for (final a in g.achievements) trophyKey(a),
       };
+
+  // True once the game's Platinum is among the achievements ticked in any log.
+  bool hasPlatinum(int? rawgId) {
+    if (rawgId == null) return false;
+    String? name;
+    for (final g in _games) {
+      if (g.rawgId == rawgId && g.platinumName != null) name = g.platinumName;
+    }
+    return name != null && earnedAchievementKeys(rawgId).contains(trophyKey(name));
+  }
 
   int get distinctGameCount =>
       _games.map((g) => g.rawgId ?? g.name).toSet().length;
@@ -185,6 +200,7 @@ class LoggedGamesProvider extends ChangeNotifier {
       isFinished: entry.isFinished,
       isPaused: entry.isPaused,
       platform: entry.platform,
+      platinumName: entry.platinumName,
     );
     notifyListeners();
 

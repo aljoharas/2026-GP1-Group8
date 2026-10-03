@@ -497,3 +497,17 @@ test('platinum (OpenAI): only a confident, non-Steam name is trusted', () => {
 
   assert.equal(platinumFromModel({ onPlayStation: false, platinumName: null, platinumDescription: null, confident: true }, []), null);
 });
+
+const { getPlatinum, PLATINUM_VERSION } = require('../lib/guide/platinum');
+
+test('platinum: every game with achievements gets one, PlayStation or not', async () => {
+  const list = [{ name: 'First Steps' }];
+  assert.equal(await getPlatinum({ achievements: [] }), null, 'no achievements: no Platinum');
+
+  const cachedNonPs = await getPlatinum({ achievements: list, platinumVersion: PLATINUM_VERSION, platinum: null });
+  assert.equal(cachedNonPs.name, 'Platinum');
+  assert.equal(cachedNonPs.generic, true, 'a non-PlayStation game gets the generic Platinum');
+
+  const noRawgId = await getPlatinum({ achievements: list });
+  assert.equal(noRawgId.generic, true);
+});

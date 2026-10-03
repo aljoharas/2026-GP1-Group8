@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/logged_games_provider.dart';
+import '../../widgets/platinum_celebration.dart';
 import '../game/game_profile_screen.dart';
 
 class MyGamesScreen extends StatelessWidget {
@@ -420,15 +421,25 @@ class _DiaryRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    game.name,
-                    style: const TextStyle(
-                      color: kText,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          game.name,
+                          style: const TextStyle(
+                            color: kText,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (context.watch<LoggedGamesProvider>().hasPlatinum(game.rawgId)) ...[
+                        const SizedBox(width: 6),
+                        const PlatinumCornerBadge(size: 16),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -551,15 +562,25 @@ class _NameRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    game.name,
-                    style: const TextStyle(
-                      color: kText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          game.name,
+                          style: const TextStyle(
+                            color: kText,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (context.watch<LoggedGamesProvider>().hasPlatinum(game.rawgId)) ...[
+                        const SizedBox(width: 6),
+                        const PlatinumCornerBadge(size: 16),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(

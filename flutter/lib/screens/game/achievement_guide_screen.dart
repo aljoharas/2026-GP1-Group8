@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../models/achievement_guide.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/logged_games_provider.dart';
+import '../../services/platinum_seen_store.dart';
+import '../../widgets/platinum_celebration.dart';
 
 const _bg = Color(0xFF0E0E12);
 const _surface = Color(0xFF16161E);
@@ -60,10 +62,13 @@ class AchievementGuideScreen extends StatefulWidget {
   final int rawgId;
   final String gameName;
 
+  final PlatinumSeenStore seenStore;
+
   const AchievementGuideScreen({
     super.key,
     required this.rawgId,
     required this.gameName,
+    this.seenStore = const PlatinumSeenStore(),
   });
 
   @override
@@ -74,10 +79,23 @@ class _AchievementGuideScreenState extends State<AchievementGuideScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GameProvider>().getAchievementGuide(widget.rawgId);
-      context.read<LoggedGamesProvider>().loadFromBackend();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final gp = context.read<GameProvider>();
+      final lp = context.read<LoggedGamesProvider>();
+      await Future.wait([gp.getAchievementGuide(widget.rawgId), lp.loadFromBackend()]);
+      if (!mounted) return;
+      await _maybeCelebratePlatinum(gp, lp);
     });
+  }
+
+  // The first time the guide is opened after the Platinum is earned.
+  Future<void> _maybeCelebratePlatinum(GameProvider gp, LoggedGamesProvider lp) async {
+    final guide = gp.guide;
+    final platinum = guide?.platinum;
+    if (guide == null || platinum == null) return;
+    if (!guide.platinumEarned(lp.earnedAchievementKeys(widget.rawgId))) return;
+    if (!await widget.seenStore.markCelebrated(widget.rawgId) || !mounted) return;
+    showPlatinumCelebration(context, gameName: widget.gameName, trophyName: platinum.name, image: platinum.image);
   }
 
   @override
@@ -750,7 +768,7 @@ class GuideNodeSheet extends StatelessWidget {
   List<Widget> _platinumBody() => [
         const SizedBox(height: 16),
         Text(
-          node.description ?? 'The PlayStation Platinum trophy.',
+          node.description ?? 'The Platinum trophy: proof you finished the game.',
           style: const TextStyle(color: _muted, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 10),

@@ -20,6 +20,7 @@ import 'list_editor_sheet.dart';
 import 'privacy_policy_screen.dart';
 import '../../providers/logged_games_provider.dart';
 import 'settings_screen.dart';
+import '../../widgets/platinum_celebration.dart';
 import 'help_center_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -1668,12 +1669,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ),
                     ),
                   ),
+                  // Paused label and/or Platinum icon, under the poster
                   SizedBox(
                     height: 22,
-                    child: g.isPaused
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 5),
-                            child: Container(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (g.isPaused) Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
@@ -1696,8 +1700,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                 ],
                               ),
                             ),
-                          )
-                        : null,
+                          if (g.isPaused && context.read<LoggedGamesProvider>().hasPlatinum(g.rawgId))
+                            const SizedBox(width: 5),
+                          if (context.read<LoggedGamesProvider>().hasPlatinum(g.rawgId))
+                            const PlatinumCornerBadge(size: 13),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -2146,7 +2155,9 @@ class _MyGamesAllScreenState extends State<_MyGamesAllScreen> {
                       crossAxisCount: 3,
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
-                      childAspectRatio: 0.65,
+                      // Same cover size as before, plus room for the
+                      // Platinum icon underneath.
+                      childAspectRatio: 0.58,
                     ),
                     itemCount: displayed.length,
                     itemBuilder: (_, i) {
@@ -2160,7 +2171,10 @@ class _MyGamesAllScreenState extends State<_MyGamesAllScreen> {
                             ));
                           }
                         },
-                        child: ClipRRect(
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: Stack(
                             fit: StackFit.expand,
@@ -2216,6 +2230,18 @@ class _MyGamesAllScreenState extends State<_MyGamesAllScreen> {
                                 ),
                             ],
                           ),
+                              ),
+                            ),
+                            SizedBox(
+                              height: 18,
+                              child: context.read<LoggedGamesProvider>().hasPlatinum(g.rawgId)
+                                  ? const Padding(
+                                      padding: EdgeInsets.only(top: 4),
+                                      child: PlatinumCornerBadge(size: 13),
+                                    )
+                                  : null,
+                            ),
+                          ],
                         ),
                       );
                     },

@@ -232,6 +232,8 @@ router.post('/me/games', verifyToken, async (req, res) => {
 });
 
 // GET MY LOGGED GAMES — GET /users/me/games
+// platinum_name is the game's Platinum (see lib/guide/platinum.js); the app
+// shows a Platinum badge when it is among the achievements ticked in any log.
 router.get('/me/games', verifyToken, async (req, res) => {
   const { uid } = req.user;
 
@@ -241,10 +243,12 @@ router.get('/me/games', verifyToken, async (req, res) => {
               (le.status = 'completed') AS is_finished,
               (le.status = 'paused') AS is_paused, le.logged_at,
               g.rawg_id, g.name, g.background_image, g.cover_image,
-              p.name AS platform_name
+              p.name AS platform_name,
+              ga.payload->'platinum'->>'name' AS platinum_name
        FROM library_entries le
        JOIN games g ON le.game_id = g.id
        LEFT JOIN platforms p ON le.platform_id = p.id
+       LEFT JOIN game_achievements ga ON ga.game_id = g.id
        WHERE le.user_id = $1 AND le.logged_at IS NOT NULL
        ORDER BY le.logged_at DESC`,
       [uid]
@@ -444,10 +448,12 @@ router.get('/:id/games', verifyToken, async (req, res) => {
               (le.status = 'completed') AS is_finished,
               (le.status = 'paused')    AS is_paused,
               g.rawg_id, g.name, g.background_image, g.cover_image,
-              p.name AS platform_name
+              p.name AS platform_name,
+              ga.payload->'platinum'->>'name' AS platinum_name
        FROM library_entries le
        JOIN games g ON le.game_id = g.id
        LEFT JOIN platforms p ON le.platform_id = p.id
+       LEFT JOIN game_achievements ga ON ga.game_id = g.id
        WHERE le.user_id = $1 AND le.logged_at IS NOT NULL
        ORDER BY le.logged_at DESC
        LIMIT $2`,

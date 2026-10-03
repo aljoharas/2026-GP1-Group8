@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/logged_games_provider.dart';
+import '../../widgets/platinum_celebration.dart';
 
 class LogGameDetailScreen extends StatefulWidget {
   final Map<String, dynamic> game;
@@ -155,9 +156,47 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
     return Icon(Icons.sports_esports_outlined, color: color, size: 18);
   }
 
-  void _toggleAchievement(int id) {
+  int _idOf(GameProvider gp, dynamic a) => a['id'] as int? ?? gp.achievements.indexOf(a);
+
+  // Every game's list has a Platinum (the backend adds it). It can't be
+  // ticked by hand: like on PlayStation, it unlocks once every other
+  // achievement is earned.
+  Map<String, dynamic>? _platinumOf(GameProvider gp) {
+    for (final a in gp.achievements) {
+      if (a is Map<String, dynamic> && a['platinum'] == true) return a;
+    }
+    return null;
+  }
+
+  bool _isPlatinum(dynamic a) => a is Map && a['platinum'] == true;
+
+  bool _isEarned(int id) => _previouslyEarnedIds.contains(id) || _selectedAchievements.contains(id);
+
+  List<dynamic> _regular(GameProvider gp) => gp.achievements.where((a) => !_isPlatinum(a)).toList();
+
+  int _regularEarnedCount(GameProvider gp) => _regular(gp).where((a) => _isEarned(_idOf(gp, a))).length;
+
+  bool _platinumEarned(GameProvider gp) {
+    final p = _platinumOf(gp);
+    if (p == null) return false;
+    if (_previouslyEarnedIds.contains(_idOf(gp, p))) return true;
+    final regular = _regular(gp);
+    return regular.isNotEmpty && _regularEarnedCount(gp) == regular.length;
+  }
+
+  // Runs a selection change and celebrates if it is the one that unlocked
+  // the Platinum.
+  void _changeSelection(GameProvider gp, VoidCallback change) {
+    final before = _platinumEarned(gp);
+    setState(change);
+    if (!before && _platinumEarned(gp)) _celebratePlatinum(gp);
+  }
+
+  void _toggleAchievement(GameProvider gp, int id) {
     if (_previouslyEarnedIds.contains(id)) return;
-    setState(() {
+    final p = _platinumOf(gp);
+    if (p != null && _idOf(gp, p) == id) return;
+    _changeSelection(gp, () {
       if (_selectedAchievements.contains(id)) {
         _selectedAchievements.remove(id);
       } else {
@@ -166,68 +205,32 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
     });
   }
 
+  Set<int> _selectableIds(GameProvider gp) => _regular(gp)
+      .map((a) => _idOf(gp, a))
+      .where((id) => !_previouslyEarnedIds.contains(id))
+      .toSet();
+
   bool _allSelected(GameProvider gp) {
-    final eligible = gp.achievements.where((a) {
-      final id = a['id'] as int? ?? gp.achievements.indexOf(a);
-      return !_previouslyEarnedIds.contains(id);
-    });
-    if (eligible.isEmpty) return false;
-    return eligible.every((a) {
-      final id = a['id'] as int? ?? gp.achievements.indexOf(a);
-      return _selectedAchievements.contains(id);
-    });
+    final eligible = _selectableIds(gp);
+    return eligible.isNotEmpty && _selectedAchievements.containsAll(eligible);
   }
 
   void _toggleSelectAll(GameProvider gp) {
-    final eligibleIds = gp.achievements
-        .map((a) => a['id'] as int? ?? gp.achievements.indexOf(a))
-        .where((id) => !_previouslyEarnedIds.contains(id))
-        .toSet();
-
+    final eligibleIds = _selectableIds(gp);
     if (_allSelected(gp)) {
       setState(() => _selectedAchievements.removeAll(eligibleIds));
     } else {
-      setState(() => _selectedAchievements.addAll(eligibleIds));
-      _showPlatinumPopup();
+      _changeSelection(gp, () => _selectedAchievements.addAll(eligibleIds));
     }
   }
 
-  void _showPlatinumPopup() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40, height: 4,
-              margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(
-                color: muted.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Text('🏆', style: TextStyle(fontSize: 52)),
-            const SizedBox(height: 16),
-            const Text(
-              'Trophy Master!',
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Wow, you collected ALL the trophies in ${widget.game['name'] ?? 'this game'}! That\'s legendary.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: muted, fontSize: 13, height: 1.6),
-            ),
-            const SizedBox(height: 28),
-          ],
-        ),
-      ),
+  void _celebratePlatinum(GameProvider gp) {
+    final p = _platinumOf(gp)!;
+    showPlatinumCelebration(
+      context,
+      gameName: widget.game['name']?.toString() ?? 'this game',
+      trophyName: p['name']?.toString() ?? 'Platinum',
+      image: p['image'] as String?,
     );
   }
 
@@ -242,6 +245,12 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
         .where((a) => _selectedAchievements.contains(a['id']))
         .map((a) => a['name'] as String)
         .toList();
+    final platinum = _platinumOf(gp);
+    if (platinum != null &&
+        !_previouslyEarnedIds.contains(_idOf(gp, platinum)) &&
+        _platinumEarned(gp)) {
+      earned.add(platinum['name'] as String);
+    }
 
     final rawgIdRaw = widget.game['rawg_id'] ?? widget.game['id'];
     final rawgId = rawgIdRaw is int
@@ -262,6 +271,7 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
       isFinished: _isFinished,
       isPaused: _isPaused,
       platform: _selectedPlatform,
+      platinumName: platinum?['name'] as String?,
     ));
 
     showDialog(
@@ -888,17 +898,19 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
           ...List.generate(visible.length, (i) {
             final a          = visible[i] as Map<String, dynamic>;
             final id         = a['id'] as int? ?? i;
+            final isLast     = i == visible.length - 1 && (hiddenCount <= 0 || _achievementsExpanded);
+            if (a['platinum'] == true) return _platinumRow(gp, a, id, isLast);
+
             final isPrev     = _previouslyEarnedIds.contains(id);
             final selected   = _selectedAchievements.contains(id);
             final isChecked  = isPrev || selected;
-            final isLast     = i == visible.length - 1 && (hiddenCount <= 0 || _achievementsExpanded);
 
             final checkColor = isPrev ? muted : accent;
             final nameColor  = isPrev ? muted : (selected ? accent : Colors.white);
 
             return Column(children: [
               GestureDetector(
-                onTap: () => _toggleAchievement(id),
+                onTap: () => _toggleAchievement(gp, id),
                 child: Container(
                   color: Colors.transparent,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -921,24 +933,16 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(children: [
-                            if (a['platinum'] == true) ...[
-                              const Icon(Icons.star, size: 13, color: Color(0xFFB9D7EA)),
-                              const SizedBox(width: 4),
-                            ],
-                            Flexible(
-                              child: Text(
-                                a['name'] ?? '',
-                                style: TextStyle(
-                                  color: nameColor,
-                                  fontSize: 13,
-                                  fontWeight: isChecked ? FontWeight.w700 : FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                          Text(
+                            a['name'] ?? '',
+                            style: TextStyle(
+                              color: nameColor,
+                              fontSize: 13,
+                              fontWeight: isChecked ? FontWeight.w700 : FontWeight.w500,
                             ),
-                          ]),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           if (isPrev) ...[
                             const SizedBox(height: 3),
                             const Text(
@@ -1022,6 +1026,91 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _platinumRow(GameProvider gp, Map<String, dynamic> a, int id, bool isLast) {
+    final isPrev = _previouslyEarnedIds.contains(id);
+    final earned = _platinumEarned(gp);
+    final total  = _regular(gp).length;
+    final done   = _regularEarnedCount(gp);
+
+    return Column(children: [
+      Container(
+        key: const Key('log-platinum-row'),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: earned && !isPrev
+              ? LinearGradient(colors: [platinumColor.withValues(alpha: 0.14), Colors.transparent])
+              : null,
+        ),
+        child: Row(children: [
+          PlatinumBadge(size: 44, image: a['image'] as String?, dimmed: !earned || isPrev),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.star, size: 13, color: platinumColor),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      a['name'] ?? 'Platinum',
+                      style: TextStyle(
+                        color: isPrev ? muted : platinumColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 3),
+                Text(
+                  isPrev
+                      ? 'Earned in a previous log'
+                      : earned
+                          ? 'Platinum unlocked!'
+                          : 'Unlocks when every other achievement is earned',
+                  style: TextStyle(color: earned && !isPrev ? platinumColor : muted, fontSize: 11),
+                ),
+                if (!earned && total > 0) ...[
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: done / total,
+                      minHeight: 4,
+                      backgroundColor: surface2,
+                      color: platinumColor,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text('$done / $total', style: const TextStyle(color: muted, fontSize: 10)),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 22, height: 22,
+            decoration: BoxDecoration(
+              color: earned ? platinumColor.withValues(alpha: isPrev ? 0.3 : 1.0) : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: earned ? platinumColor : muted, width: 1.5),
+            ),
+            child: Icon(
+              earned ? Icons.check : Icons.lock_outline,
+              color: earned ? (isPrev ? muted : Colors.black) : muted,
+              size: 14,
+            ),
+          ),
+        ]),
+      ),
+      if (!isLast) const Divider(height: 1, color: border),
+    ]);
   }
 
   Widget _achPlaceholder() {

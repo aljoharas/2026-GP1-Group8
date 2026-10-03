@@ -493,16 +493,17 @@ router.get('/:id/achievements', verifyToken, async (req, res) => {
       hidden: a.hidden === true,
     }));
 
-    // PlayStation's Platinum isn't on Steam's list; add it first (the checklist
-    // is collapsed to its top rows) so it can be ticked like any other. The
-    // guide gets the same name from getPlatinum.
+    // Every game gets a Platinum (PlayStation's real one, or a generic one).
+    // It isn't on Steam's list, so add it first (the checklist is collapsed to
+    // its top rows). The app ticks it automatically once every other
+    // achievement is ticked. The guide gets the same name from getPlatinum.
     const platinum = await getPlatinum(resolved);
     if (platinum && !achievements.some((a) => a.name.trim().toLowerCase() === platinum.name.toLowerCase())) {
       achievements.unshift({
         id: achievements.length + 1,
         key: 'platinum',
         name: platinum.name,
-        description: platinum.description || 'PlayStation Platinum: earn every base-game trophy.',
+        description: platinum.description || 'Earn every other achievement to unlock the Platinum.',
         image: platinum.image,
         percent: Number.isFinite(platinum.rarity) ? Math.round(platinum.rarity * 10) / 10 : null,
         hidden: false,

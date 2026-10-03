@@ -147,8 +147,9 @@ class GuideNode {
   final String? suspectedCategory;
   final List<GuideTier> tiers;
 
-  /// The PlayStation Platinum: always the last base-game stop, earned by
-  /// finishing every other base-game trophy.
+  /// The Platinum (PlayStation's real one, or a generic one for other games):
+  /// always the last base-game stop, earned by finishing every other
+  /// base-game trophy.
   final bool isPlatinum;
 
   const GuideNode({
@@ -217,7 +218,7 @@ class AchievementGuide {
   final List<GuideNode> nodes;
   final List<GuidePhase> phases;
 
-  /// Separate from [nodes]: the backend only sends it for PlayStation games.
+  /// Separate from [nodes]: the backend sends one for every game with achievements.
   final GuideNode? platinum;
 
   const AchievementGuide({required this.nodes, required this.phases, this.platinum});
