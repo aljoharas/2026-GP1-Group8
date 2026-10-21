@@ -324,7 +324,7 @@ def get_wrapped(
         raise HTTPException(status_code=400, detail=str(e))
 
     # One connection for the whole request: build_wrapped looks up the top
-    # games' names/covers through it after the logs are ranked.
+    # games' names/covers and the trophy unlocks through it.
     conn = None
     try:
         conn = get_connection()
@@ -342,6 +342,7 @@ def get_wrapped(
         return wrapped.build_wrapped(
             target_year, access, year_logs, now,
             game_lookup=lambda game_ids: wrapped.load_games(conn, game_ids),
+            trophy_lookup=lambda: wrapped.load_trophy_unlocks(conn, uid),
         )
     except psycopg2.Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

@@ -30,6 +30,7 @@ def row(game_id=1, hours=Decimal("2.5"), logged_at=None, status="completed", **e
         "hours_played": hours,
         "logged_at": logged_at or utc(2026, 6, 1, 12),
         "name": extra.get("name", f"Game {game_id}"),
+        "game_modes": extra.get("game_modes"),
         "cover_image": extra.get("cover_image"),
         "background_image": extra.get("background_image"),
     }
@@ -525,3 +526,234 @@ def test_top_games_lookup_called_once_with_selected_ids_only():
 def test_top_games_empty_state_is_none():
     response = wrapped.build_wrapped(2026, PARTIAL, year_logs_for([]), NOW, game_lookup=fake_lookup)
     assert response["top_games"] is None
+
+
+# --- Card 4: top_online_game --------------------------------------------------
+
+MP = ["Single player", "Multiplayer"]
+
+
+def online_for(rows, now=NOW, lookup=fake_lookup):
+    return wrapped.build_wrapped(2026, PARTIAL, year_logs_for(rows, now=now), now, game_lookup=lookup)["top_online_game"]
+
+
+@pytest.mark.parametrize("raw, expected", [
+    (None, ()),
+    ([], ()),
+    (["Single player", "Multiplayer"], ("Single player", "Multiplayer")),
+    ('["Battle Royale", "Co-operative"]', ("Battle Royale", "Co-operative")),
+    ('{"Single player",Multiplayer}', ("Single player", "Multiplayer")),
+    ("Single player, Split screen", ("Single player", "Split screen")),
+    ("", ()),
+])
+def test_parse_game_modes_accepts_every_shape(raw, expected):
+    assert wrapped.parse_game_modes(raw) == expected
+
+
+@pytest.mark.parametrize("modes, expected", [
+    (("Multiplayer",), True),
+    (("Massively Multiplayer Online (MMO)",), True),
+    (("BATTLE ROYALE",), True),
+    (("Co-operative",), True),
+    (("Single player", "Split screen"), False),
+    ((), False),
+])
+def test_is_online(modes, expected):
+    assert wrapped.is_online(modes) is expected
+
+
+def test_top_online_game_picks_most_hours_among_online_only():
+    online = online_for([
+        row(id=1, game_id=1, hours=Decimal("50"), game_modes=["Single player"]),
+        row(id=2, game_id=2, hours=Decimal("20"), game_modes=MP),
+        row(id=3, game_id=3, hours=Decimal("30"), game_modes=["Battle Royale"]),
+    ])
+    assert online == {"game_id": 3, "name": "Game 3", "cover_image": "cover-3.jpg", "hours": 30.0}
+
+
+def test_top_online_game_sums_hours_across_logs():
+    assert online_for([
+        row(id=1, game_id=1, hours=Decimal("10"), game_modes=MP),
+        row(id=2, game_id=1, hours=Decimal("10"), game_modes=MP),
+        row(id=3, game_id=2, hours=Decimal("15"), game_modes=MP),
+    ])["game_id"] == 1
+
+
+def test_top_online_game_ties_use_log_count():
+    assert online_for([
+        row(id=1, game_id=1, hours=Decimal("10"), game_modes=MP),
+        row(id=2, game_id=2, hours=Decimal("6"), game_modes=MP),
+        row(id=3, game_id=2, hours=Decimal("4"), game_modes=MP),
+    ])["game_id"] == 2
+
+
+def test_top_online_game_none_without_online_games():
+    assert online_for([row(id=1, game_id=1, game_modes=["Single player"])]) is None
+    assert online_for([row(id=1, game_id=1, game_modes=None)]) is None
+
+
+def test_top_online_game_none_when_online_game_has_no_hours():
+    assert online_for([
+        row(id=1, game_id=1, hours=None, game_modes=MP),
+        row(id=2, game_id=2, hours=Decimal("5"), game_modes=["Single player"]),
+    ]) is None
+
+
+def test_top_online_game_shares_the_single_lookup_with_top_games():
+    calls = []
+
+    def lookup(game_ids):
+        calls.append(sorted(game_ids))
+        return fake_lookup(game_ids)
+
+    online_for([
+        row(id=i, game_id=i, hours=Decimal(str(i + 10)), game_modes=["Single player"]) for i in range(1, 5)
+    ] + [row(id=9, game_id=9, hours=Decimal("1"), game_modes=MP)], lookup=lookup)
+    assert calls == [[2, 3, 4, 9]]
+
+
+# --- Card 5: trophies_earned --------------------------------------------------
+
+def unlock(achievement_id, unlocked_at=None, logged_at=None):
+    return {"achievement_id": achievement_id, "unlocked_at": unlocked_at, "logged_at": logged_at}
+
+
+def trophies_for(unlocks, now=NOW):
+    return wrapped.build_wrapped(
+        2026, PARTIAL, year_logs_for([row()], now=now), now,
+        game_lookup=fake_lookup, trophy_lookup=lambda: unlocks,
+    )["trophies_earned"]
+
+
+def test_trophies_counts_unlocks_in_window():
+    assert trophies_for([
+        unlock(1, utc(2026, 2, 1)),
+        unlock(2, utc(2026, 9, 1)),
+        unlock(3, utc(2025, 6, 1)),          # last year
+        unlock(4, utc(2026, 10, 21, 10)),    # after NOW
+    ]) == 2
+
+
+def test_trophies_same_achievement_under_two_logs_counts_once():
+    assert trophies_for([unlock(1, utc(2026, 2, 1)), unlock(1, utc(2026, 5, 1))]) == 1
+
+
+def test_trophies_first_unlocked_last_year_not_counted_again():
+    assert trophies_for([unlock(1, utc(2025, 11, 1)), unlock(1, utc(2026, 5, 1))]) is None
+
+
+def test_trophies_null_unlocked_at_falls_back_to_logged_at():
+    assert trophies_for([
+        unlock(1, None, utc(2026, 3, 1)),
+        unlock(2, None, utc(2025, 3, 1)),
+        unlock(3, None, None),  # no date at all: can't be placed in a year
+    ]) == 1
+
+
+def test_trophies_uses_riyadh_year_boundary():
+    # 21:30 UTC Dec 31 2025 is 00:30 Jan 1 2026 in Riyadh
+    assert trophies_for([unlock(1, utc(2025, 12, 31, 21, 30))]) == 1
+
+
+def test_trophies_zero_is_none():
+    assert trophies_for([]) is None
+
+
+def test_trophies_none_without_lookup():
+    response = wrapped.build_wrapped(2026, PARTIAL, year_logs_for([row()]), NOW, game_lookup=fake_lookup)
+    assert response["trophies_earned"] is None
+
+
+def test_trophies_lookup_not_called_in_empty_state():
+    calls = []
+    wrapped.build_wrapped(2026, PARTIAL, year_logs_for([]), NOW,
+                          game_lookup=fake_lookup, trophy_lookup=lambda: calls.append(1) or [])
+    assert calls == []
+
+
+# --- Block D & Card 6: play_style ---------------------------------------------
+
+def play_style_for(rows, now=NOW):
+    return wrapped.build_wrapped(2026, PARTIAL, year_logs_for(rows, now=now), now, game_lookup=fake_lookup)["play_style"]
+
+
+def games_with(finished=0, paused=0, playing=0):
+    """One log per game, ids 1..n, in the given groups."""
+    statuses = ["completed"] * finished + ["paused"] * paused + ["playing"] * playing
+    return [row(id=i, game_id=i, status=s) for i, s in enumerate(statuses, start=1)]
+
+
+def test_latest_log_per_game_newest_then_higher_id():
+    logs = year_logs_for([
+        row(id=1, game_id=1, status="playing", logged_at=utc(2026, 3, 1)),
+        row(id=2, game_id=1, status="paused", logged_at=utc(2026, 5, 1)),
+        row(id=3, game_id=2, status="paused", logged_at=utc(2026, 5, 1)),
+        row(id=4, game_id=2, status="playing", logged_at=utc(2026, 5, 1)),  # same time, higher id wins
+    ])
+    latest = wrapped.latest_log_per_game(logs)
+    assert latest.loc[1, "status"] == "paused"
+    assert latest.loc[2, "status"] == "playing"
+
+
+def test_play_style_completed_then_replayed_counts_as_finished():
+    # Spec example: completed in March, replay logged as playing later
+    style = play_style_for([
+        row(id=1, game_id=1, status="completed", logged_at=utc(2026, 3, 1)),
+        row(id=2, game_id=1, status="playing", logged_at=utc(2026, 9, 1)),
+        row(id=3, game_id=2, status="playing"),
+        row(id=4, game_id=3, status="playing"),
+    ])
+    assert (style["finished"], style["paused"], style["playing"]) == (1, 0, 2)
+
+
+def test_play_style_paused_uses_latest_log_only():
+    groups = wrapped.play_style_groups(year_logs_for([
+        row(id=1, game_id=1, status="paused", logged_at=utc(2026, 3, 1)),
+        row(id=2, game_id=1, status="playing", logged_at=utc(2026, 4, 1)),  # resumed → playing
+        row(id=3, game_id=2, status="playing", logged_at=utc(2026, 3, 1)),
+        row(id=4, game_id=2, status="paused", logged_at=utc(2026, 4, 1)),   # paused last → paused
+        row(id=5, game_id=3, status="completed"),
+    ]))
+    assert groups.to_dict() == {1: "playing", 2: "paused", 3: "finished"}
+
+
+def test_play_style_counts_add_up_to_games_played():
+    rows = games_with(finished=7, paused=3, playing=8) + [row(id=99, game_id=1, status="completed")]
+    response = wrapped.build_wrapped(2026, PARTIAL, year_logs_for(rows), NOW, game_lookup=fake_lookup)
+    style = response["play_style"]
+    assert style["finished"] + style["paused"] + style["playing"] == response["games_played"] == 18
+
+
+def test_play_style_spec_example_juggler():
+    assert play_style_for(games_with(finished=7, paused=3, playing=8)) == {
+        "personality": "the_juggler", "finished": 7, "paused": 3, "playing": 8,
+    }
+
+
+def test_play_style_spec_example_tie_skipped():
+    assert play_style_for(games_with(finished=6, paused=3, playing=6)) is None
+
+
+@pytest.mark.parametrize("groups, personality", [
+    ({"finished": 3}, "credits_chaser"),
+    ({"paused": 1, "playing": 2}, "forever_in_progress"),
+    ({"paused": 3}, "forever_in_progress"),
+    ({"finished": 3, "paused": 1, "playing": 1}, "the_closer"),
+    ({"finished": 1, "paused": 3, "playing": 1}, "save_and_quit"),
+    ({"finished": 4, "paused": 3, "playing": 3}, "the_closer"),  # exactly 40%
+    ({"finished": 5, "paused": 4, "playing": 4}, None),          # strictly biggest but 38%
+    ({"finished": 2, "paused": 2, "playing": 1}, None),          # tie at the top
+])
+def test_play_style_personality(groups, personality):
+    style = play_style_for(games_with(**groups))
+    assert (style and style["personality"]) == personality
+
+
+def test_play_style_fewer_than_three_games_skipped():
+    assert play_style_for(games_with(finished=2)) is None
+    # many play-throughs of 2 games are still 2 games
+    assert play_style_for([row(id=i, game_id=1 + i % 2) for i in range(6)]) is None
+
+
+def test_play_style_empty_state_is_none():
+    assert play_style_for([]) is None

@@ -22,6 +22,7 @@ Every log is its own row (a new play-through), so one game can have many rows.
 hours_played is the hours for that one log; NULL counts as 0.
 """
 
+import json
 from datetime import date, datetime
 from typing import Callable
 from zoneinfo import ZoneInfo
@@ -45,6 +46,22 @@ FULL = "full"
 
 TOP_GAMES_LIMIT = 3
 
+# Card 4: a game is online when any of its IGDB game_modes contains one of
+# these, ignoring case. "Massively Multiplayer Online (MMO)" matches "multiplayer".
+ONLINE_MODE_KEYWORDS = ("multiplayer", "battle royale", "co-operative")
+
+# Card 6: play-style groups and personalities
+FINISHED = "finished"
+PAUSED = "paused"
+PLAYING = "playing"
+PLAY_STYLE_MIN_GAMES = 3
+PLAY_STYLE_MIN_SHARE = 0.4
+PERSONALITY_BY_GROUP = {
+    FINISHED: "the_closer",
+    PLAYING: "the_juggler",
+    PAUSED: "save_and_quit",
+}
+
 LOG_COLUMNS = [
     "id",
     "game_id",
@@ -52,7 +69,10 @@ LOG_COLUMNS = [
     "hours_played",
     "logged_at",
     "name",
+    "game_modes",
 ]
+
+UNLOCK_COLUMNS = ["achievement_id", "unlocked_at", "logged_at"]
 
 
 # --- Period & access ----------------------------------------------------------
@@ -130,13 +150,37 @@ def load_manual_logs(conn, uid: str) -> list[dict]:
             le.status,
             le.hours_played,
             le.logged_at,
-            g.name
+            g.name,
+            g.game_modes
         FROM library_entries le
         JOIN games g ON g.id = le.game_id
         WHERE le.user_id = %s
           AND le.source = %s
           AND le.logged_at IS NOT NULL
     """, (uid, WRAPPED_SOURCE))
+    rows = [dict(row) for row in cur.fetchall()]
+    cur.close()
+    return rows
+
+
+def load_trophy_unlocks(conn, uid: str) -> list[dict]:
+    """Every unlocked achievement the user has on a manual log (any year).
+    One row per (achievement, log): the same achievement can sit under several
+    logs, so trophies_earned_card dedupes by achievement_id.
+    """
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT
+            ua.achievement_id,
+            ua.unlocked_at,
+            le.logged_at
+        FROM user_achievements ua
+        JOIN library_entries le ON le.id = ua.library_entry_id
+        WHERE ua.user_id = %s
+          AND ua.unlocked = true
+          AND le.user_id = %s
+          AND le.source = %s
+    """, (uid, uid, WRAPPED_SOURCE))
     rows = [dict(row) for row in cur.fetchall()]
     cur.close()
     return rows
@@ -169,7 +213,44 @@ def prepare_logs(rows: list[dict]) -> pd.DataFrame:
     )
     df["logged_at"] = pd.to_datetime(df["logged_at"], utc=True).dt.tz_convert(WRAPPED_TZ)
     df["game_id"] = df["game_id"].astype("int64")
+    df["game_modes"] = df["game_modes"].map(parse_game_modes)
     return df
+
+
+def parse_game_modes(raw) -> tuple[str, ...]:
+    """games.game_modes → tuple of strings. The column is text[] (psycopg2
+    gives a list), but a JSON array, a Postgres '{a,b}' literal or
+    comma-separated text are accepted too. NULL/empty → ().
+    """
+    if raw is None or (not isinstance(raw, (list, tuple, str)) and pd.isna(raw)):
+        return ()
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("["):
+            try:
+                raw = json.loads(text)
+            except ValueError:
+                raw = text.strip("[]").split(",")
+        else:
+            raw = text.strip("{}").split(",")
+    return tuple(str(m).strip().strip('"') for m in raw if m is not None and str(m).strip().strip('"'))
+
+
+def is_online(game_modes: tuple[str, ...]) -> bool:
+    """True when any mode contains an ONLINE_MODE_KEYWORDS entry, ignoring case."""
+    return any(kw in mode.casefold() for mode in game_modes for kw in ONLINE_MODE_KEYWORDS)
+
+
+def latest_log_per_game(year_logs: pd.DataFrame) -> pd.DataFrame:
+    """Block D: each game's newest log in the year. Ties on logged_at go to the
+    higher id (the later insert). Indexed by game_id.
+    """
+    return (
+        year_logs.sort_values(["game_id", "logged_at", "id"], kind="mergesort")
+        .groupby("game_id")
+        .tail(1)
+        .set_index("game_id")
+    )
 
 
 def select_year_logs(logs: pd.DataFrame, year: int, now: datetime | None = None) -> pd.DataFrame:
@@ -250,6 +331,84 @@ def top_games_card(ranked: pd.DataFrame, games: dict[int, dict]) -> list[dict] |
     return items
 
 
+def rank_top_online_game(year_logs: pd.DataFrame, per_game: pd.Series) -> pd.DataFrame:
+    """The online game with the most hours, same ties as card 3. Empty when no
+    online game has more than 0 hours. Games with no game_modes are not online.
+    """
+    online_logs = year_logs[year_logs["game_modes"].map(is_online)]
+    return rank_top_games(online_logs, per_game, limit=1)
+
+
+def top_online_game_card(ranked_online: pd.DataFrame, games: dict[int, dict]) -> dict | None:
+    """Card 4: the single top online game, shaped like a top_games item."""
+    items = top_games_card(ranked_online, games)
+    return items[0] if items else None
+
+
+def trophies_earned_card(unlocks: pd.DataFrame, year: int, now: datetime | None = None) -> int | None:
+    """Card 5: achievements first unlocked inside the year window.
+
+    unlocks has columns achievement_id, unlocked_at, logged_at (load_trophy_unlocks).
+    Unlock date = unlocked_at, else the linked log's logged_at. Each
+    achievement counts once, at its earliest unlock in any year, so one
+    achievement under several logs isn't counted twice or again next year.
+    None when the count is 0.
+    """
+    if unlocks.empty:
+        return None
+    unlocked_at = pd.to_datetime(unlocks["unlocked_at"], utc=True)
+    logged_at = pd.to_datetime(unlocks["logged_at"], utc=True)
+    first_unlock = (
+        unlocks.assign(unlock_date=unlocked_at.fillna(logged_at).dt.tz_convert(WRAPPED_TZ))
+        .dropna(subset=["unlock_date"])
+        .groupby("achievement_id")["unlock_date"]
+        .min()
+    )
+    start, end = year_window(year, now)
+    count = int(((first_unlock >= start) & (first_unlock <= end)).sum())
+    return count if count > 0 else None
+
+
+def play_style_groups(year_logs: pd.DataFrame) -> pd.Series:
+    """Sort each of the year's games into exactly one group, indexed by game_id:
+    FINISHED if any log in the year is completed, else PAUSED if its latest
+    log (block D) is paused, else PLAYING.
+    """
+    finished = (year_logs["status"] == "completed").groupby(year_logs["game_id"]).any()
+    latest_status = latest_log_per_game(year_logs)["status"].reindex(finished.index)
+    groups = pd.Series(PLAYING, index=finished.index)
+    groups[latest_status == "paused"] = PAUSED
+    groups[finished] = FINISHED
+    return groups
+
+
+def play_style_card(year_logs: pd.DataFrame) -> dict | None:
+    """Card 6: play-style personality plus the finished/paused/playing counts.
+
+    In order: fewer than 3 games → None; every game finished → credits_chaser;
+    none finished → forever_in_progress; one group strictly biggest with at
+    least 40% → its personality; otherwise (a tie, or under 40%) → None.
+    """
+    groups = play_style_groups(year_logs)
+    counts = {g: int((groups == g).sum()) for g in (FINISHED, PAUSED, PLAYING)}
+    total = sum(counts.values())
+    if total < PLAY_STYLE_MIN_GAMES:
+        return None
+
+    if counts[FINISHED] == total:
+        personality = "credits_chaser"
+    elif counts[FINISHED] == 0:
+        personality = "forever_in_progress"
+    else:
+        biggest = max(counts.values())
+        leaders = [g for g, n in counts.items() if n == biggest]
+        if len(leaders) > 1 or biggest / total < PLAY_STYLE_MIN_SHARE:
+            return None
+        personality = PERSONALITY_BY_GROUP[leaders[0]]
+
+    return {"personality": personality, **counts}
+
+
 # --- Response -----------------------------------------------------------------
 
 def locked_response(year: int) -> dict:
@@ -283,10 +442,13 @@ def build_wrapped(
     now: datetime | None = None,
     *,
     game_lookup: Callable[[list[int]], dict[int, dict]],
+    trophy_lookup: Callable[[], list[dict]] | None = None,
 ) -> dict:
     """Assemble the unlocked response from the year's counted logs.
-    game_lookup(game_ids) returns load_games-shaped info; it is only called
-    when there are top games to show.
+    game_lookup(game_ids) returns load_games-shaped info; it is called once,
+    only when there are top games or a top online game to show.
+    trophy_lookup() returns load_trophy_unlocks-shaped rows for this user;
+    without it card 5 stays None.
     """
     start, end = year_window(year, now)
     response = {
@@ -310,6 +472,16 @@ def build_wrapped(
     response["games_played"] = games_played_card(year_logs)
 
     ranked = rank_top_games(year_logs, per_game)
-    games = game_lookup([int(g) for g in ranked["game_id"]]) if not ranked.empty else {}
+    ranked_online = rank_top_online_game(year_logs, per_game)
+    # One lookup for both cards' names and covers
+    game_ids = list(dict.fromkeys(int(g) for g in pd.concat([ranked["game_id"], ranked_online["game_id"]])))
+    games = game_lookup(game_ids) if game_ids else {}
     response["top_games"] = top_games_card(ranked, games)
+    response["top_online_game"] = top_online_game_card(ranked_online, games)
+
+    if trophy_lookup is not None:
+        unlocks = pd.DataFrame(trophy_lookup(), columns=UNLOCK_COLUMNS)
+        response["trophies_earned"] = trophies_earned_card(unlocks, year, now)
+
+    response["play_style"] = play_style_card(year_logs)
     return response
