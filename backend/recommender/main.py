@@ -13,12 +13,14 @@ but cached for _COLLAB_TTL seconds to avoid hammering the DB.
 import asyncio
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 import psycopg2.extras
 
 from db import get_connection
 from recommender import build_feature_matrix, build_item_similarity, recommend
+import wrapped
 
 # --- Shared state loaded at startup -------------------------------------------
 
@@ -307,3 +309,42 @@ def get_recommendations(
     ]
 
     return {"games": output, "cold_start": False}
+
+
+@app.get("/wrapped")
+def get_wrapped(
+    uid: str = Query(..., description="Firebase UID of the authenticated user"),
+    # Taken as a string so a bad value is our 400, not FastAPI's 422
+    year: str | None = Query(None, description="Calendar year (Asia/Riyadh); defaults to the current one"),
+):
+    now = datetime.now(wrapped.WRAPPED_TZ)
+    try:
+        target_year = wrapped.parse_year(year, now)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # One connection for the whole request: build_wrapped looks up the top
+    # games' names/covers through it after the logs are ranked.
+    conn = None
+    try:
+        conn = get_connection()
+        user = wrapped.load_user(conn, uid)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        access = wrapped.access_state(target_year, user["wrapped_early_access"], now)
+        # A locked year never needs the logs
+        if access == wrapped.LOCKED:
+            return wrapped.locked_response(target_year)
+
+        rows = wrapped.load_manual_logs(conn, uid)
+        year_logs = wrapped.select_year_logs(wrapped.prepare_logs(rows), target_year, now)
+        return wrapped.build_wrapped(
+            target_year, access, year_logs, now,
+            game_lookup=lambda game_ids: wrapped.load_games(conn, game_ids),
+        )
+    except psycopg2.Error as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        if conn:
+            conn.close()

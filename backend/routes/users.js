@@ -6,6 +6,9 @@ const { recordActivity } = require('../lib/activity');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 
+const RECOMMENDER_URL = process.env.RECOMMENDER_URL || 'http://localhost:8000';
+const WRAPPED_TIMEOUT_MS = 10000;
+
 // ── Cloudinary config from .env ───────────────────────────────────────────
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -322,6 +325,40 @@ router.get('/me/favorites', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Get favorites error:', error.message);
     return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GAMING WRAPPED — GET /users/me/wrapped?year=2026
+// The Python service calculates everything and has no auth of its own, so the
+// uid comes only from the verified token. year is forwarded untouched; Python
+// validates it and defaults it when missing. Unlike /home/recommended there is
+// no fallback: Python's status and body are returned as-is, and an unreachable
+// service is a 502.
+router.get('/me/wrapped', verifyToken, async (req, res) => {
+  const { uid } = req.user;
+
+  const params = new URLSearchParams({ uid });
+  if (req.query.year !== undefined) {
+    params.set('year', String(req.query.year));
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), WRAPPED_TIMEOUT_MS);
+  try {
+    const pyRes = await fetch(`${RECOMMENDER_URL}/wrapped?${params}`, {
+      signal: controller.signal,
+    });
+    // Read as text so a non-JSON error body still passes through unchanged
+    const body = await pyRes.text();
+    return res
+      .status(pyRes.status)
+      .type(pyRes.headers.get('content-type') || 'application/json')
+      .send(body);
+  } catch (error) {
+    console.warn('[wrapped] service unreachable:', error.message);
+    return res.status(502).json({ message: 'Wrapped service unavailable' });
+  } finally {
+    clearTimeout(timeoutId);
   }
 });
 

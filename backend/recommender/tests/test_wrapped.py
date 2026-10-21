@@ -1,0 +1,527 @@
+"""
+Unit tests for wrapped.py's pure functions. No database: rows are built in the
+shape psycopg2's RealDictCursor returns (Decimal hours, UTC-aware timestamps).
+
+Run from recommender/:  pytest
+"""
+
+from datetime import datetime, timezone
+from decimal import Decimal
+
+import pytest
+
+import wrapped
+from wrapped import FULL, LOCKED, PARTIAL, WRAPPED_TZ
+
+
+def riyadh(*args):
+    return datetime(*args, tzinfo=WRAPPED_TZ)
+
+
+def utc(*args):
+    return datetime(*args, tzinfo=timezone.utc)
+
+
+def row(game_id=1, hours=Decimal("2.5"), logged_at=None, status="completed", **extra):
+    return {
+        "id": extra.get("id", 1),
+        "game_id": game_id,
+        "status": status,
+        "hours_played": hours,
+        "logged_at": logged_at or utc(2026, 6, 1, 12),
+        "name": extra.get("name", f"Game {game_id}"),
+        "cover_image": extra.get("cover_image"),
+        "background_image": extra.get("background_image"),
+    }
+
+
+def fake_lookup(game_ids):
+    """Stands in for load_games: every game has a name and a cover."""
+    return {
+        gid: {"id": gid, "name": f"Game {gid}", "cover_image": f"cover-{gid}.jpg", "background_image": None}
+        for gid in game_ids
+    }
+
+
+# --- parse_year ---------------------------------------------------------------
+
+NOW = riyadh(2026, 10, 21, 12)
+
+
+def test_parse_year_defaults_to_current_riyadh_year():
+    assert wrapped.parse_year(None, NOW) == 2026
+    assert wrapped.parse_year("", NOW) == 2026
+
+
+def test_parse_year_default_uses_riyadh_not_utc():
+    # 22:00 UTC on Dec 31 is already Jan 1 in Riyadh
+    assert wrapped.parse_year(None, utc(2026, 12, 31, 22)) == 2027
+
+
+@pytest.mark.parametrize("raw", ["abc", "2026.5", "20x6"])
+def test_parse_year_rejects_non_integers(raw):
+    with pytest.raises(ValueError):
+        wrapped.parse_year(raw, NOW)
+
+
+@pytest.mark.parametrize("raw", ["1999", "2101", "-5"])
+def test_parse_year_rejects_out_of_range(raw):
+    with pytest.raises(ValueError):
+        wrapped.parse_year(raw, NOW)
+
+
+@pytest.mark.parametrize("raw, expected", [("2000", 2000), ("2100", 2100), (" 2025 ", 2025)])
+def test_parse_year_accepts_range_bounds(raw, expected):
+    assert wrapped.parse_year(raw, NOW) == expected
+
+
+# --- access_state -------------------------------------------------------------
+
+@pytest.mark.parametrize("early_access", [True, False])
+def test_past_year_is_full(early_access):
+    assert wrapped.access_state(2025, early_access, NOW) == FULL
+
+
+@pytest.mark.parametrize("early_access", [True, False])
+def test_future_year_is_locked(early_access):
+    assert wrapped.access_state(2027, early_access, NOW) == LOCKED
+
+
+def test_current_year_before_release_depends_on_flag():
+    assert wrapped.access_state(2026, True, NOW) == PARTIAL
+    assert wrapped.access_state(2026, False, NOW) == LOCKED
+
+
+def test_current_year_unlocks_on_release_date_in_riyadh():
+    # 21:30 UTC Dec 30 = 00:30 Riyadh Dec 31
+    assert wrapped.access_state(2026, False, utc(2026, 12, 30, 21, 30)) == FULL
+    # 20:30 UTC Dec 30 = 23:30 Riyadh Dec 30
+    assert wrapped.access_state(2026, False, utc(2026, 12, 30, 20, 30)) == LOCKED
+
+
+def test_locked_response_shape():
+    response = wrapped.locked_response(2027)
+    assert list(response) == ["year", "locked", "release_date"]
+    assert response == {
+        "year": 2027,
+        "locked": True,
+        "release_date": "2027-12-31",
+    }
+
+
+# --- prepare_logs -------------------------------------------------------------
+
+def test_prepare_logs_converts_decimal_and_null_hours_to_float():
+    df = wrapped.prepare_logs([row(hours=Decimal("1.25")), row(hours=None)])
+    assert df["hours_played"].tolist() == [1.25, 0.0]
+    assert df["hours_played"].dtype == "float64"
+
+
+def test_prepare_logs_converts_logged_at_to_riyadh():
+    df = wrapped.prepare_logs([row(logged_at=utc(2026, 1, 1, 0))])
+    assert str(df["logged_at"].dt.tz) == "Asia/Riyadh"
+    assert df["logged_at"].iloc[0].hour == 3
+
+
+def test_prepare_logs_handles_no_rows():
+    df = wrapped.prepare_logs([])
+    assert df.empty
+    assert list(df.columns) == wrapped.LOG_COLUMNS
+    assert df["hours_played"].dtype == "float64"
+
+
+# --- select_year_logs ---------------------------------------------------------
+
+AFTER_2026 = riyadh(2027, 1, 15, 12)
+
+
+def test_year_window_uses_riyadh_boundaries():
+    logs = wrapped.prepare_logs([
+        row(id=1, logged_at=utc(2025, 12, 31, 20, 59)),            # 23:59 Dec 31 Riyadh → 2025
+        row(id=2, logged_at=utc(2025, 12, 31, 21, 0)),             # 00:00 Jan 1 Riyadh → 2026
+        row(id=3, logged_at=utc(2026, 12, 31, 20, 59, 59, 500000)),  # 23:59:59.5 Dec 31 Riyadh → 2026
+        row(id=4, logged_at=utc(2026, 12, 31, 21, 0)),             # 00:00 Jan 1 Riyadh → 2027
+    ])
+    assert wrapped.select_year_logs(logs, 2026, AFTER_2026)["id"].tolist() == [2, 3]
+
+
+def test_partial_year_window_ends_now():
+    # NOW is 2026-10-21 12:00 Riyadh
+    start, end = wrapped.year_window(2026, NOW)
+    assert start == riyadh(2026, 1, 1)
+    assert end == NOW
+
+
+def test_partial_year_excludes_logs_after_now():
+    logs = wrapped.prepare_logs([
+        row(id=1, logged_at=utc(2026, 10, 21, 8, 59)),  # 11:59 Riyadh, before NOW
+        row(id=2, logged_at=utc(2026, 10, 21, 9, 1)),   # 12:01 Riyadh, after NOW
+        row(id=3, logged_at=utc(2026, 11, 5, 12)),
+    ])
+    assert wrapped.select_year_logs(logs, 2026, NOW)["id"].tolist() == [1]
+
+
+def test_past_year_window_ends_dec_31():
+    _, end = wrapped.year_window(2025, NOW)
+    assert end == riyadh(2025, 12, 31, 23, 59, 59, 999999)
+
+
+def test_dec_31_window_ends_now():
+    dec_31 = riyadh(2026, 12, 31, 18)
+    _, end = wrapped.year_window(2026, dec_31)
+    assert end == dec_31
+    logs = wrapped.prepare_logs([
+        row(id=1, logged_at=utc(2026, 12, 31, 14)),  # 17:00 Riyadh
+        row(id=2, logged_at=utc(2026, 12, 31, 16)),  # 19:00 Riyadh, after now
+    ])
+    assert wrapped.select_year_logs(logs, 2026, dec_31)["id"].tolist() == [1]
+
+
+def test_year_logs_exclude_plan_to_play():
+    logs = wrapped.prepare_logs([
+        row(id=1, status="playing"),
+        row(id=2, status="completed"),
+        row(id=3, status="paused"),
+        row(id=4, status="plan_to_play"),
+    ])
+    assert wrapped.select_year_logs(logs, 2026, NOW)["id"].tolist() == [1, 2, 3]
+
+
+def test_year_logs_keep_zero_and_null_hour_rows():
+    logs = wrapped.prepare_logs([row(id=1, hours=None), row(id=2, hours=Decimal("0"))])
+    assert len(wrapped.select_year_logs(logs, 2026, NOW)) == 2
+
+
+# --- build_wrapped ------------------------------------------------------------
+
+UNLOCKED_KEYS = [
+    "year", "locked", "release_date", "is_partial", "empty_state", "window",
+    "total_hours", "games_played", "top_games", "top_online_game",
+    "trophies_earned", "play_style", "replay", "rating", "friends_hours",
+    "similar_friend",
+]
+
+
+def test_empty_year_returns_empty_state():
+    year_logs = wrapped.select_year_logs(wrapped.prepare_logs([]), 2025, NOW)
+    response = wrapped.build_wrapped(2025, FULL, year_logs, NOW, game_lookup=fake_lookup)
+    assert list(response) == UNLOCKED_KEYS
+    assert response == {
+        "year": 2025,
+        "locked": False,
+        "release_date": "2025-12-31",
+        "is_partial": False,
+        "empty_state": True,
+        "window": {"start": "2025-01-01", "end": "2025-12-31"},
+        "total_hours": None,
+        "games_played": 0,
+        "top_games": None,
+        "top_online_game": None,
+        "trophies_earned": None,
+        "play_style": None,
+        "replay": None,
+        "rating": None,
+        "friends_hours": None,
+        "similar_friend": None,
+    }
+
+
+def test_unlocked_year_with_logs_has_every_key():
+    year_logs = wrapped.select_year_logs(wrapped.prepare_logs([row()]), 2026, NOW)
+    response = wrapped.build_wrapped(2026, PARTIAL, year_logs, NOW, game_lookup=fake_lookup)
+    assert list(response) == UNLOCKED_KEYS
+    assert response["locked"] is False
+    assert response["release_date"] == "2026-12-31"
+    assert response["is_partial"] is True
+    assert response["empty_state"] is False
+    # Partial year: window ends today in Riyadh
+    assert response["window"] == {"start": "2026-01-01", "end": "2026-10-21"}
+
+
+def test_past_year_response_window_ends_dec_31():
+    year_logs = wrapped.select_year_logs(wrapped.prepare_logs([]), 2025, NOW)
+    assert wrapped.build_wrapped(2025, FULL, year_logs, NOW, game_lookup=fake_lookup)["window"] == {
+        "start": "2025-01-01",
+        "end": "2025-12-31",
+    }
+
+
+def test_dec_31_response_window_ends_today():
+    dec_31 = riyadh(2026, 12, 31, 18)
+    year_logs = wrapped.select_year_logs(wrapped.prepare_logs([row()]), 2026, dec_31)
+    response = wrapped.build_wrapped(2026, FULL, year_logs, dec_31, game_lookup=fake_lookup)
+    assert response["window"] == {"start": "2026-01-01", "end": "2026-12-31"}
+    assert response["is_partial"] is False
+
+
+# --- Block C: game_hours ------------------------------------------------------
+
+def year_logs_for(rows, year=2026, now=NOW):
+    return wrapped.select_year_logs(wrapped.prepare_logs(rows), year, now)
+
+
+def test_game_hours_sums_every_log_of_a_game():
+    per_game = wrapped.game_hours(year_logs_for([
+        row(id=1, game_id=1, hours=Decimal("2.5")),
+        row(id=2, game_id=1, hours=Decimal("4")),
+        row(id=3, game_id=2, hours=Decimal("1.5")),
+    ]))
+    assert per_game.to_dict() == {1: 6.5, 2: 1.5}
+
+
+def test_game_hours_counts_null_as_zero():
+    per_game = wrapped.game_hours(year_logs_for([
+        row(id=1, game_id=1, hours=None),
+        row(id=2, game_id=1, hours=Decimal("3")),
+        row(id=3, game_id=2, hours=None),
+    ]))
+    assert per_game.to_dict() == {1: 3.0, 2: 0.0}
+
+
+def test_game_hours_handles_no_logs():
+    per_game = wrapped.game_hours(year_logs_for([]))
+    assert per_game.empty
+    assert per_game.dtype == "float64"
+
+
+# --- Card 1: total_hours ------------------------------------------------------
+
+def total_hours_for(rows, now=NOW):
+    return wrapped.build_wrapped(2026, PARTIAL, year_logs_for(rows, now=now), now, game_lookup=fake_lookup)["total_hours"]
+
+
+def test_total_hours_normal_data():
+    assert total_hours_for([
+        row(id=1, game_id=1, hours=Decimal("120.5")),
+        row(id=2, game_id=2, hours=Decimal("94")),
+    ]) == 214.5
+
+
+def test_total_hours_ignores_null_hours():
+    assert total_hours_for([
+        row(id=1, game_id=1, hours=None),
+        row(id=2, game_id=2, hours=Decimal("7.5")),
+    ]) == 7.5
+
+
+def test_total_hours_all_null_is_none():
+    assert total_hours_for([
+        row(id=1, game_id=1, hours=None),
+        row(id=2, game_id=2, hours=None),
+    ]) is None
+
+
+def test_total_hours_sums_logs_of_the_same_game():
+    assert total_hours_for([
+        row(id=1, game_id=1, hours=Decimal("10")),
+        row(id=2, game_id=1, hours=Decimal("5.5")),
+        row(id=3, game_id=1, hours=Decimal("2")),
+    ]) == 17.5
+
+
+def test_total_hours_excludes_logs_outside_the_year():
+    assert total_hours_for([
+        row(id=1, hours=Decimal("5"), logged_at=utc(2026, 6, 1, 12)),
+        row(id=2, hours=Decimal("100"), logged_at=utc(2025, 12, 31, 20, 59)),  # 2025 in Riyadh
+        row(id=3, hours=Decimal("200"), logged_at=utc(2026, 10, 21, 9, 1)),    # after NOW
+    ]) == 5.0
+
+
+def test_total_hours_excludes_plan_to_play():
+    assert total_hours_for([
+        row(id=1, hours=Decimal("5"), status="playing"),
+        row(id=2, hours=Decimal("50"), status="plan_to_play"),
+    ]) == 5.0
+
+
+def test_total_hours_rounds_to_one_decimal():
+    assert total_hours_for([
+        row(id=1, game_id=1, hours=Decimal("0.04")),
+        row(id=2, game_id=2, hours=Decimal("0.04")),
+    ]) == 0.1
+    assert total_hours_for([row(id=1, hours=Decimal("12.345"))]) == 12.3
+
+
+def test_total_hours_rounding_to_zero_is_none():
+    assert total_hours_for([row(id=1, hours=Decimal("0.04"))]) is None
+
+
+# --- Card 2: games_played -----------------------------------------------------
+
+def games_played_for(rows, now=NOW):
+    return wrapped.build_wrapped(2026, PARTIAL, year_logs_for(rows, now=now), now, game_lookup=fake_lookup)["games_played"]
+
+
+def test_games_played_counts_a_game_once_across_logs():
+    assert games_played_for([
+        row(id=1, game_id=1),
+        row(id=2, game_id=1),
+        row(id=3, game_id=1),
+        row(id=4, game_id=2),
+    ]) == 2
+
+
+def test_games_played_counts_null_and_zero_hour_games():
+    assert games_played_for([
+        row(id=1, game_id=1, hours=None),
+        row(id=2, game_id=2, hours=Decimal("0")),
+        row(id=3, game_id=3, hours=Decimal("4")),
+    ]) == 3
+
+
+def test_games_played_ignores_plan_to_play():
+    assert games_played_for([
+        row(id=1, game_id=1, status="completed"),
+        row(id=2, game_id=2, status="plan_to_play"),
+    ]) == 1
+
+
+def test_games_played_ignores_logs_outside_the_year():
+    assert games_played_for([
+        row(id=1, game_id=1, logged_at=utc(2026, 6, 1, 12)),
+        row(id=2, game_id=2, logged_at=utc(2025, 12, 31, 20, 59)),  # 2025 in Riyadh
+        row(id=3, game_id=3, logged_at=utc(2026, 10, 21, 9, 1)),    # after NOW
+    ]) == 1
+
+
+def test_games_played_zero_logs_is_empty_state_with_zero():
+    response = wrapped.build_wrapped(2026, PARTIAL, year_logs_for([]), NOW, game_lookup=fake_lookup)
+    assert response["empty_state"] is True
+    assert response["games_played"] == 0
+
+
+# --- Card 3: top_games --------------------------------------------------------
+
+def top_games_for(rows, now=NOW, lookup=fake_lookup):
+    return wrapped.build_wrapped(2026, PARTIAL, year_logs_for(rows, now=now), now, game_lookup=lookup)["top_games"]
+
+
+def top_ids(rows, **kwargs):
+    return [g["game_id"] for g in top_games_for(rows, **kwargs)]
+
+
+def test_top_games_clean_top_three():
+    top = top_games_for([
+        row(id=1, game_id=1, hours=Decimal("10")),
+        row(id=2, game_id=2, hours=Decimal("40")),
+        row(id=3, game_id=3, hours=Decimal("25")),
+        row(id=4, game_id=4, hours=Decimal("5")),
+    ])
+    assert top == [
+        {"game_id": 2, "name": "Game 2", "cover_image": "cover-2.jpg", "hours": 40.0},
+        {"game_id": 3, "name": "Game 3", "cover_image": "cover-3.jpg", "hours": 25.0},
+        {"game_id": 1, "name": "Game 1", "cover_image": "cover-1.jpg", "hours": 10.0},
+    ]
+    assert all(list(item) == ["game_id", "name", "cover_image", "hours"] for item in top)
+
+
+def test_top_games_hours_summed_across_logs():
+    # game 1: 3 logs adding to 30 beats game 2's single 20-hour log
+    assert top_ids([
+        row(id=1, game_id=1, hours=Decimal("10")),
+        row(id=2, game_id=1, hours=Decimal("10")),
+        row(id=3, game_id=1, hours=Decimal("10")),
+        row(id=4, game_id=2, hours=Decimal("20")),
+    ]) == [1, 2]
+
+
+def test_top_games_tie_broken_by_log_count():
+    assert top_ids([
+        row(id=1, game_id=1, hours=Decimal("10")),
+        row(id=2, game_id=2, hours=Decimal("6")),
+        row(id=3, game_id=2, hours=Decimal("4")),
+    ]) == [2, 1]
+
+
+def test_top_games_tie_broken_by_latest_logged_at():
+    assert top_ids([
+        row(id=1, game_id=1, hours=Decimal("10"), logged_at=utc(2026, 3, 1, 12)),
+        row(id=2, game_id=2, hours=Decimal("10"), logged_at=utc(2026, 8, 1, 12)),
+    ]) == [2, 1]
+
+
+def test_top_games_tie_broken_by_name():
+    logged_at = utc(2026, 5, 1, 12)
+    assert top_ids([
+        row(id=1, game_id=1, hours=Decimal("10"), logged_at=logged_at, name="zelda"),
+        row(id=2, game_id=2, hours=Decimal("10"), logged_at=logged_at, name="Hades"),
+        row(id=3, game_id=3, hours=Decimal("10"), logged_at=logged_at, name="celeste"),
+    ]) == [3, 2, 1]
+
+
+def test_top_games_float_noise_is_a_tie():
+    # 0.1 + 0.2 != 0.3 in floats; both show as 0.3, so the log count decides
+    assert top_ids([
+        row(id=1, game_id=1, hours=Decimal("0.3")),
+        row(id=2, game_id=2, hours=Decimal("0.1")),
+        row(id=3, game_id=2, hours=Decimal("0.2")),
+    ]) == [2, 1]
+
+
+def test_top_games_fewer_than_three():
+    assert top_ids([row(id=1, game_id=1, hours=Decimal("3"))]) == [1]
+    assert top_ids([
+        row(id=1, game_id=1, hours=Decimal("3")),
+        row(id=2, game_id=2, hours=Decimal("8")),
+    ]) == [2, 1]
+
+
+def test_top_games_all_null_hours_is_none():
+    calls = []
+    top = top_games_for(
+        [row(id=1, game_id=1, hours=None), row(id=2, game_id=2, hours=None)],
+        lookup=lambda ids: calls.append(ids) or {},
+    )
+    assert top is None
+    assert calls == []  # no lookup when nothing qualifies
+
+
+def test_top_games_excludes_zero_hour_game_with_many_logs():
+    assert top_ids([
+        row(id=1, game_id=1, hours=Decimal("0")),
+        row(id=2, game_id=1, hours=None),
+        row(id=3, game_id=1, hours=Decimal("0")),
+        row(id=4, game_id=1, hours=None),
+        row(id=5, game_id=2, hours=Decimal("1")),
+    ]) == [2]
+
+
+def test_top_games_cover_falls_back_to_background_image():
+    def lookup(game_ids):
+        return {
+            1: {"id": 1, "name": "Game 1", "cover_image": None, "background_image": "bg-1.jpg"},
+            2: {"id": 2, "name": "Game 2", "cover_image": "cover-2.jpg", "background_image": "bg-2.jpg"},
+            3: {"id": 3, "name": "Game 3", "cover_image": None, "background_image": None},
+        }
+    top = top_games_for([
+        row(id=1, game_id=1, hours=Decimal("30")),
+        row(id=2, game_id=2, hours=Decimal("20")),
+        row(id=3, game_id=3, hours=Decimal("10")),
+    ], lookup=lookup)
+    assert [g["cover_image"] for g in top] == ["bg-1.jpg", "cover-2.jpg", None]
+
+
+def test_top_games_hours_rounded_to_one_decimal():
+    top = top_games_for([
+        row(id=1, game_id=1, hours=Decimal("12.345")),
+        row(id=2, game_id=1, hours=Decimal("0.04")),
+    ])
+    assert top[0]["hours"] == 12.4
+
+
+def test_top_games_lookup_called_once_with_selected_ids_only():
+    calls = []
+
+    def lookup(game_ids):
+        calls.append(sorted(game_ids))
+        return fake_lookup(game_ids)
+
+    top_games_for([
+        row(id=i, game_id=i, hours=Decimal(str(i))) for i in range(1, 6)
+    ], lookup=lookup)
+    assert calls == [[3, 4, 5]]
+
+
+def test_top_games_empty_state_is_none():
+    response = wrapped.build_wrapped(2026, PARTIAL, year_logs_for([]), NOW, game_lookup=fake_lookup)
+    assert response["top_games"] is None
