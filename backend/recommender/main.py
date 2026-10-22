@@ -343,6 +343,9 @@ def get_wrapped(
             target_year, access, year_logs, now,
             game_lookup=lambda game_ids: wrapped.load_games(conn, game_ids),
             trophy_lookup=lambda: wrapped.load_trophy_unlocks(conn, uid),
+            me={"user_id": uid, "username": user["username"], "avatar_url": user["avatar_url"]},
+            friends_lookup=lambda: wrapped.load_friends_with_logs(conn, uid),
+            genre_lookup=lambda game_ids: wrapped.load_game_genres(conn, game_ids),
         )
     except psycopg2.Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
