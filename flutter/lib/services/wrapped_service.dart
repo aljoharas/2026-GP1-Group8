@@ -30,7 +30,7 @@ class WrappedService {
       if (response.statusCode == 200) {
         return {'success': true, 'wrapped': WrappedResponse.fromJson(data)};
       }
-      return {'success': false, 'message': data['message'] ?? data['detail'] ?? 'Could not load Wrapped'};
+      return {'success': false, 'message': data['message'] ?? data['detail'] ?? 'Could not load Endgame'};
     } catch (e) {
       return {'success': false, 'message': 'Could not reach server'};
     }

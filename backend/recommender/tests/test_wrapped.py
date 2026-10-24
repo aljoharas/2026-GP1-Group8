@@ -198,7 +198,7 @@ def test_year_logs_keep_zero_and_null_hour_rows():
 UNLOCKED_KEYS = [
     "year", "locked", "release_date", "is_partial", "empty_state", "window",
     "total_hours", "games_played", "games_played_covers", "top_games", "top_online_game",
-    "trophies_earned", "play_style", "replay", "rating", "friends_hours",
+    "trophies_earned", "trophies", "play_style", "replay", "rating", "friends_hours",
     "similar_friend", "me",
 ]
 
@@ -220,6 +220,7 @@ def test_empty_year_returns_empty_state():
         "top_games": None,
         "top_online_game": None,
         "trophies_earned": None,
+        "trophies": None,
         "play_style": None,
         "replay": None,
         "rating": None,
@@ -649,56 +650,81 @@ def test_top_online_game_shares_the_single_lookup_with_top_games():
     assert calls == [[2, 3, 4, 9]]
 
 
-# --- Card 5: trophies_earned --------------------------------------------------
+# --- Card 5: trophies_earned + trophies ---------------------------------------
 
-def unlock(achievement_id, unlocked_at=None, logged_at=None):
-    return {"achievement_id": achievement_id, "unlocked_at": unlocked_at, "logged_at": logged_at}
+def tick(name, logged_at, game_id=1, game_name="Hades", achievement_id=None, icon_url=None):
+    """One achievement ticked on one log, shaped like load_trophy_unlocks."""
+    return {"game_id": game_id, "name": name, "logged_at": logged_at, "game_name": game_name,
+            "achievement_id": achievement_id, "icon_url": icon_url}
 
 
-def trophies_for(unlocks, now=NOW):
+def trophy_response(ticks, now=NOW):
     return wrapped.build_wrapped(
         2026, PARTIAL, year_logs_for([row()], now=now), now,
-        game_lookup=fake_lookup, trophy_lookup=lambda: unlocks,
-    )["trophies_earned"]
+        game_lookup=fake_lookup, trophy_lookup=lambda: ticks,
+    )
 
 
-def test_trophies_counts_unlocks_in_window():
+def trophies_for(ticks, now=NOW):
+    return trophy_response(ticks, now)["trophies_earned"]
+
+
+def test_trophies_counts_ticks_on_logs_in_window():
     assert trophies_for([
-        unlock(1, utc(2026, 2, 1)),
-        unlock(2, utc(2026, 9, 1)),
-        unlock(3, utc(2025, 6, 1)),          # last year
-        unlock(4, utc(2026, 10, 21, 10)),    # after NOW
+        tick("a", utc(2026, 2, 1)),
+        tick("b", utc(2026, 9, 1)),
+        tick("c", utc(2025, 6, 1)),          # last year's log
+        tick("d", utc(2026, 10, 21, 10)),    # log after NOW
     ]) == 2
 
 
-def test_trophies_same_achievement_under_two_logs_counts_once():
-    assert trophies_for([unlock(1, utc(2026, 2, 1)), unlock(1, utc(2026, 5, 1))]) == 1
+def test_trophies_same_achievement_on_two_logs_counts_once():
+    assert trophies_for([tick("a", utc(2026, 2, 1)), tick("a", utc(2026, 5, 1))]) == 1
 
 
-def test_trophies_first_unlocked_last_year_not_counted_again():
-    assert trophies_for([unlock(1, utc(2025, 11, 1)), unlock(1, utc(2026, 5, 1))]) is None
+def test_trophies_first_ticked_last_year_not_counted_again():
+    assert trophies_for([tick("a", utc(2025, 11, 1)), tick("a", utc(2026, 5, 1))]) is None
 
 
-def test_trophies_null_unlocked_at_falls_back_to_logged_at():
+def test_trophies_same_name_in_two_games_counts_twice():
     assert trophies_for([
-        unlock(1, None, utc(2026, 3, 1)),
-        unlock(2, None, utc(2025, 3, 1)),
-        unlock(3, None, None),  # no date at all: can't be placed in a year
-    ]) == 1
+        tick("Completionist", utc(2026, 2, 1), game_id=1),
+        tick("Completionist", utc(2026, 3, 1), game_id=2),
+    ]) == 2
+
+
+def test_trophies_log_without_a_date_is_skipped():
+    assert trophies_for([tick("a", utc(2026, 3, 1)), tick("b", None)]) == 1
 
 
 def test_trophies_uses_riyadh_year_boundary():
     # 21:30 UTC Dec 31 2025 is 00:30 Jan 1 2026 in Riyadh
-    assert trophies_for([unlock(1, utc(2025, 12, 31, 21, 30))]) == 1
+    assert trophies_for([tick("a", utc(2025, 12, 31, 21, 30))]) == 1
+
+
+def test_trophies_list_is_newest_first_dated_by_first_log():
+    response = trophy_response([
+        tick("Old", utc(2026, 2, 1), achievement_id=7, icon_url="https://icon/7"),
+        tick("New", utc(2026, 9, 1), game_id=2, game_name="Portal"),
+        tick("Old", utc(2026, 8, 1), achievement_id=7, icon_url="https://icon/7"),  # replay: ignored
+    ])
+    assert response["trophies_earned"] == 2
+    assert response["trophies"] == [
+        {"achievement_id": None, "name": "New", "icon_url": None, "game_name": "Portal",
+         "unlocked_at": "2026-09-01T03:00:00+03:00"},
+        {"achievement_id": 7, "name": "Old", "icon_url": "https://icon/7", "game_name": "Hades",
+         "unlocked_at": "2026-02-01T03:00:00+03:00"},
+    ]
 
 
 def test_trophies_zero_is_none():
-    assert trophies_for([]) is None
+    response = trophy_response([])
+    assert response["trophies_earned"] is None and response["trophies"] is None
 
 
 def test_trophies_none_without_lookup():
     response = wrapped.build_wrapped(2026, PARTIAL, year_logs_for([row()]), NOW, game_lookup=fake_lookup)
-    assert response["trophies_earned"] is None
+    assert response["trophies_earned"] is None and response["trophies"] is None
 
 
 def test_trophies_lookup_not_called_in_empty_state():

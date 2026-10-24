@@ -205,7 +205,7 @@ class _StoryChrome extends StatelessWidget {
               const SizedBox(width: 4),
               const Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.white),
               const SizedBox(width: 8),
-              Text('WRAPPED $year', style: label),
+              Text('$year ENDGAME', style: label),
               const Spacer(),
               if (onClose != null)
                 IconButton(

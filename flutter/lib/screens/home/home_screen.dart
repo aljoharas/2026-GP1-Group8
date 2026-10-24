@@ -10,6 +10,7 @@ import '../friends/friends_screen.dart';
 import '../logGames/log_game_search_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/user_profile_screen.dart';
+import '../wrapped/wrapped_entry_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -65,6 +66,8 @@ class _HomeScreenState extends State<HomeScreen> {
             slivers: [
               SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.top + 16)),
               SliverToBoxAdapter(child: _buildHeader(username)),
+              const SliverToBoxAdapter(child: SizedBox(height: 22)),
+              SliverToBoxAdapter(child: _buildEndgameBanner()),
               const SliverToBoxAdapter(child: SizedBox(height: 28)),
               SliverToBoxAdapter(
                   child: _buildSectionHeader('RECOMMENDED FOR YOU',
@@ -161,6 +164,103 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Endgame ────────────────────────────────────────────────────────────────
+
+  // Entry point to the year-in-review (served by /users/me/wrapped). Whether
+  // it's unlocked yet is decided on the entry screen, so this always shows.
+  Widget _buildEndgameBanner() {
+    final year = DateTime.now().year;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => WrappedEntryScreen(year: year))),
+        child: Container(
+          height: 104,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0x22FFFFFF)),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF2E1065), Color(0xFF1E3A8A), Color(0xFF0A0718)],
+              stops: [0, 0.55, 1],
+            ),
+          ),
+          child: Stack(children: [
+            Positioned(
+              right: -30, top: -40,
+              child: Container(
+                width: 150, height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(colors: [
+                    accent.withValues(alpha: 0.35),
+                    accent.withValues(alpha: 0),
+                  ]),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 18, top: 0, bottom: 0,
+              child: Center(
+                child: Text('$year',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        fontSize: 64,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -2)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Row(children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: const [
+                        Icon(Icons.auto_awesome_rounded, color: accent, size: 13),
+                        SizedBox(width: 6),
+                        Text('YOUR YEAR IN GAMES',
+                            style: TextStyle(
+                                color: accent,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2)),
+                      ]),
+                      const SizedBox(height: 6),
+                      Text('$year Endgame',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3)),
+                      const SizedBox(height: 2),
+                      const Text('Your hours, top games and trophies',
+                          style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.play_arrow_rounded,
+                      color: Colors.white, size: 22),
+                ),
+              ]),
+            ),
+          ]),
+        ),
       ),
     );
   }

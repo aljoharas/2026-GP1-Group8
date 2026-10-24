@@ -39,7 +39,7 @@ class _WrappedEntryScreenState extends State<WrappedEntryScreen> {
         }
         if (result['success'] != true) {
           return _Message(
-            title: "Couldn't load your Wrapped",
+            title: "Couldn't load your ${widget.year ?? DateTime.now().year} Endgame",
             body: result['message'] as String? ?? '',
             action: FilledButton(
               onPressed: _retry,
@@ -56,7 +56,7 @@ class _WrappedEntryScreenState extends State<WrappedEntryScreen> {
         if (wrapped.locked) {
           final release = wrapped.releaseDate;
           return _Message(
-            title: 'Your ${wrapped.year} Wrapped is on its way',
+            title: 'Your ${wrapped.year} Endgame is on its way',
             body: release == null
                 ? 'Check back at the end of the year.'
                 : 'It unlocks on ${wrappedMonths[release.month - 1]} ${release.day}.',
@@ -90,7 +90,7 @@ class _Message extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                WrappedEyebrow('Gaming Wrapped', color: palette.accentColor, icon: Icons.auto_awesome_rounded),
+                WrappedEyebrow('Endgame', color: palette.accentColor, icon: Icons.auto_awesome_rounded),
                 const SizedBox(height: 16),
                 Text(title, textAlign: TextAlign.center, style: WrappedText.headline(context).copyWith(fontSize: 32)),
                 const SizedBox(height: 12),

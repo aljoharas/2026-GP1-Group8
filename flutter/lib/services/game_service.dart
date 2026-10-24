@@ -133,7 +133,9 @@ class GameService {
           'achievements': achievements,
           'is_finished': isFinished,
           'is_paused': isPaused,
-          'logged_at': (loggedAt ?? DateTime.now()).toIso8601String(),
+          // UTC with a trailing Z: a local time has no offset, and the server
+          // would read it as UTC (3 hours off in Riyadh).
+          'logged_at': (loggedAt ?? DateTime.now()).toUtc().toIso8601String(),
           if (platformName != null) 'platform_name': platformName,
         }),
       );

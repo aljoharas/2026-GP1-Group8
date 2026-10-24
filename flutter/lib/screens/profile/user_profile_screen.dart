@@ -22,7 +22,6 @@ import '../../providers/logged_games_provider.dart';
 import 'settings_screen.dart';
 import '../../widgets/platinum_celebration.dart';
 import 'help_center_screen.dart';
-import '../wrapped/wrapped_entry_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -650,12 +649,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              _menuItem(Icons.auto_awesome_outlined, 'Gaming Wrapped', () {
-                Navigator.pop(context);
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const WrappedEntryScreen()));
-              }),
-              _menuDivider(),
               _menuItem(Icons.settings_outlined, 'Settings', () {
                 Navigator.pop(context);
                 Navigator.push(context,

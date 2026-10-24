@@ -94,7 +94,8 @@ LOG_COLUMNS = [
     "background_image",
 ]
 
-UNLOCK_COLUMNS = ["achievement_id", "unlocked_at", "logged_at"]
+# One row per achievement ticked on a log (load_trophy_unlocks)
+UNLOCK_COLUMNS = ["game_id", "name", "logged_at", "game_name", "achievement_id", "icon_url"]
 
 
 # --- Period & access ----------------------------------------------------------
@@ -263,23 +264,37 @@ def load_game_genres(conn, game_ids: list[int]) -> dict[int, list[str]]:
 
 
 def load_trophy_unlocks(conn, uid: str) -> list[dict]:
-    """Every unlocked achievement the user has on a manual log (any year).
-    One row per (achievement, log): the same achievement can sit under several
-    logs, so trophies_earned_card dedupes by achievement_id.
+    """Every achievement the user ticked on a manual log (any year).
+
+    The app stores ticked achievements as names in library_entries.achievements,
+    so a trophy is dated by the log it's ticked on. One row per (log, name):
+    the same achievement can be ticked on several logs (play-throughs), so
+    first_unlocks dedupes them. achievement_id and icon_url come from the
+    achievements table when a row there has the same game and display name,
+    else they're None.
     """
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
         SELECT
-            ua.achievement_id,
-            ua.unlocked_at,
-            le.logged_at
-        FROM user_achievements ua
-        JOIN library_entries le ON le.id = ua.library_entry_id
-        WHERE ua.user_id = %s
-          AND ua.unlocked = true
-          AND le.user_id = %s
+            le.game_id,
+            t.name,
+            le.logged_at,
+            g.name AS game_name,
+            a.id AS achievement_id,
+            a.icon_url
+        FROM library_entries le
+        JOIN games g ON g.id = le.game_id
+        CROSS JOIN LATERAL unnest(le.achievements) AS t(name)
+        LEFT JOIN LATERAL (
+            SELECT id, icon_url
+            FROM achievements
+            WHERE game_id = le.game_id AND display_name = t.name
+            ORDER BY id
+            LIMIT 1
+        ) a ON true
+        WHERE le.user_id = %s
           AND le.source = %s
-    """, (uid, uid, WRAPPED_SOURCE))
+    """, (uid, WRAPPED_SOURCE))
     rows = [dict(row) for row in cur.fetchall()]
     cur.close()
     return rows
@@ -464,28 +479,59 @@ def top_online_game_card(ranked_online: pd.DataFrame, games: dict[int, dict]) ->
     return items[0] if items else None
 
 
-def trophies_earned_card(unlocks: pd.DataFrame, year: int, now: datetime | None = None) -> int | None:
-    """Card 5: achievements first unlocked inside the year window.
+def first_unlocks(unlocks: pd.DataFrame) -> pd.DataFrame:
+    """Each achievement once, at the earliest log it's ticked on.
 
-    unlocks has columns achievement_id, unlocked_at, logged_at (load_trophy_unlocks).
-    Unlock date = unlocked_at, else the linked log's logged_at. Each
-    achievement counts once, at its earliest unlock in any year, so one
-    achievement under several logs isn't counted twice or again next year.
-    None when the count is 0.
+    unlocks has UNLOCK_COLUMNS (load_trophy_unlocks). An achievement is its
+    (game_id, name), so one ticked on several play-throughs counts once, in
+    the year of its first log, and isn't counted again in a later year. The
+    unlock date is that log's logged_at in Riyadh time; rows with no date
+    can't be placed in a year and are dropped.
     """
-    if unlocks.empty:
-        return None
-    unlocked_at = pd.to_datetime(unlocks["unlocked_at"], utc=True)
-    logged_at = pd.to_datetime(unlocks["logged_at"], utc=True)
-    first_unlock = (
-        unlocks.assign(unlock_date=unlocked_at.fillna(logged_at).dt.tz_convert(WRAPPED_TZ))
-        .dropna(subset=["unlock_date"])
-        .groupby("achievement_id")["unlock_date"]
-        .min()
+    dated = unlocks.assign(
+        unlock_date=pd.to_datetime(unlocks["logged_at"], utc=True).dt.tz_convert(WRAPPED_TZ)
+    ).dropna(subset=["unlock_date", "name"])
+    return (
+        dated.sort_values("unlock_date", kind="mergesort")
+        .drop_duplicates(subset=["game_id", "name"], keep="first")
     )
+
+
+def year_trophies(unlocks: pd.DataFrame, year: int, now: datetime | None = None) -> pd.DataFrame:
+    """The achievements first unlocked inside the year window, newest first."""
+    if unlocks.empty:
+        return unlocks
+    first = first_unlocks(unlocks)
     start, end = year_window(year, now)
-    count = int(((first_unlock >= start) & (first_unlock <= end)).sum())
-    return count if count > 0 else None
+    in_year = first[(first["unlock_date"] >= start) & (first["unlock_date"] <= end)]
+    return in_year.sort_values("unlock_date", ascending=False, kind="mergesort")
+
+
+def trophies_earned_card(trophies: pd.DataFrame) -> int | None:
+    """Card 5's count: year_trophies' rows. None when the count is 0."""
+    return len(trophies) if len(trophies) > 0 else None
+
+
+def trophies_card(trophies: pd.DataFrame) -> list[dict] | None:
+    """Card 5's list, newest first: name, icon, game and unlock date for each
+    of year_trophies' rows. None when there are none.
+    """
+    if trophies.empty:
+        return None
+
+    def optional(value):
+        return None if pd.isna(value) else value
+
+    return [
+        {
+            "achievement_id": None if pd.isna(t.achievement_id) else int(t.achievement_id),
+            "name": t.name,
+            "icon_url": optional(t.icon_url),
+            "game_name": optional(t.game_name),
+            "unlocked_at": t.unlock_date.isoformat(),
+        }
+        for t in trophies.itertuples(index=False)
+    ]
 
 
 def play_style_groups(year_logs: pd.DataFrame) -> pd.Series:
@@ -735,6 +781,7 @@ CARD_KEYS = [
     "top_games",
     "top_online_game",
     "trophies_earned",
+    "trophies",
     "play_style",
     "replay",
     "rating",
@@ -800,8 +847,9 @@ def build_wrapped(
     response["top_online_game"] = top_online_game_card(ranked_online, games)
 
     if trophy_lookup is not None:
-        unlocks = pd.DataFrame(trophy_lookup(), columns=UNLOCK_COLUMNS)
-        response["trophies_earned"] = trophies_earned_card(unlocks, year, now)
+        trophies = year_trophies(pd.DataFrame(trophy_lookup(), columns=UNLOCK_COLUMNS), year, now)
+        response["trophies_earned"] = trophies_earned_card(trophies)
+        response["trophies"] = trophies_card(trophies)
 
     response["play_style"] = play_style_card(year_logs)
     response["rating"] = rating_card(year_logs)
