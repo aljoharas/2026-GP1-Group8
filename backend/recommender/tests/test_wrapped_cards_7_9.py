@@ -343,6 +343,15 @@ def test_build_fills_cards_8_and_9_from_friends_logs():
     assert response["similar_friend"]["match_percent"] == 100
 
 
+def test_build_returns_me_for_the_social_cards():
+    assert build(MY_ROWS, [])["me"] == ME
+
+
+def test_build_without_me_returns_none():
+    response = wrapped.build_wrapped(2026, PARTIAL, year_logs_for(MY_ROWS), NOW, game_lookup=fake_lookup)
+    assert response["me"] is None
+
+
 def test_build_friends_use_the_same_partial_window():
     friends = [friend_with_logs("a", [
         row(game_id=1, hours=Decimal("3")),

@@ -50,3 +50,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/wrapped/
+    - assets/wrapped/types/

@@ -14,6 +14,7 @@ import asyncio
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 import psycopg2.extras
@@ -315,7 +316,7 @@ def get_recommendations(
 def get_wrapped(
     uid: str = Query(..., description="Firebase UID of the authenticated user"),
     # Taken as a string so a bad value is our 400, not FastAPI's 422
-    year: str | None = Query(None, description="Calendar year (Asia/Riyadh); defaults to the current one"),
+    year: Optional[str] = Query(None, description="Calendar year (Asia/Riyadh); defaults to the current one"),
 ):
     now = datetime.now(wrapped.WRAPPED_TZ)
     try:

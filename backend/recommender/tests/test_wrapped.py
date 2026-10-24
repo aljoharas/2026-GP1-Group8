@@ -197,9 +197,9 @@ def test_year_logs_keep_zero_and_null_hour_rows():
 
 UNLOCKED_KEYS = [
     "year", "locked", "release_date", "is_partial", "empty_state", "window",
-    "total_hours", "games_played", "top_games", "top_online_game",
+    "total_hours", "games_played", "games_played_covers", "top_games", "top_online_game",
     "trophies_earned", "play_style", "replay", "rating", "friends_hours",
-    "similar_friend",
+    "similar_friend", "me",
 ]
 
 
@@ -216,6 +216,7 @@ def test_empty_year_returns_empty_state():
         "window": {"start": "2025-01-01", "end": "2025-12-31"},
         "total_hours": None,
         "games_played": 0,
+        "games_played_covers": [],
         "top_games": None,
         "top_online_game": None,
         "trophies_earned": None,
@@ -224,6 +225,7 @@ def test_empty_year_returns_empty_state():
         "rating": None,
         "friends_hours": None,
         "similar_friend": None,
+        "me": None,
     }
 
 
@@ -389,6 +391,41 @@ def test_games_played_zero_logs_is_empty_state_with_zero():
     response = wrapped.build_wrapped(2026, PARTIAL, year_logs_for([]), NOW, game_lookup=fake_lookup)
     assert response["empty_state"] is True
     assert response["games_played"] == 0
+
+
+def covers_for(rows, now=NOW):
+    return wrapped.build_wrapped(2026, PARTIAL, year_logs_for(rows, now=now), now, game_lookup=fake_lookup)["games_played_covers"]
+
+
+def test_games_played_covers_one_per_game_most_hours_first():
+    assert covers_for([
+        row(id=1, game_id=1, hours=Decimal("2"), cover_image="a.jpg"),
+        row(id=2, game_id=2, hours=Decimal("5"), cover_image="b.jpg"),
+        row(id=3, game_id=1, hours=Decimal("1"), cover_image="a.jpg"),
+    ]) == ["b.jpg", "a.jpg"]
+
+
+def test_games_played_covers_ties_go_to_the_most_recent_log():
+    assert covers_for([
+        row(id=1, game_id=1, logged_at=utc(2026, 3, 1), cover_image="old.jpg"),
+        row(id=2, game_id=2, logged_at=utc(2026, 5, 1), cover_image="new.jpg"),
+    ]) == ["new.jpg", "old.jpg"]
+
+
+def test_games_played_covers_fall_back_to_background_and_skip_missing():
+    assert covers_for([
+        row(id=1, game_id=1, cover_image=None, background_image="bg.jpg"),
+        row(id=2, game_id=2, cover_image="  ", background_image=None),
+    ]) == ["bg.jpg"]
+
+
+def test_games_played_covers_stop_at_the_limit():
+    rows = [row(id=i, game_id=i, cover_image=f"{i}.jpg") for i in range(1, 20)]
+    assert len(covers_for(rows)) == wrapped.GAMES_PLAYED_COVERS_LIMIT
+
+
+def test_games_played_covers_empty_year_is_empty_list():
+    assert covers_for([]) == []
 
 
 # --- Card 3: top_games --------------------------------------------------------

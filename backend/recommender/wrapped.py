@@ -22,6 +22,8 @@ Every log is its own row (a new play-through), so one game can have many rows.
 hours_played is the hours for that one log; NULL counts as 0.
 """
 
+from __future__ import annotations
+
 import json
 import math
 from datetime import date, datetime
@@ -46,6 +48,9 @@ PARTIAL = "partial"
 FULL = "full"
 
 TOP_GAMES_LIMIT = 3
+
+# Card 2: covers shown on the ring behind the count
+GAMES_PLAYED_COVERS_LIMIT = 12
 
 # Card 4: a game is online when any of its IGDB game_modes contains one of
 # these, ignoring case. "Massively Multiplayer Online (MMO)" matches "multiplayer".
@@ -85,6 +90,8 @@ LOG_COLUMNS = [
     "game_modes",
     "user_rating",   # out of 10, NULL when the log has no rating
     "rawg_rating",   # games.rawg_rating, out of 5; 0 or NULL means no rating
+    "cover_image",
+    "background_image",
 ]
 
 UNLOCK_COLUMNS = ["achievement_id", "unlocked_at", "logged_at"]
@@ -168,7 +175,9 @@ def load_manual_logs(conn, uid: str) -> list[dict]:
             g.name,
             g.game_modes,
             le.user_rating,
-            g.rawg_rating
+            g.rawg_rating,
+            g.cover_image,
+            g.background_image
         FROM library_entries le
         JOIN games g ON g.id = le.game_id
         WHERE le.user_id = %s
@@ -404,6 +413,23 @@ def games_played_card(year_logs: pd.DataFrame) -> int:
     Never skipped; games with only NULL/0-hour logs still count.
     """
     return int(year_logs["game_id"].nunique())
+
+
+def games_played_covers(year_logs: pd.DataFrame, per_game: pd.Series, limit: int = GAMES_PLAYED_COVERS_LIMIT) -> list[str]:
+    """Card 2's background: one image per game played, most hours first (ties:
+    most recent log), up to limit. cover_image, falling back to
+    background_image; games with neither are left out.
+    """
+    latest = latest_log_per_game(year_logs).join(per_game.rename("hours"))
+    latest = latest.sort_values(["hours", "logged_at"], ascending=[False, False], kind="mergesort")
+    covers = []
+    for cover, background in zip(latest["cover_image"], latest["background_image"]):
+        image = next((url for url in (cover, background) if isinstance(url, str) and url.strip()), None)
+        if image:
+            covers.append(image)
+        if len(covers) == limit:
+            break
+    return covers
 
 
 def top_games_card(ranked: pd.DataFrame, games: dict[int, dict]) -> list[dict] | None:
@@ -705,6 +731,7 @@ def locked_response(year: int) -> dict:
 CARD_KEYS = [
     "total_hours",
     "games_played",
+    "games_played_covers",  # card 2's background, [] rather than None
     "top_games",
     "top_online_game",
     "trophies_earned",
@@ -733,7 +760,8 @@ def build_wrapped(
     only when there are top games or a top online game to show.
     trophy_lookup() returns load_trophy_unlocks-shaped rows for this user;
     without it card 5 stays None.
-    me is the user's {"user_id", "username", "avatar_url"} for card 8's board.
+    me is the user's {"user_id", "username", "avatar_url"}, returned as "me"
+    and used for card 8's board.
     friends_lookup() returns load_friends_with_logs-shaped friends; without it
     (or without me) cards 8 and 9 stay None. genre_lookup(game_ids) returns
     load_game_genres-shaped genres; without it card 9 stays None.
@@ -750,14 +778,18 @@ def build_wrapped(
             "end": end.date().isoformat(),
         },
         **{key: None for key in CARD_KEYS},
+        # The user's own profile, for the cards that show them beside a friend
+        "me": me,
     }
     if year_logs.empty:
         response["games_played"] = 0
+        response["games_played_covers"] = []
         return response
 
     per_game = game_hours(year_logs)
     response["total_hours"] = total_hours_card(per_game)
     response["games_played"] = games_played_card(year_logs)
+    response["games_played_covers"] = games_played_covers(year_logs, per_game)
 
     ranked = rank_top_games(year_logs, per_game)
     ranked_online = rank_top_online_game(year_logs, per_game)
