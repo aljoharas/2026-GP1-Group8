@@ -110,7 +110,8 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
   bool _isFinished = false;
   bool _isPaused = false;
   final Set<String> _expandedPhases = {};
-  final Map<String, GlobalKey> _phaseKeys = {};
+  final _achievementsTopKey = GlobalKey();
+  String? _selectedPhase; // tab shown; null = first phase
   DateTime _loggedAt = DateTime.now();
   String? _selectedPlatform;
 
@@ -171,14 +172,16 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
     super.dispose();
   }
 
-  GlobalKey _phaseKey(String phase) => _phaseKeys.putIfAbsent(phase, GlobalKey.new);
-
-  // Collapses one section. If its top has scrolled off screen, scroll back
-  // to it so the user isn't left stranded further down the page.
   void _collapsePhase(String phase) {
     setState(() => _expandedPhases.remove(phase));
+    _scrollToAchievements();
+  }
+
+  // If the top of the trophy card has scrolled off screen, scroll back to it
+  // so the user isn't left stranded further down the page.
+  void _scrollToAchievements() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _phaseKeys[phase]?.currentContext;
+      final ctx = _achievementsTopKey.currentContext;
       if (ctx == null) return;
       Scrollable.ensureVisible(
         ctx,
@@ -564,7 +567,7 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
           ],
           )),
 
-          ..._achievementSlivers(gp),
+          _achievementSliver(gp),
 
           _padded(Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -964,37 +967,125 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
         sliver: SliverToBoxAdapter(child: child),
       );
 
-  /// One group per phase. Each header pins to the top while its own list
-  /// scrolls underneath, so "Show less" is always within reach.
-  List<Widget> _achievementSlivers(GameProvider gp) {
+  /// One card showing a single phase at a time, picked with colour tabs.
+  /// The tab bar pins to the top while the list scrolls underneath, so
+  /// switching tabs and "Show less" are always within reach.
+  Widget _achievementSliver(GameProvider gp) {
     final status = _buildAchievements(gp);
-    if (status != null) return [_padded(status)];
+    if (status != null) return _padded(status);
 
     final groups = _phaseGroups(gp);
-    // Only label sections when there's more than the base game to tell apart.
+    // Only show tabs when there's more than the base game to tell apart.
     final grouped = groups.length > 1;
+    final current = groups.firstWhere(
+      (g) => g.key == _selectedPhase,
+      orElse: () => groups.first,
+    );
 
-    return [
-      for (int g = 0; g < groups.length; g++)
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(20, g > 0 ? 18 : 0, 20, 0),
-          sliver: SliverMainAxisGroup(slivers: [
-            // Scroll target when the section is collapsed
-            SliverToBoxAdapter(child: SizedBox.shrink(key: _phaseKey(groups[g].key))),
-            if (grouped || _expandedPhases.contains(groups[g].key))
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _PinnedHeader(
-                  height: _phaseHint(groups[g].key) != null && grouped ? 56 : 38,
-                  child: _phaseHeader(gp, groups[g].key, groups[g].value, grouped),
-                ),
-              ),
-            SliverToBoxAdapter(
-              child: _phaseCard(gp, groups[g].key, groups[g].value, grouped),
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      sliver: SliverMainAxisGroup(slivers: [
+        // Scroll target after collapsing or switching tabs
+        SliverToBoxAdapter(child: SizedBox.shrink(key: _achievementsTopKey)),
+        if (grouped || _expandedPhases.contains(current.key))
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _PinnedHeader(
+              height: grouped ? 50 : 38,
+              child: grouped
+                  ? _phaseTabs(gp, groups, current.key)
+                  : _phaseHeader(gp, current.key, current.value),
             ),
-          ]),
+          ),
+        SliverToBoxAdapter(
+          child: _phaseCard(gp, current.key, current.value, grouped),
         ),
-    ];
+      ]),
+    );
+  }
+
+  Widget _showLessButton(String phase, Color color) {
+    return GestureDetector(
+      onTap: () => _collapsePhase(phase),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: Row(children: [
+          Text('Show less',
+              style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 2),
+          Icon(Icons.keyboard_arrow_up, color: color, size: 18),
+        ]),
+      ),
+    );
+  }
+
+  Widget _phaseTabs(GameProvider gp, List<MapEntry<String, List<dynamic>>> groups, String selected) {
+    // Opaque so trophies scrolling underneath are hidden while it's pinned
+    return Container(
+      color: bg,
+      padding: const EdgeInsets.only(bottom: 8),
+      alignment: Alignment.bottomLeft,
+      child: Row(children: [
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final g in groups) ...[
+                _phaseTab(gp, g.key, g.value, g.key == selected),
+                const SizedBox(width: 8),
+              ],
+            ]),
+          ),
+        ),
+        if (_expandedPhases.contains(selected))
+          _showLessButton(selected, _phaseColor(selected)),
+      ]),
+    );
+  }
+
+  Widget _phaseTab(GameProvider gp, String phase, List<dynamic> items, bool active) {
+    final color = _phaseColor(phase);
+    final done  = items.where((a) => !_isPlatinum(a) && _isEarned(_idOf(gp, a))).length;
+    final total = items.where((a) => !_isPlatinum(a)).length;
+
+    return GestureDetector(
+      onTap: () {
+        if (active) return;
+        setState(() => _selectedPhase = phase);
+        _scrollToAchievements();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: active ? color.withValues(alpha: 0.18) : surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: active ? color : surface2, width: 1.5),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 8, height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _phaseName(phase),
+            style: TextStyle(
+              color: active ? color : Colors.white,
+              fontSize: 12,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$done/$total',
+            style: TextStyle(color: done == total ? accent : muted, fontSize: 11),
+          ),
+        ]),
+      ),
+    );
   }
 
   /// Loading / error / empty placeholder, or null when there are trophies.
@@ -1046,64 +1137,35 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
     return null;
   }
 
-  Widget _phaseHeader(GameProvider gp, String phase, List<dynamic> items, bool grouped) {
-    final color    = _phaseColor(phase);
-    final hint     = grouped ? _phaseHint(phase) : null;
-    final done     = items.where((a) => !_isPlatinum(a) && _isEarned(_idOf(gp, a))).length;
-    final total    = items.where((a) => !_isPlatinum(a)).length;
-    final expanded = _expandedPhases.contains(phase);
+  /// Header for a game with no Online/DLC split, shown only while expanded.
+  Widget _phaseHeader(GameProvider gp, String phase, List<dynamic> items) {
+    final color = _phaseColor(phase);
+    final done  = items.where((a) => !_isPlatinum(a) && _isEarned(_idOf(gp, a))).length;
+    final total = items.where((a) => !_isPlatinum(a)).length;
 
     // Opaque so trophies scrolling underneath are hidden while it's pinned
     return Container(
       color: bg,
       alignment: Alignment.bottomLeft,
       padding: const EdgeInsets.only(bottom: 8, left: 2),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Container(
-              width: 8, height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              grouped ? _phaseName(phase) : 'All Achievements',
-              style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '$done/$total',
-              style: TextStyle(color: done == total ? accent : muted, fontSize: 11),
-            ),
-            const Spacer(),
-            if (expanded)
-              GestureDetector(
-                onTap: () => _collapsePhase(phase),
-                behavior: HitTestBehavior.opaque,
-                child: Row(children: [
-                  Text('Show less',
-                      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 2),
-                  Icon(Icons.keyboard_arrow_up, color: color, size: 18),
-                ]),
-              ),
-          ]),
-          if (hint != null) ...[
-            const SizedBox(height: 3),
-            Padding(
-              padding: const EdgeInsets.only(left: 16),
-              child: Text(
-                hint,
-                style: const TextStyle(color: muted, fontSize: 11),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ],
-      ),
+      child: Row(children: [
+        Container(
+          width: 8, height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'All Achievements',
+          style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$done/$total',
+          style: TextStyle(color: done == total ? accent : muted, fontSize: 11),
+        ),
+        const Spacer(),
+        if (_expandedPhases.contains(phase)) _showLessButton(phase, color),
+      ]),
     );
   }
 
@@ -1128,6 +1190,23 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
             : null,
         child: Column(
         children: [
+          if (grouped && _phaseHint(phase) != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.08),
+                border: const Border(bottom: BorderSide(color: border)),
+              ),
+              child: Row(children: [
+                Icon(Icons.info_outline, size: 14, color: color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_phaseHint(phase)!,
+                      style: const TextStyle(color: muted, fontSize: 11)),
+                ),
+              ]),
+            ),
           ...List.generate(visible.length, (i) {
             final a          = visible[i] as Map<String, dynamic>;
             final id         = _idOf(gp, a);
