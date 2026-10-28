@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import '../../models/achievement_guide.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/logged_games_provider.dart';
+import '../../services/game_service.dart';
 import '../../widgets/platinum_celebration.dart';
 
 class LogGameDetailScreen extends StatefulWidget {
@@ -23,6 +25,31 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
   static const muted   = Color(0xFF6B6B80);
   static const border  = Color(0x12FFFFFF);
   static const red     = Color(0xFFE8002D);
+  // Same phase colours as the trophy guide
+  static const online  = Color(0xFF60A5FA);
+  static const dlc     = Color(0xFFF472B6);
+
+  static Color _phaseColor(String phase) {
+    switch (phase) {
+      case 'online':
+        return online;
+      case 'dlc':
+        return dlc;
+      default:
+        return accent;
+    }
+  }
+
+  static String? _phaseHint(String phase) {
+    switch (phase) {
+      case 'online':
+        return 'Needs online or multiplayer play';
+      case 'dlc':
+        return 'May require DLC or expansion content';
+      default:
+        return null;
+    }
+  }
 
   List<String> get _availablePlatforms {
     final raw = widget.game['platforms'];
@@ -82,9 +109,17 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
   final Set<int> _previouslyEarnedIds = {};
   bool _isFinished = false;
   bool _isPaused = false;
-  bool _achievementsExpanded = false;
+  final Set<String> _expandedPhases = {};
+  final Map<String, GlobalKey> _phaseKeys = {};
   DateTime _loggedAt = DateTime.now();
   String? _selectedPlatform;
+
+  // Phase (base | online | dlc) of each trophy, keyed by trophyKey(name).
+  // Comes from the trophy guide; empty until it loads (or if it fails), in
+  // which case every trophy is shown in one ungrouped list.
+  final _gameService = GameService();
+  Map<String, String> _phaseByKey = {};
+  List<GuidePhase> _phases = [];
 
   @override
   void initState() {
@@ -95,6 +130,9 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
           ? rawgIdRaw
           : int.tryParse(rawgIdRaw?.toString() ?? '');
       if (rawgId == null || !mounted) return;
+
+      // Runs alongside the steps below; the list regroups when it arrives.
+      _loadPhases(rawgId);
 
       // 1. Ensure logged games are in memory
       final lp = context.read<LoggedGamesProvider>();
@@ -131,6 +169,76 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
     _hoursCtrl.dispose();
     _commentCtrl.dispose();
     super.dispose();
+  }
+
+  GlobalKey _phaseKey(String phase) => _phaseKeys.putIfAbsent(phase, GlobalKey.new);
+
+  // Collapses one section. If its top has scrolled off screen, scroll back
+  // to it so the user isn't left stranded further down the page.
+  void _collapsePhase(String phase) {
+    setState(() => _expandedPhases.remove(phase));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _phaseKeys[phase]?.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      );
+    });
+  }
+
+  // Uses the service directly so the guide screen's provider state is untouched.
+  Future<void> _loadPhases(int rawgId) async {
+    final result = await _gameService.getAchievementGuide(rawgId);
+    if (!mounted || result['success'] != true) return;
+    final guide = result['guide'] as AchievementGuide;
+    final byKey = <String, String>{};
+    for (final node in guide.nodes) {
+      for (final name in node.trophyNames) {
+        byKey[trophyKey(name)] = node.phase;
+      }
+    }
+    setState(() {
+      _phaseByKey = byKey;
+      _phases = guide.phases;
+    });
+  }
+
+  // The Platinum and anything the guide doesn't know about count as base game.
+  String _phaseOf(dynamic a) {
+    if (_isPlatinum(a)) return 'base';
+    return _phaseByKey[trophyKey((a['name'] ?? '').toString())] ?? 'base';
+  }
+
+  String _phaseName(String phase) {
+    for (final p in _phases) {
+      if (p.key == phase && p.name.isNotEmpty) return p.name;
+    }
+    switch (phase) {
+      case 'online':
+        return 'Online';
+      case 'dlc':
+        return 'DLC';
+      default:
+        return 'Base Game';
+    }
+  }
+
+  /// Achievements split by phase, in the guide's phase order (base first).
+  List<MapEntry<String, List<dynamic>>> _phaseGroups(GameProvider gp) {
+    final byPhase = <String, List<dynamic>>{};
+    for (final a in gp.achievements) {
+      byPhase.putIfAbsent(_phaseOf(a), () => []).add(a);
+    }
+    final order = [..._phases.map((p) => p.key), 'base', 'online', 'dlc'];
+    int rank(String k) {
+      final i = order.indexOf(k);
+      return i < 0 ? order.length : i;
+    }
+    final keys = byPhase.keys.toList()..sort((a, b) => rank(a).compareTo(rank(b)));
+    return [for (final k in keys) MapEntry(k, byPhase[k]!)];
   }
 
   Widget _platformIcon(String platform, bool selected) {
@@ -327,11 +435,12 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+      body: CustomScrollView(
+        slivers: [
+          _padded(Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 20),
             // ── Game Card ──────────────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(14),
@@ -452,9 +561,14 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
               ],
             ),
             const SizedBox(height: 14),
+          ],
+          )),
 
-            _buildAchievements(gp),
+          ..._achievementSlivers(gp),
 
+          _padded(Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             const SizedBox(height: 28),
 
             // ── Hours Played ───────────────────────────────────────────────
@@ -804,40 +918,87 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
               ),
             ),
 
-            const SizedBox(height: 28),
-
-            // ── Submit ─────────────────────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
+            const SizedBox(height: 24),
+          ],
+        )),
+        ],
+      ),
+      // ── Submit (pinned, so it's reachable without scrolling) ───────────
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          decoration: const BoxDecoration(
+            color: bg,
+            border: Border(top: BorderSide(color: border)),
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Text(
-                  'Add to My Games',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Add to My Games',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-
-            const SizedBox(height: 24),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAchievements(GameProvider gp) {
+  Widget _padded(Widget child) => SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        sliver: SliverToBoxAdapter(child: child),
+      );
+
+  /// One group per phase. Each header pins to the top while its own list
+  /// scrolls underneath, so "Show less" is always within reach.
+  List<Widget> _achievementSlivers(GameProvider gp) {
+    final status = _buildAchievements(gp);
+    if (status != null) return [_padded(status)];
+
+    final groups = _phaseGroups(gp);
+    // Only label sections when there's more than the base game to tell apart.
+    final grouped = groups.length > 1;
+
+    return [
+      for (int g = 0; g < groups.length; g++)
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(20, g > 0 ? 18 : 0, 20, 0),
+          sliver: SliverMainAxisGroup(slivers: [
+            // Scroll target when the section is collapsed
+            SliverToBoxAdapter(child: SizedBox.shrink(key: _phaseKey(groups[g].key))),
+            if (grouped || _expandedPhases.contains(groups[g].key))
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedHeader(
+                  height: _phaseHint(groups[g].key) != null && grouped ? 56 : 38,
+                  child: _phaseHeader(gp, groups[g].key, groups[g].value, grouped),
+                ),
+              ),
+            SliverToBoxAdapter(
+              child: _phaseCard(gp, groups[g].key, groups[g].value, grouped),
+            ),
+          ]),
+        ),
+    ];
+  }
+
+  /// Loading / error / empty placeholder, or null when there are trophies.
+  Widget? _buildAchievements(GameProvider gp) {
     if (gp.isLoadingAchievements) {
       return const Center(
         child: Padding(
@@ -882,23 +1043,95 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
       );
     }
 
+    return null;
+  }
+
+  Widget _phaseHeader(GameProvider gp, String phase, List<dynamic> items, bool grouped) {
+    final color    = _phaseColor(phase);
+    final hint     = grouped ? _phaseHint(phase) : null;
+    final done     = items.where((a) => !_isPlatinum(a) && _isEarned(_idOf(gp, a))).length;
+    final total    = items.where((a) => !_isPlatinum(a)).length;
+    final expanded = _expandedPhases.contains(phase);
+
+    // Opaque so trophies scrolling underneath are hidden while it's pinned
+    return Container(
+      color: bg,
+      alignment: Alignment.bottomLeft,
+      padding: const EdgeInsets.only(bottom: 8, left: 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 8, height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              grouped ? _phaseName(phase) : 'All Achievements',
+              style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$done/$total',
+              style: TextStyle(color: done == total ? accent : muted, fontSize: 11),
+            ),
+            const Spacer(),
+            if (expanded)
+              GestureDetector(
+                onTap: () => _collapsePhase(phase),
+                behavior: HitTestBehavior.opaque,
+                child: Row(children: [
+                  Text('Show less',
+                      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 2),
+                  Icon(Icons.keyboard_arrow_up, color: color, size: 18),
+                ]),
+              ),
+          ]),
+          if (hint != null) ...[
+            const SizedBox(height: 3),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Text(
+                hint,
+                style: const TextStyle(color: muted, fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _phaseCard(GameProvider gp, String phase, List<dynamic> all, bool grouped) {
     const previewCount = 3;
-    final all = gp.achievements;
-    final visible = _achievementsExpanded ? all : all.take(previewCount).toList();
+    final color       = _phaseColor(phase);
+    final expanded    = _expandedPhases.contains(phase);
+    final visible     = expanded ? all : all.take(previewCount).toList();
     final hiddenCount = all.length - previewCount;
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border),
+        border: Border.all(color: grouped ? color.withValues(alpha: 0.35) : border),
       ),
-      child: Column(
+      child: Container(
+        // Coloured edge so each section stays recognisable while scrolling
+        decoration: grouped
+            ? BoxDecoration(border: Border(left: BorderSide(color: color, width: 3)))
+            : null,
+        child: Column(
         children: [
           ...List.generate(visible.length, (i) {
             final a          = visible[i] as Map<String, dynamic>;
-            final id         = a['id'] as int? ?? i;
-            final isLast     = i == visible.length - 1 && (hiddenCount <= 0 || _achievementsExpanded);
+            final id         = _idOf(gp, a);
+            final isLast     = i == visible.length - 1 && (hiddenCount <= 0 || expanded);
             if (a['platinum'] == true) return _platinumRow(gp, a, id, isLast);
 
             final isPrev     = _previouslyEarnedIds.contains(id);
@@ -998,7 +1231,9 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
 
           if (all.length > previewCount)
             GestureDetector(
-              onTap: () => setState(() => _achievementsExpanded = !_achievementsExpanded),
+              onTap: () => expanded
+                  ? _collapsePhase(phase)
+                  : setState(() => _expandedPhases.add(phase)),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1009,21 +1244,22 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _achievementsExpanded
+                      expanded
                           ? 'Show less'
                           : 'Show $hiddenCount more',
-                      style: const TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(width: 4),
                     Icon(
-                      _achievementsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      color: accent, size: 18,
+                      expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      color: color, size: 18,
                     ),
                   ],
                 ),
               ),
             ),
         ],
+        ),
       ),
     );
   }
@@ -1134,6 +1370,24 @@ class _LogGameDetailScreenState extends State<LogGameDetailScreen> {
       child: const Icon(Icons.sports_esports, color: muted, size: 28),
     );
   }
+}
+
+class _PinnedHeader extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Widget child;
+  const _PinnedHeader({required this.height, required this.child});
+
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+
+  // The header shows live counts and the expand state, so always rebuild.
+  @override
+  bool shouldRebuild(_PinnedHeader oldDelegate) => true;
 }
 
 class _SwitchIconPainter extends CustomPainter {
