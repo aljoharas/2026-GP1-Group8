@@ -27,6 +27,7 @@ const _cards = [
   '03_top_game',
   '04_top_games',
   '05_top_online_game',
+  '05b_top_online_games',
   '06_trophies',
   '07_player_type',
   '08_game_status',

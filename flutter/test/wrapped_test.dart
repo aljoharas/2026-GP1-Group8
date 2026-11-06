@@ -138,7 +138,23 @@ void main() {
     ];
     await tester.pumpWidget(_app(TopGamesCard(games: games), disableAnimations: true));
     await tester.pump();
-    for (final text in ['TOP 3', '#1', '#2', '#3', 'Elden Ring', '96 hours', '41.5 hours', '1 hour']) {
+    for (final text in [
+      'TOP 3 OVERALL',
+      'Across every game you played, solo or online.',
+      '#1', '#2', '#3', 'Elden Ring', '96 hours', '41.5 hours', '1 hour',
+    ]) {
+      expect(find.text(text), findsOneWidget, reason: text);
+    }
+  });
+
+  testWidgets('online podium says it counts online games', (tester) async {
+    final games = [
+      WrappedGame.fromJson(_game(7, 'Valorant', 31)),
+      WrappedGame.fromJson(_game(8, 'Rocket League', 18)),
+    ];
+    await tester.pumpWidget(_app(TopGamesCard(games: games, online: true), disableAnimations: true));
+    await tester.pump();
+    for (final text in ['YOUR TOP ONLINE GAMES', 'TOP 2 ONLINE', 'Valorant', 'Rocket League']) {
       expect(find.text(text), findsOneWidget, reason: text);
     }
   });
@@ -158,6 +174,7 @@ void main() {
       expect(data.rating!.breakdown[7], 3);
       expect(data.friendsHours!.leaderboard, hasLength(5));
       expect(data.similarFriend!.sharedGenres, ['RPG', 'Adventure']);
+      expect(data.topOnlineGames!.map((g) => g.name), ['Valorant', 'Rocket League', 'Fortnite']);
     });
 
     test('come after card 5 in order', () {
@@ -167,6 +184,7 @@ void main() {
         FeaturedGameCard,
         TopGamesCard,
         FeaturedGameCard,
+        TopGamesCard,
         TrophiesCard,
         PlayerTypeCard,
         GameStatusCard,
@@ -345,27 +363,62 @@ void main() {
       expect(stats.rival!.user.username, 'Sara');
     });
 
-    const sara = WrappedUser(userId: 'u2', username: 'Sara');
+    List<String?> names(List<WrappedLeaderboardEntry> entries) => [for (final e in entries) e.user.username];
 
-    test('win', () {
-      final outcome = hoursOutcome(250, 240.5);
-      expect(outcome, HoursOutcome.win);
-      expect(friendsHoursHeadline(outcome, sara), 'YOU WIN');
-      expect(friendsHoursLine(outcome, sara, 250, 240.5), 'You out-played Sara by 9.5 hours.');
+    test('contenders are the top five when the user is among them', () {
+      final stats = WrappedFriendsHours.fromJson(sampleWrappedJson()['friends_hours'] as Map<String, dynamic>);
+      expect(names(stats.contenders()), ['Sara', 'Aljohara', 'Reem', 'Dana', 'Lama']);
     });
 
-    test('loss', () {
-      final outcome = hoursOutcome(214.5, 240.5);
-      expect(outcome, HoursOutcome.loss);
-      expect(friendsHoursHeadline(outcome, sara), 'SARA WINS');
-      expect(friendsHoursLine(outcome, sara, 214.5, 240.5), 'Sara out-played you by 26 hours.');
+    test('a user ranked lower takes the last spot', () {
+      final stats = board([
+        for (var i = 1; i <= 6; i++) leaderboardEntry('u$i', 'F$i', 100 - i, i),
+        leaderboardEntry('me', 'Me', 10, 7, me: true),
+      ]);
+      expect(names(stats.contenders()), ['F1', 'F2', 'F3', 'F4', 'Me']);
     });
 
-    test('tie', () {
-      final outcome = hoursOutcome(120, 120);
-      expect(outcome, HoursOutcome.tie);
-      expect(friendsHoursHeadline(outcome, sara), 'DEAD HEAT');
-      expect(friendsHoursLine(outcome, sara, 120, 120), 'You and Sara both played 120 hours.');
+    test('two people is still a board', () {
+      final stats = board([
+        leaderboardEntry('u2', 'Sara', 5, 1),
+        leaderboardEntry('u1', 'Me', 3, 2, me: true),
+      ]);
+      expect(names(stats.contenders()), ['Sara', 'Me']);
+    });
+
+    test('below #1: rank, measured against the next friend up', () {
+      final stats = WrappedFriendsHours.fromJson(sampleWrappedJson()['friends_hours'] as Map<String, dynamic>);
+      expect(friendsHoursHeadline(stats), "YOU'RE #2");
+      expect(friendsHoursLine(stats), 'You were 26 hours away from catching Sara.');
+    });
+
+    test('the next friend up is the closest, not the leader', () {
+      final stats = board([
+        leaderboardEntry('u2', 'Sara', 300, 1),
+        leaderboardEntry('u3', 'Reem', 130, 2),
+        leaderboardEntry('u1', 'Me', 120, 3, me: true),
+      ]);
+      expect(stats.nextAhead!.user.username, 'Reem');
+      expect(friendsHoursLine(stats), 'You were 10 hours away from catching Reem.');
+    });
+
+    test('#1 alone', () {
+      final stats = board([
+        leaderboardEntry('u1', 'Me', 250, 1, me: true),
+        leaderboardEntry('u2', 'Sara', 240.5, 2),
+      ]);
+      expect(friendsHoursHeadline(stats), 'YOU TOP THE BOARD');
+      expect(friendsHoursLine(stats), 'You played 9.5 hours more than Sara.');
+    });
+
+    test('tied for #1', () {
+      final stats = board([
+        leaderboardEntry('u1', 'Me', 120, 1, me: true),
+        leaderboardEntry('u2', 'Sara', 120, 1),
+        leaderboardEntry('u3', 'Reem', 50, 3),
+      ]);
+      expect(friendsHoursHeadline(stats), 'TIED FOR #1');
+      expect(friendsHoursLine(stats), 'You and Sara share the top spot with 120 hours.');
     });
 
     test('rank counts the user among friends', () {
@@ -373,12 +426,12 @@ void main() {
     });
 
     test('hourglass fills: leader full, any hours at least 6%', () {
-      final (mine, rivals) = hourglassFills(214.5, 240.5);
-      expect(mine, closeTo(0.892, 0.001));
-      expect(rivals, 1.0);
-      expect(hourglassFills(500, 1), (1.0, 0.06));
-      expect(hourglassFills(0, 10), (0.0, 1.0));
-      expect(hourglassFills(0, 0), (0.0, 0.0));
+      final fills = hourglassFills([240.5, 214.5, 1]);
+      expect(fills[0], 1.0);
+      expect(fills[1], closeTo(0.892, 0.001));
+      expect(fills[2], 0.06);
+      expect(hourglassFills([0, 10]), [0.0, 1.0]);
+      expect(hourglassFills([0, 0]), [0.0, 0.0]);
     });
   });
 
@@ -393,8 +446,8 @@ void main() {
       'game status': (GameStatusCard(style: data.playStyle!), ['14 GAMES', '9', '3', '2']),
       'rating': (RatingCard(rating: data.rating!), ['TOUGH CRITIC', '3.7', 'average across 11 games']),
       "friends' hours": (
-        FriendsHoursCard(stats: data.friendsHours!, me: data.friendsHours!.me!, rival: data.friendsHours!.rival!),
-        ['SARA WINS', '214.5 hours', '240.5 hours', '#2 of 5'],
+        FriendsHoursCard(stats: data.friendsHours!),
+        ["YOU'RE #2", 'You', 'Sara', 'Lama', '214.5h', '240.5h', '12.5h', '#2 of 5'],
       ),
       'gaming twin': (GamingTwinCard(me: data.me!, friend: data.similarFriend!), ['NORA', '87%', 'RPG · Adventure']),
     };
@@ -422,6 +475,7 @@ void main() {
       'games_played': null,
       'top_games': null,
       'top_online_game': null,
+      'top_online_games': null,
     };
     await tester.pumpWidget(_app(WrappedScreen(data: WrappedResponse.fromJson(json)), disableAnimations: true));
     await tester.pumpAndSettle();
@@ -472,7 +526,10 @@ void main() {
       expect(shareOfYear(96, 0), isNull);
     });
 
-    test('top games headline', () => expect(topGamesHeadline(2), 'TOP 2'));
+    test('top games headline says overall or online', () {
+      expect(topGamesHeadline(2), 'TOP 2 OVERALL');
+      expect(topGamesHeadline(3, online: true), 'TOP 3 ONLINE');
+    });
   });
 
   testWidgets('featured game shows hours and share of the year', (tester) async {
@@ -481,7 +538,7 @@ void main() {
       _app(FeaturedGameCard(eyebrow: kTopGameEyebrow, game: game, totalHours: 214.5), disableAnimations: true),
     );
     await tester.pump();
-    for (final text in ['YOUR #1 GAME', 'ELDEN RING', 'HOURS PLAYED', '96', 'OF YOUR YEAR', '45%']) {
+    for (final text in ['YOUR #1 GAME OVERALL', 'ELDEN RING', 'HOURS PLAYED', '96', 'OF YOUR YEAR', '45%']) {
       expect(find.text(text), findsOneWidget, reason: text);
     }
   });

@@ -32,7 +32,7 @@ String gamesPlayedLine(int count) => switch (count) {
 
 // --- Cards 3 and 5: featured game --------------------------------------------
 
-const kTopGameEyebrow = 'YOUR #1 GAME';
+const kTopGameEyebrow = 'YOUR #1 GAME OVERALL';
 const kTopOnlineGameEyebrow = 'YOUR TOP ONLINE GAME';
 const kHoursPlayedLabel = 'HOURS PLAYED';
 const kShareOfYearLabel = 'OF YOUR YEAR';
@@ -44,8 +44,14 @@ String? shareOfYear(double hours, double? totalHours) =>
 // --- Card 4: top games -------------------------------------------------------
 
 const kTopGamesEyebrow = 'YOUR TOP GAMES';
+const kTopOnlineGamesEyebrow = 'YOUR TOP ONLINE GAMES';
 
-String topGamesHeadline(int count) => 'TOP $count';
+/// "TOP 3 OVERALL" (every game, any mode) or "TOP 3 ONLINE".
+String topGamesHeadline(int count, {bool online = false}) => 'TOP $count ${online ? 'ONLINE' : 'OVERALL'}';
+
+/// Spells out what the podium counts, so overall and online aren't confused.
+String topGamesLine({bool online = false}) =>
+    online ? 'Your most-played multiplayer and co-op games.' : 'Across every game you played, solo or online.';
 
 // --- Card 6: trophies --------------------------------------------------------
 
@@ -124,27 +130,32 @@ const kFriendsHoursEyebrow = 'YOU VS YOUR FRIENDS';
 const kYourRankLabel = 'YOUR RANK';
 const kFriendsBeatenLabel = 'FRIENDS BEATEN';
 
-enum HoursOutcome { win, loss, tie }
-
-HoursOutcome hoursOutcome(double mine, double rivals) =>
-    mine > rivals ? HoursOutcome.win : (mine < rivals ? HoursOutcome.loss : HoursOutcome.tie);
-
 String displayName(WrappedUser user) => user.username ?? 'Your friend';
 
-String friendsHoursHeadline(HoursOutcome outcome, WrappedUser rival) => switch (outcome) {
-  HoursOutcome.win => 'YOU WIN',
-  HoursOutcome.loss => '${displayName(rival).toUpperCase()} WINS',
-  HoursOutcome.tie => 'DEAD HEAT',
-};
+/// A friend who shares the user's #1 spot, or null.
+WrappedLeaderboardEntry? _tiedLeader(WrappedFriendsHours stats) =>
+    stats.leaderboard.where((e) => !e.isMe && e.rank == 1 && stats.me?.rank == 1).firstOrNull;
 
-String friendsHoursLine(HoursOutcome outcome, WrappedUser rival, double mine, double rivals) {
-  final name = displayName(rival);
-  final diff = formatHours((mine - rivals).abs());
-  return switch (outcome) {
-    HoursOutcome.win => 'You out-played $name by $diff.',
-    HoursOutcome.loss => '$name out-played you by $diff.',
-    HoursOutcome.tie => 'You and $name both played ${formatHours(mine)}.',
-  };
+/// The user's place in the group, not a head-to-head result: being one of
+/// several reads gentler than "SARA WINS".
+String friendsHoursHeadline(WrappedFriendsHours stats) {
+  final rank = stats.me?.rank ?? stats.userRank;
+  if (rank != 1) return "YOU'RE #$rank";
+  return _tiedLeader(stats) == null ? 'YOU TOP THE BOARD' : 'TIED FOR #1';
+}
+
+/// Measured against the next friend up, never the leader, so the gap stays
+/// small and reachable.
+String friendsHoursLine(WrappedFriendsHours stats) {
+  final me = stats.me!;
+  if (stats.nextAhead case final ahead?) {
+    return "You were ${formatHours(ahead.hours - me.hours)} away from catching ${displayName(ahead.user)}.";
+  }
+  if (_tiedLeader(stats) case final tied?) {
+    return 'You and ${displayName(tied.user)} share the top spot with ${formatHours(me.hours)}.';
+  }
+  final second = stats.rival!;
+  return 'You played ${formatHours(me.hours - second.hours)} more than ${displayName(second.user)}.';
 }
 
 String yourRankValue(WrappedFriendsHours stats) => '#${stats.userRank} of ${stats.friendsCounted + 1}';
@@ -168,8 +179,10 @@ String ratingSemantics(WrappedRating rating) =>
     'Average rating ${rating.averageStars.toStringAsFixed(1)} out of 5 stars across ${rating.ratedGames} games. '
     '${[for (var n = 5; n >= 1; n--) '$n stars: ${rating.starCounts[n - 1]}'].join(', ')}';
 
-String friendsHoursSemantics(WrappedUser rival, double mine, double rivals) =>
-    'You played ${formatHours(mine)}. ${displayName(rival)} played ${formatHours(rivals)}.';
+String friendsHoursSemantics(List<WrappedLeaderboardEntry> contenders) => [
+  for (final e in contenders)
+    '${e.isMe ? 'You' : displayName(e.user)}, number ${e.rank}, ${formatHours(e.hours)}',
+].join('. ');
 
 String similarFriendSemantics(WrappedSimilarFriend friend) =>
     'You and ${displayName(friend.user)} are a ${friend.matchPercent} percent match';

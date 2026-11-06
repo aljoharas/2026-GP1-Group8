@@ -198,7 +198,7 @@ def test_year_logs_keep_zero_and_null_hour_rows():
 UNLOCKED_KEYS = [
     "year", "locked", "release_date", "is_partial", "empty_state", "window",
     "total_hours", "games_played", "games_played_covers", "top_games", "top_online_game",
-    "trophies_earned", "trophies", "play_style", "replay", "rating", "friends_hours",
+    "top_online_games", "trophies_earned", "trophies", "play_style", "replay", "rating", "friends_hours",
     "similar_friend", "me",
 ]
 
@@ -219,6 +219,7 @@ def test_empty_year_returns_empty_state():
         "games_played_covers": [],
         "top_games": None,
         "top_online_game": None,
+        "top_online_games": None,
         "trophies_earned": None,
         "trophies": None,
         "play_style": None,
@@ -648,6 +649,37 @@ def test_top_online_game_shares_the_single_lookup_with_top_games():
         row(id=i, game_id=i, hours=Decimal(str(i + 10)), game_modes=["Single player"]) for i in range(1, 5)
     ] + [row(id=9, game_id=9, hours=Decimal("1"), game_modes=MP)], lookup=lookup)
     assert calls == [[2, 3, 4, 9]]
+
+
+def online_podium_for(rows, now=NOW, lookup=fake_lookup):
+    return wrapped.build_wrapped(2026, PARTIAL, year_logs_for(rows, now=now), now, game_lookup=lookup)["top_online_games"]
+
+
+def test_top_online_games_ranks_up_to_three_online_games():
+    podium = online_podium_for([
+        row(id=1, game_id=1, hours=Decimal("90"), game_modes=["Single player"]),
+        row(id=2, game_id=2, hours=Decimal("20"), game_modes=MP),
+        row(id=3, game_id=3, hours=Decimal("30"), game_modes=["Battle Royale"]),
+        row(id=4, game_id=4, hours=Decimal("10"), game_modes=MP),
+        row(id=5, game_id=5, hours=Decimal("5"), game_modes=MP),
+    ])
+    assert [g["game_id"] for g in podium] == [3, 2, 4]
+    assert podium[0] == {"game_id": 3, "name": "Game 3", "cover_image": "cover-3.jpg", "hours": 30.0}
+
+
+def test_top_online_games_first_matches_top_online_game():
+    rows = [
+        row(id=1, game_id=1, hours=Decimal("10"), game_modes=MP),
+        row(id=2, game_id=2, hours=Decimal("15"), game_modes=MP),
+    ]
+    assert online_podium_for(rows)[0] == online_for(rows)
+
+
+def test_top_online_games_none_with_a_single_online_game():
+    assert online_podium_for([
+        row(id=1, game_id=1, hours=Decimal("10"), game_modes=MP),
+        row(id=2, game_id=2, hours=Decimal("50"), game_modes=["Single player"]),
+    ]) is None
 
 
 # --- Card 5: trophies_earned + trophies ---------------------------------------

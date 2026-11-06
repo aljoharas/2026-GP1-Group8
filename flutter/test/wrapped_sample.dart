@@ -42,6 +42,7 @@ Map<String, dynamic> sampleWrappedJson() => {
   'games_played_covers': <String>[],
   'top_games': [sampleGame(1, 'Elden Ring', 96), sampleGame(2, 'Hades', 41.5), sampleGame(3, 'Celeste', 22)],
   'top_online_game': sampleGame(7, 'Valorant', 31),
+  'top_online_games': [sampleGame(7, 'Valorant', 31), sampleGame(8, 'Rocket League', 18), sampleGame(9, 'Fortnite', 6.5)],
   'me': {'user_id': 'u1', 'username': 'Aljohara', 'avatar_url': null},
   'trophies_earned': 14,
   'trophies': sampleTrophies,
@@ -85,6 +86,10 @@ Map<String, dynamic> stressWrappedJson() => {
     sampleGame(2, 'Warhammer 40,000: Space Marine 2', 0.5),
   ],
   'top_online_game': sampleGame(7, 'Counter-Strike: Global Offensive', 0.5),
+  'top_online_games': [
+    sampleGame(7, 'Counter-Strike: Global Offensive', 0.5),
+    sampleGame(8, "Tom Clancy's Rainbow Six Siege X", 0.5),
+  ],
   'me': {'user_id': 'u1', 'username': 'Abdulrahman_AlQahtani', 'avatar_url': null},
   'trophies_earned': 1,
   'trophies': <Map<String, dynamic>>[],

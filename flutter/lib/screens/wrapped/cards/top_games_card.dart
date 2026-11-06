@@ -1,6 +1,7 @@
 // Card 4: top games on a podium. Gold, silver and bronze steps rise, then the
 // covers fly up onto them one at a time (#3, #2, #1), #1 glows as it lands,
 // and the ranked list follows in the text zone. The covers float gently.
+// The same card shows the overall podium and, with `online`, the online one.
 
 import 'dart:math';
 
@@ -17,7 +18,6 @@ const _flightMs = 700;
 const _glowMs = 900;
 const _rowGapMs = 100;
 const _floatAmplitude = 3.0; // ±3 px, about 6 px of travel
-const _palette = WrappedPalette.topGames;
 
 /// Gold, silver, bronze: [light, dark] for each rank.
 const _medals = [
@@ -33,9 +33,14 @@ class TopGamesCard extends StatefulWidget implements WrappedCard {
   /// 2 or 3 games, ranked.
   final List<WrappedGame> games;
 
-  const TopGamesCard({super.key, required this.games});
+  /// Online games only, rather than every game.
+  final bool online;
+
+  const TopGamesCard({super.key, required this.games, this.online = false});
 
   List<WrappedGame> get _podium => games.take(3).toList();
+
+  WrappedPalette get _palette => online ? WrappedPalette.topOnline : WrappedPalette.topGames;
 
   @override
   List<String> get imageUrls => [for (final game in _podium) ?_coverOf(game)];
@@ -79,6 +84,7 @@ class _TopGamesCardState extends WrappedCardState<TopGamesCard> {
   @override
   Widget build(BuildContext context) {
     final games = widget._podium;
+    final palette = widget._palette;
     final three = games.length == 3;
     // Left to right: #2 #1 #3, or #1 #2 with two games.
     final order = three ? const [1, 0, 2] : const [0, 1];
@@ -90,7 +96,7 @@ class _TopGamesCardState extends WrappedCardState<TopGamesCard> {
       child: ExcludeSemantics(
         child: Stack(
           children: [
-            Positioned.fill(child: WrappedHeroGlow(color: _palette.accentColor, strength: 0.14)),
+            Positioned.fill(child: WrappedHeroGlow(color: palette.accentColor, strength: 0.14)),
             // Clipped, so covers rise into view from the zone's bottom edge.
             Positioned.fill(
               child: ClipRect(
@@ -142,23 +148,36 @@ class _TopGamesCardState extends WrappedCardState<TopGamesCard> {
             riseIn(
               _eyebrowIn.transform(t),
               WrappedEyebrow.zone(
-                kTopGamesEyebrow,
-                color: _palette.accentColor,
-                icon: Icons.format_list_numbered_rounded,
+                widget.online ? kTopOnlineGamesEyebrow : kTopGamesEyebrow,
+                color: palette.accentColor,
+                icon: widget.online ? Icons.groups_rounded : Icons.format_list_numbered_rounded,
               ),
             ),
             const SizedBox(height: 10),
-            riseIn(_headlineIn.transform(t), WrappedHeadline(topGamesHeadline(games.length))),
-            const SizedBox(height: 14),
+            riseIn(
+              _headlineIn.transform(t),
+              WrappedHeadline(topGamesHeadline(games.length, online: widget.online)),
+            ),
+            const SizedBox(height: 8),
+            riseIn(
+              _headlineIn.transform(t),
+              WrappedSupportingLine(topGamesLine(online: widget.online)),
+              distance: 12,
+            ),
+            const SizedBox(height: 12),
             for (final (rank, game) in games.indexed)
-              riseIn(_rows[rank].transform(t), _RankRow(rank: rank, game: game), distance: 12),
+              riseIn(
+                _rows[rank].transform(t),
+                _RankRow(rank: rank, game: game, accent: palette.accentColor),
+                distance: 12,
+              ),
           ],
         );
       },
     );
 
     return WrappedBackdrop(
-      palette: _palette,
+      palette: palette,
       drift: ambient,
       child: WrappedSplitLayout(visual: visual, text: text),
     );
@@ -263,8 +282,9 @@ class _PodiumCover extends StatelessWidget {
 class _RankRow extends StatelessWidget {
   final int rank;
   final WrappedGame game;
+  final Color accent;
 
-  const _RankRow({required this.rank, required this.game});
+  const _RankRow({required this.rank, required this.game, required this.accent});
 
   @override
   Widget build(BuildContext context) {
@@ -280,7 +300,7 @@ class _RankRow extends StatelessWidget {
             child: Text(
               '${rank + 1}',
               style: theme.textTheme.headlineMedium!.copyWith(
-                color: _palette.accentColor,
+                color: accent,
                 fontSize: 28,
                 fontWeight: FontWeight.w900,
                 height: 1.1,

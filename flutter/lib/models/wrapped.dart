@@ -194,6 +194,27 @@ class WrappedFriendsHours {
     return best;
   }
 
+  /// The people the card shows, most hours first: the top [limit], always
+  /// including the user. When the user ranks lower, they take the last spot.
+  List<WrappedLeaderboardEntry> contenders({int limit = 5}) {
+    final top = leaderboard.take(limit).toList();
+    final mine = me;
+    if (mine == null || top.contains(mine)) return top;
+    return [...top.take(limit - 1), mine];
+  }
+
+  /// The friend just ahead of the user: the fewest hours among those with
+  /// more. Null when nobody has more (the user is #1, alone or tied).
+  WrappedLeaderboardEntry? get nextAhead {
+    final mine = me;
+    if (mine == null) return null;
+    WrappedLeaderboardEntry? closest;
+    for (final entry in leaderboard) {
+      if (entry.hours > mine.hours && (closest == null || entry.hours < closest.hours)) closest = entry;
+    }
+    return closest;
+  }
+
   factory WrappedFriendsHours.fromJson(Map<String, dynamic> json) => WrappedFriendsHours(
         userRank: (json['user_rank'] as num?)?.toInt() ?? 0,
         friendsBeaten: (json['friends_beaten'] as num?)?.toInt() ?? 0,
@@ -232,6 +253,9 @@ class WrappedResponse {
   final List<String> gamesPlayedCovers;
   final List<WrappedGame>? topGames;
   final WrappedGame? topOnlineGame;
+
+  /// 2 or 3 online games, ranked; null with fewer than 2.
+  final List<WrappedGame>? topOnlineGames;
   final WrappedUser? me;
   final int? trophiesEarned;
 
@@ -252,6 +276,7 @@ class WrappedResponse {
     this.gamesPlayedCovers = const [],
     this.topGames,
     this.topOnlineGame,
+    this.topOnlineGames,
     this.me,
     this.trophiesEarned,
     this.trophies = const [],
@@ -264,6 +289,7 @@ class WrappedResponse {
   factory WrappedResponse.fromJson(Map<String, dynamic> json) {
     final topGames = json['top_games'] as List?;
     final topOnline = json['top_online_game'] as Map<String, dynamic>?;
+    final topOnlineGames = json['top_online_games'] as List?;
     return WrappedResponse(
       year: (json['year'] as num).toInt(),
       locked: json['locked'] as bool? ?? false,
@@ -276,6 +302,7 @@ class WrappedResponse {
       ],
       topGames: topGames?.map((g) => WrappedGame.fromJson(g as Map<String, dynamic>)).toList(),
       topOnlineGame: topOnline == null ? null : WrappedGame.fromJson(topOnline),
+      topOnlineGames: topOnlineGames?.map((g) => WrappedGame.fromJson(g as Map<String, dynamic>)).toList(),
       me: _parse(json['me'], WrappedUser.fromJson),
       trophiesEarned: (json['trophies_earned'] as num?)?.toInt(),
       trophies: [

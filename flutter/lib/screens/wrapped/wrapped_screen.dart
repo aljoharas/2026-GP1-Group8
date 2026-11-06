@@ -22,6 +22,7 @@ import 'wrapped_copy.dart';
 /// The cards to show, in order. A card whose data is null is left out.
 List<Widget> buildWrappedCards(WrappedResponse data) {
   final topGames = data.topGames ?? const <WrappedGame>[];
+  final topOnlineGames = data.topOnlineGames ?? const <WrappedGame>[];
   return [
     if (data.totalHours case final hours?) TotalHoursCard(hours: hours, year: data.year),
     if (data.gamesPlayed case final count?) GamesPlayedCard(count: count, covers: data.gamesPlayedCovers),
@@ -36,12 +37,14 @@ List<Widget> buildWrappedCards(WrappedResponse data) {
         palette: WrappedPalette.topOnline,
         icon: Icons.groups_rounded,
       ),
+    if (topOnlineGames.length >= 2) TopGamesCard(games: topOnlineGames, online: true),
     if (data.trophiesEarned case final count?) TrophiesCard(count: count, trophies: data.trophies),
     if (data.playStyle case WrappedPlayStyle(:final type?) && final style) PlayerTypeCard(type: type, style: style),
     if (data.playStyle case final style? when style.total > 0) GameStatusCard(style: style),
     if (data.rating case final rating?) RatingCard(rating: rating),
-    if (data.friendsHours case final stats?)
-      if ((stats.me, stats.rival) case (final me?, final rival?)) FriendsHoursCard(stats: stats, me: me, rival: rival),
+    // Needs the user and at least one friend on the board.
+    if (data.friendsHours case final stats? when stats.me != null && stats.rival != null)
+      FriendsHoursCard(stats: stats),
     if ((data.me, data.similarFriend) case (final me?, final friend?)) GamingTwinCard(me: me, friend: friend),
   ];
 }

@@ -11,6 +11,14 @@ const LOG_INACTIVITY_THRESHOLD = '7 days';
 // blocked a second *unread* copy.
 const RENOTIFY_COOLDOWN = '3 days';
 
+// Wrapped ("Endgame") unlocks on Dec 31 in Asia/Riyadh. The release
+// notification can go out from then until this many days into January, so a
+// server that was down on the day (or a user whose check didn't run) still
+// gets it. One per season: nothing goes out within WRAPPED_COOLDOWN of the last.
+const WRAPPED_LATE_DAYS = 7;
+const WRAPPED_COOLDOWN = '60 days';
+const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3, no daylight saving
+
 // Nudges a user about games they've neglected. Fire-and-forget, same
 // contract as lib/activity.js: called on the way to answering an unrelated
 // request (checking the notification bell), so a failure here must not fail
@@ -47,6 +55,7 @@ async function checkReminders(userId) {
     const created = [
       ...(await remindPausedGames(userId)),
       ...(await remindToLog(userId)),
+      ...(await remindWrappedReady(userId)),
     ];
     return created;
   } catch (error) {
@@ -119,4 +128,50 @@ async function remindToLog(userId) {
   return result.rows.length > 0 ? [{ message }] : [];
 }
 
-module.exports = { checkReminders };
+// The Wrapped year whose release notification is due on `now`, or null.
+// Dec 31 → that year; Jan 1..WRAPPED_LATE_DAYS → the year before.
+function wrappedYearDue(now = new Date()) {
+  const riyadh = new Date(now.getTime() + RIYADH_OFFSET_MS);
+  const year = riyadh.getUTCFullYear();
+  const month = riyadh.getUTCMonth() + 1;
+  const day = riyadh.getUTCDate();
+  if (month === 12 && day === 31) return year;
+  if (month === 1 && day <= WRAPPED_LATE_DAYS) return year - 1;
+  return null;
+}
+
+// "Your Endgame is here", once per year, only for users who logged a game in
+// that year (anyone else would open an empty Wrapped).
+async function remindWrappedReady(userId) {
+  const year = wrappedYearDue();
+  if (year === null) return [];
+
+  const due = await pool.query(
+    `SELECT 1
+     FROM library_entries
+     WHERE user_id = $1 AND source = 'manual'
+       AND logged_at >= make_date($2, 1, 1) AND logged_at < make_date($2 + 1, 1, 1)
+       AND NOT EXISTS (
+         SELECT 1 FROM notifications n
+         WHERE n.user_id = $1 AND n.type = 'wrapped_ready'
+           AND n.created_at > now() - interval '${WRAPPED_COOLDOWN}'
+       )
+     LIMIT 1`,
+    [userId, year]
+  );
+  if (due.rows.length === 0) return [];
+
+  const message = `Your ${year} Endgame is here! See how your year in games played out.`;
+  const result = await pool.query(
+    `INSERT INTO notifications (user_id, type, message)
+     VALUES ($1, 'wrapped_ready', $2)
+     ON CONFLICT (user_id) WHERE type = 'wrapped_ready' AND is_read = FALSE
+     DO NOTHING
+     RETURNING id`,
+    [userId, message]
+  );
+  // headline: the push scheduler shows this one even when bundling
+  return result.rows.length > 0 ? [{ message, headline: true }] : [];
+}
+
+module.exports = { checkReminders, wrappedYearDue };

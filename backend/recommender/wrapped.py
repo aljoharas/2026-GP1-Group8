@@ -465,18 +465,26 @@ def top_games_card(ranked: pd.DataFrame, games: dict[int, dict]) -> list[dict] |
     return items
 
 
-def rank_top_online_game(year_logs: pd.DataFrame, per_game: pd.Series) -> pd.DataFrame:
-    """The online game with the most hours, same ties as card 3. Empty when no
+def rank_top_online_games(year_logs: pd.DataFrame, per_game: pd.Series, limit: int = TOP_GAMES_LIMIT) -> pd.DataFrame:
+    """The online games with the most hours, same ties as card 3. Empty when no
     online game has more than 0 hours. Games with no game_modes are not online.
     """
     online_logs = year_logs[year_logs["game_modes"].map(is_online)]
-    return rank_top_games(online_logs, per_game, limit=1)
+    return rank_top_games(online_logs, per_game, limit=limit)
 
 
 def top_online_game_card(ranked_online: pd.DataFrame, games: dict[int, dict]) -> dict | None:
     """Card 4: the single top online game, shaped like a top_games item."""
     items = top_games_card(ranked_online, games)
     return items[0] if items else None
+
+
+def top_online_games_card(ranked_online: pd.DataFrame, games: dict[int, dict]) -> list[dict] | None:
+    """Card 4b: the online podium, up to TOP_GAMES_LIMIT top_games-shaped items.
+    None with fewer than 2 online games: one game is already card 4.
+    """
+    items = top_games_card(ranked_online, games)
+    return items if items and len(items) >= 2 else None
 
 
 def first_unlocks(unlocks: pd.DataFrame) -> pd.DataFrame:
@@ -780,6 +788,7 @@ CARD_KEYS = [
     "games_played_covers",  # card 2's background, [] rather than None
     "top_games",
     "top_online_game",
+    "top_online_games",
     "trophies_earned",
     "trophies",
     "play_style",
@@ -839,12 +848,13 @@ def build_wrapped(
     response["games_played_covers"] = games_played_covers(year_logs, per_game)
 
     ranked = rank_top_games(year_logs, per_game)
-    ranked_online = rank_top_online_game(year_logs, per_game)
-    # One lookup for both cards' names and covers
+    ranked_online = rank_top_online_games(year_logs, per_game)
+    # One lookup for every card's names and covers
     game_ids = list(dict.fromkeys(int(g) for g in pd.concat([ranked["game_id"], ranked_online["game_id"]])))
     games = game_lookup(game_ids) if game_ids else {}
     response["top_games"] = top_games_card(ranked, games)
     response["top_online_game"] = top_online_game_card(ranked_online, games)
+    response["top_online_games"] = top_online_games_card(ranked_online, games)
 
     if trophy_lookup is not None:
         trophies = year_trophies(pd.DataFrame(trophy_lookup(), columns=UNLOCK_COLUMNS), year, now)

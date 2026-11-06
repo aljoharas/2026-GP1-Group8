@@ -5,6 +5,7 @@ import '../../core/activity_labels.dart';
 import '../../providers/friends_provider.dart';
 import '../../providers/notifications_provider.dart';
 import '../profile/public_profile_screen.dart';
+import '../wrapped/wrapped_entry_screen.dart';
 
 /// Opened from the bell in the home header. Friend requests are answered here,
 /// which is the path the app funnels people down after someone taps Add friend.
@@ -86,6 +87,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
       ),
     );
+  }
+
+  void _openSystem(Map<String, dynamic> notification) {
+    context.read<NotificationsProvider>().markRead(notification['id'] as int);
+    if (notification['type'] != 'wrapped_ready') return;
+
+    // Sent from Dec 31 into early January, always for the year that just
+    // ended: a January notification is about the year before.
+    final sent = DateTime.tryParse(notification['created_at'] as String? ?? '')?.toLocal() ?? DateTime.now();
+    final year = sent.month == 12 ? sent.year : sent.year - 1;
+    Navigator.push(context, MaterialPageRoute(builder: (_) => WrappedEntryScreen(year: year)));
   }
 
   @override
@@ -291,6 +303,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final icon = switch (notification['type'] as String? ?? '') {
       'game_paused_reminder' => Icons.pause_circle_outline,
       'log_reminder' => Icons.edit_note,
+      'wrapped_ready' => Icons.auto_awesome_rounded,
       _ => Icons.notifications_none,
     };
 
@@ -310,8 +323,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       onDismissed: (_) =>
           context.read<NotificationsProvider>().delete(notification['id'] as int),
       child: GestureDetector(
-        onTap: () =>
-            context.read<NotificationsProvider>().markRead(notification['id'] as int),
+        onTap: () => _openSystem(notification),
         behavior: HitTestBehavior.opaque,
         child: Container(
           margin: const EdgeInsets.only(bottom: 10),

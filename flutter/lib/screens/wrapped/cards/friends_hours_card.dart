@@ -1,7 +1,11 @@
-// Card 10: you vs your friends. Two hourglasses, you and your rival, pour at
-// the same rate; each holds sand for its hours, so the one with fewer hours
-// runs dry first and the leader keeps pouring. Each total counts up as its
-// glass stops, then the winner's glass glows once.
+// Card 10: you and your friends. Up to five hourglasses, one per person, most
+// hours first; the user is always among them. They pour at the same rate and
+// each holds sand for its hours, so the glasses run dry one by one and the
+// leader pours longest. Each total counts up as its glass stops, then the
+// leader's glass glows once.
+//
+// It used to be the user against a single rival, which felt harsh when the
+// user lost; a small group reads as a friendly board instead.
 
 import 'dart:math';
 
@@ -12,7 +16,7 @@ import '../wrapped_card.dart';
 import '../wrapped_copy.dart';
 
 const _palette = WrappedPalette.friendsHours;
-const _rivalSand = Color(0xFFCBD5E1);
+const _friendSand = Color(0xFFCBD5E1);
 const _pourStartMs = 200;
 
 /// A full glass's pour; a glass with less sand stops sooner.
@@ -23,23 +27,22 @@ const _glowMs = 800;
 /// The least sand a glass with any hours shows.
 const _minFill = 0.06;
 
-/// Each glass's final fill: hours ÷ the larger of the two, at least
-/// [_minFill] when there are any hours.
-(double, double) hourglassFills(double mine, double rivals) {
-  final most = max(mine, rivals);
-  double fill(double hours) => most <= 0 || hours <= 0 ? 0 : max(_minFill, hours / most);
-  return (fill(mine), fill(rivals));
+/// Each glass's final fill: hours ÷ the most anyone has, at least [_minFill]
+/// when there are any hours.
+List<double> hourglassFills(List<double> hours) {
+  final most = hours.fold(0.0, max);
+  return [for (final h in hours) most <= 0 || h <= 0 ? 0 : max(_minFill, h / most)];
 }
 
 class FriendsHoursCard extends StatefulWidget implements WrappedCard {
   final WrappedFriendsHours stats;
-  final WrappedLeaderboardEntry me;
-  final WrappedLeaderboardEntry rival;
 
-  const FriendsHoursCard({super.key, required this.stats, required this.me, required this.rival});
+  const FriendsHoursCard({super.key, required this.stats});
+
+  List<WrappedLeaderboardEntry> get _contenders => stats.contenders();
 
   @override
-  List<String> get imageUrls => [?me.user.avatarUrl, ?rival.user.avatarUrl];
+  List<String> get imageUrls => [for (final e in _contenders) ?e.user.avatarUrl];
 
   @override
   State<FriendsHoursCard> createState() => _FriendsHoursCardState();
@@ -60,39 +63,36 @@ class _FriendsHoursCardState extends WrappedCardState<FriendsHoursCard> {
 
   @override
   Widget build(BuildContext context) {
-    final me = widget.me;
-    final rival = widget.rival;
-    final outcome = hoursOutcome(me.hours, rival.hours);
-    final (myFill, rivalFill) = hourglassFills(me.hours, rival.hours);
-    final glowStart = _stopMs(max(myFill, rivalFill)) + _countMs ~/ 2;
+    final contenders = widget._contenders;
+    final fills = hourglassFills([for (final e in contenders) e.hours]);
+    final glowStart = _stopMs(fills.fold(0.0, max)) + _countMs ~/ 2;
     final glow = msInterval(glowStart, _glowMs, _total);
-
-    Widget side(WrappedLeaderboardEntry entry, double fill, bool winner, bool mine) {
-      final counted = msInterval(_stopMs(fill), _countMs, _total, curve: Curves.easeOutCubic);
-      return _Contender(
-        user: entry.user,
-        hours: entry.hours,
-        fill: fill,
-        mine: mine,
-        entrance: entrance,
-        visualIn: _visualIn,
-        count: counted,
-        glow: winner ? glow : null,
-        totalMs: _total.inMilliseconds,
-      );
-    }
+    // Narrower glasses, smaller avatars and text as more people join.
+    final crowded = contenders.length > 3;
 
     final visual = Semantics(
-      label: friendsHoursSemantics(rival.user, me.hours, rival.hours),
+      label: friendsHoursSemantics(contenders),
       child: ExcludeSemantics(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: EdgeInsets.symmetric(horizontal: crowded ? 16 : 24),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: side(me, myFill, outcome != HoursOutcome.loss, true)),
-              const SizedBox(width: 20),
-              Expanded(child: side(rival, rivalFill, outcome != HoursOutcome.win, false)),
+              for (final (i, entry) in contenders.indexed) ...[
+                if (i > 0) SizedBox(width: crowded ? 8 : 16),
+                Expanded(
+                  child: _Contender(
+                    entry: entry,
+                    fill: fills[i],
+                    crowded: crowded,
+                    entrance: entrance,
+                    visualIn: _visualIn,
+                    count: msInterval(_stopMs(fills[i]), _countMs, _total, curve: Curves.easeOutCubic),
+                    glow: entry.rank == 1 ? glow : null,
+                    totalMs: _total.inMilliseconds,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -112,11 +112,11 @@ class _FriendsHoursCardState extends WrappedCardState<FriendsHoursCard> {
               WrappedEyebrow.zone(kFriendsHoursEyebrow, color: _palette.accentColor, icon: Icons.groups_rounded),
             ),
             const SizedBox(height: 10),
-            riseIn(_headlineIn.transform(t), WrappedHeadline(friendsHoursHeadline(outcome, rival.user))),
+            riseIn(_headlineIn.transform(t), WrappedHeadline(friendsHoursHeadline(widget.stats))),
             const SizedBox(height: 12),
             riseIn(
               _lineIn.transform(t),
-              WrappedSupportingLine(friendsHoursLine(outcome, rival.user, me.hours, rival.hours)),
+              WrappedSupportingLine(friendsHoursLine(widget.stats)),
               distance: 12,
             ),
             const SizedBox(height: 22),
@@ -160,12 +160,11 @@ class _FriendsHoursCardState extends WrappedCardState<FriendsHoursCard> {
   }
 }
 
-/// One side of the race: avatar, hourglass, name and hours.
+/// One person on the board: avatar, hourglass, name and hours.
 class _Contender extends StatelessWidget {
-  final WrappedUser user;
-  final double hours;
+  final WrappedLeaderboardEntry entry;
   final double fill;
-  final bool mine;
+  final bool crowded;
   final Animation<double> entrance;
   final Curve visualIn;
   final Curve count;
@@ -173,10 +172,9 @@ class _Contender extends StatelessWidget {
   final int totalMs;
 
   const _Contender({
-    required this.user,
-    required this.hours,
+    required this.entry,
     required this.fill,
-    required this.mine,
+    required this.crowded,
     required this.entrance,
     required this.visualIn,
     required this.count,
@@ -187,15 +185,18 @@ class _Contender extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sand = mine ? _palette.accentColor : _rivalSand;
+    final mine = entry.isMe;
+    final user = entry.user;
+    final hours = entry.hours;
+    final sand = mine ? _palette.accentColor : _friendSand;
     final nameStyle = theme.textTheme.titleSmall!.copyWith(
-      color: Colors.white,
-      fontSize: 14,
+      color: mine ? _palette.accentColor : Colors.white,
+      fontSize: crowded ? 11 : 14,
       fontWeight: FontWeight.w700,
     );
     final hoursStyle = theme.textTheme.headlineSmall!.copyWith(
       color: mine ? _palette.accentColor : Colors.white,
-      fontSize: 22,
+      fontSize: crowded ? 15 : 22,
       fontWeight: FontWeight.w900,
       height: 1.1,
       fontFeatures: const [FontFeature.tabularFigures()],
@@ -223,10 +224,10 @@ class _Contender extends StatelessWidget {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(2),
-                  child: WrappedAvatar(url: user.avatarUrl, name: user.username, size: 56, tint: sand),
+                  child: WrappedAvatar(url: user.avatarUrl, name: user.username, size: crowded ? 36 : 56, tint: sand),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Expanded(
                 child: Center(
                   child: AspectRatio(
@@ -244,9 +245,9 @@ class _Contender extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
-                user.username ?? (mine ? 'You' : displayName(user)),
+                mine ? 'You' : displayName(user),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: nameStyle,
@@ -257,7 +258,10 @@ class _Contender extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    '${formatNumber(hours * counted, decimals: decimals)} ${hoursUnit(hours)}',
+                    // Crowded glasses are too narrow for "hours"; "214.5h" fits.
+                    crowded
+                        ? '${formatNumber(hours * counted, decimals: decimals)}h'
+                        : '${formatNumber(hours * counted, decimals: decimals)} ${hoursUnit(hours)}',
                     maxLines: 1,
                     style: hoursStyle,
                   ),
@@ -270,7 +274,6 @@ class _Contender extends StatelessWidget {
     );
   }
 }
-
 class _HourglassPainter extends CustomPainter {
   /// Sand in each bulb, as a fraction of a full bulb.
   final double top;

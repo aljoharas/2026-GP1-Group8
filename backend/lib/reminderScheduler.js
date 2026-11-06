@@ -20,9 +20,14 @@ async function tick() {
       // several system notifications landing back-to-back reads as spam.
       // Every individual reminder still has its own row for the in-app bell;
       // only the push itself gets bundled.
-      const body = created.length === 1
-        ? created[0].message
-        : `You have ${created.length} new reminders — tap to see what's new.`;
+      // A headline (the yearly Endgame release) is the one worth reading, so
+      // it's pushed as-is rather than folded into the generic count.
+      const headline = created.find((n) => n.headline);
+      const body = headline
+        ? headline.message
+        : created.length === 1
+          ? created[0].message
+          : `You have ${created.length} new reminders — tap to see what's new.`;
       await sendPushToUser(id, { title: 'Loadout', body });
     }
   } catch (error) {
