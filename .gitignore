@@ -93,3 +93,6 @@ flutter/lib/core/constants.dart
 flutter/lib/core/constants.dart
 flutter/lib/core/constants.dart
 flutter/lib/core/constants.dart
+
+# ===== Archetype training data (Steam 200k + derived distributions) =====
+data/
