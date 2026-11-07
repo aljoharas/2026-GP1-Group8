@@ -92,13 +92,32 @@ def test_fallback_1_uses_the_larger_of_list_size_and_ticked_names():
     games, sources = build([
         row(1, 7, achievements=["A", "B"], achievements_count=None),   # list 5 > 2 ticked → 5
         row(2, 8, achievements=["A", "B", "C"], achievements_count=0),  # RAWG 0; list 1 < 3 ticked → 3
-        row(3, 9, achievements=["A"], achievements_count=None),         # no list → 1 ticked
     ], list_sizes={7: 5, 8: 1})
     g = by_id(games)
     assert (g[7]["trophies_unlocked"], g[7]["trophies_available"]) == (2, 5)
     assert (g[8]["trophies_unlocked"], g[8]["trophies_available"]) == (3, 3)
-    assert (g[9]["trophies_unlocked"], g[9]["trophies_available"]) == (1, 1)
-    assert sources == {"rawg_count": 0, "fallback": 3, "excluded": 0}
+    assert sources == {"rawg_count": 0, "fallback": 2, "excluded": 0}
+
+
+def test_ticked_names_without_a_count_or_a_list_are_excluded():
+    # No RAWG count and no achievements-table list: the ticked names can't be
+    # measured against anything, so the game doesn't count
+    games, sources = build([
+        row(1, 9, achievements=["A"], achievements_count=None),
+        row(2, 10, achievements=["A", "B"], achievements_count=0),
+    ])
+    g = by_id(games)
+    assert (g[9]["trophies_unlocked"], g[9]["trophies_available"]) == (1, 0)
+    assert (g[10]["trophies_unlocked"], g[10]["trophies_available"]) == (2, 0)
+    assert sources == {"rawg_count": 0, "fallback": 0, "excluded": 2}
+
+
+def test_excluded_game_with_ticks_does_not_raise_trophy_rate():
+    rows = [row(1, 7, achievements=["A"], achievements_count=4)]
+    rows += [row(i, i, achievements=["X", "Y"], achievements_count=None) for i in range(2, 6)]
+    games, _ = build(rows)
+    # Games 2–5 are excluded despite their ticks: only game 7 counts, 1 / 4
+    assert compute_features(games)["trophy_rate"] == 0.25
 
 
 def test_ticked_names_above_the_rawg_count_are_capped_at_one():

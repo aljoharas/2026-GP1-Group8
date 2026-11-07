@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db/index');
 const verifyToken = require('../middleware/verifyToken');
 const { recordActivity } = require('../lib/activity');
+const { fetchArchetype, ownArchetype, friendArchetype } = require('../lib/archetype');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 
@@ -362,6 +363,24 @@ router.get('/me/wrapped', verifyToken, async (req, res) => {
   }
 });
 
+// PLAYER ARCHETYPE — GET /users/me/archetype
+// Same pattern as /home/recommended: the uid comes only from the verified token,
+// never from the app. Python computes it from all-time manual logs; the body is
+// shaped by ownArchetype (scores always add up to exactly 100, highest first).
+router.get('/me/archetype', verifyToken, async (req, res) => {
+  const { uid } = req.user;
+  try {
+    const { status, body } = await fetchArchetype(uid);
+    if (status !== 200) {
+      return res.status(status).json({ message: body.detail || 'Archetype unavailable' });
+    }
+    return res.status(200).json(ownArchetype(body));
+  } catch (error) {
+    console.warn('[archetype] service unreachable:', error.message);
+    return res.status(502).json({ message: 'Archetype service unavailable' });
+  }
+});
+
 // SEARCH USERS — GET /users/search?q=sara
 // Declared before /:id so "search" isn't swallowed as a user id.
 router.get('/search', verifyToken, async (req, res) => {
@@ -459,6 +478,43 @@ router.get('/:id', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Get user error:', error.message);
     return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /users/:id/archetype — a friend's archetype for their profile.
+// Accepted friends only, and only the name and description: scores and reasons
+// stay private to the user (friendArchetype builds the body field by field).
+router.get('/:id/archetype', verifyToken, async (req, res) => {
+  const { uid } = req.user;
+  const { id } = req.params;
+
+  try {
+    if (id !== uid) {
+      const rel = await pool.query(
+        `SELECT 1 FROM friendships
+         WHERE ((requester_id = $1 AND addressee_id = $2)
+             OR (requester_id = $2 AND addressee_id = $1))
+           AND status = 'accepted'`,
+        [uid, id]
+      );
+      if (rel.rows.length === 0) {
+        return res.status(403).json({ message: 'Only friends can see this' });
+      }
+    }
+  } catch (error) {
+    console.error('Get archetype friendship error:', error.message);
+    return res.status(500).json({ message: 'Server error' });
+  }
+
+  try {
+    const { status, body } = await fetchArchetype(id);
+    if (status !== 200) {
+      return res.status(502).json({ message: 'Archetype unavailable' });
+    }
+    return res.status(200).json(friendArchetype(body));
+  } catch (error) {
+    console.warn('[archetype] service unreachable:', error.message);
+    return res.status(502).json({ message: 'Archetype service unavailable' });
   }
 });
 

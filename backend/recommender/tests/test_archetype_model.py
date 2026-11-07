@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+import archetypes
 from archetype_features import FEATURE_NAMES, IMPUTED_FEATURES, MIN_GAMES
 
 MODEL_PATH = Path(__file__).resolve().parents[3] / "models" / "archetype_model.json"
@@ -53,3 +54,8 @@ def test_centre_in_original_units_matches_the_scaled_centre(model):
     for cluster in model["clusters"]:
         for i, feature in enumerate(FEATURE_NAMES):
             assert cluster["centre"][feature] == pytest.approx(cluster["centre_scaled"][i] * scale[i] + mean[i])
+
+
+def test_temperature_is_recorded_and_the_service_accepts_the_model(model):
+    assert model["scoring"]["temperature"] == 0.75
+    archetypes.load_model(MODEL_PATH)

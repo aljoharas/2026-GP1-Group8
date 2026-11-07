@@ -21,6 +21,7 @@ import psycopg2.extras
 
 from db import get_connection
 from recommender import build_feature_matrix, build_item_similarity, recommend
+import archetypes
 import wrapped
 
 # --- Shared state loaded at startup -------------------------------------------
@@ -33,6 +34,9 @@ _state = {
     "matrix": None,
     "game_id_to_row": {},
 }
+
+# Frozen Player Archetypes model, loaded once at startup and never retrained
+_archetype_state = {"model": None}
 
 # Collaborative filtering cache — rebuilt every _COLLAB_TTL seconds
 _COLLAB_TTL = 300  # 5 minutes
@@ -124,6 +128,12 @@ async def _periodic_collab_refresh():
 async def lifespan(app: FastAPI):
     count = _load_matrix()
     print(f"[recommender] matrix ready — {count} games loaded")
+    try:
+        _archetype_state["model"] = archetypes.load_model()
+        print(f"[recommender] archetype model {_archetype_state['model']['version']} loaded")
+    except Exception as e:
+        # Only /archetype depends on it; recommendations and Wrapped keep working
+        print(f"[recommender] archetype model not loaded: {e}")
     try:
         _load_collab_cache(force=True)
     except Exception as e:
@@ -353,3 +363,28 @@ def get_wrapped(
     finally:
         if conn:
             conn.close()
+
+
+@app.get("/archetype")
+def get_archetype(uid: str = Query(..., description="Firebase UID of the authenticated user")):
+    """The user's player archetype from all their manual logs (all time)."""
+    model = _archetype_state["model"]
+    if model is None:
+        raise HTTPException(status_code=503, detail="Archetype model not loaded")
+
+    conn = None
+    try:
+        conn = get_connection()
+        logs = archetypes.load_manual_logs(conn, uid)
+        game_ids = sorted(int(g) for g in logs["game_id"].unique())
+        games, _ = archetypes.build_games(
+            logs,
+            wrapped.load_game_genres(conn, game_ids),
+            archetypes.load_achievement_list_sizes(conn, game_ids),
+        )
+    except psycopg2.Error as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
+    return archetypes.archetype_response(games, model)

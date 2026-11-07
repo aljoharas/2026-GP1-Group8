@@ -145,8 +145,12 @@ pip install -r requirements.txt
 ## Start Recommender Service
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
+
+The recommender has no authentication of its own: Node verifies the Firebase token and
+passes the uid. It must only be reachable by the Node backend, so bind it to `127.0.0.1`
+(or a private network shared only with Node), never `0.0.0.0` on a public machine.
 
 ---
 

@@ -14,7 +14,8 @@ Each Loadout user with at least 5 games in their manual logs gets one of six pla
 archetypes, plus a match % for every archetype. The service computes the user's 8 features,
 fills a missing trophy rate or genre diversity with the training mean, scales them with the
 saved scaler, and measures the distance to each cluster centre. The nearest centre is the
-archetype; the match % is a softmax over the negative distances.
+archetype; the match % is a softmax over the negative distances (temperature 0.75, see
+[Match scores](#match-scores)).
 
 The model is trained **once, offline**. The service only loads the JSON; it never retrains.
 
@@ -56,9 +57,12 @@ Steam rows are ignored. Each row is one log; `hours_played` NULL = 0.
 
 **Trophies for real users:** unlocked = distinct ticked achievement names per game across all
 its logs (case and surrounding whitespace ignored); names are not matched to any list.
-Available = `games.achievements_count` (RAWG game details). If that is missing or 0, the larger
-of the achievements-table list size and the number of ticked names; if neither exists, the game
-is left out of trophy_rate. Each game's rate is capped at 1.
+A game counts toward trophy_rate only if it has a RAWG count or an achievements-table list:
+- RAWG `games.achievements_count` > 0 → ticked ÷ count
+- no count, list size > 0 → ticked ÷ max(list size, ticked)
+- no count and no list → the game is left out, even if names were ticked
+
+Each game's rate is capped at 1.
 
 ## Training data
 
@@ -162,6 +166,34 @@ to "largest k" and the 5% size check.
 - **Round trip:** loading the JSON alone and assigning each training player to the nearest
   centre reproduces the fitted model's labels for all 667 players.
 
+## Match scores
+
+match % = softmax(−distance ÷ T) over the six centres, distances in StandardScaler units, shown
+as whole-number percentages that add up to exactly 100 (largest-remainder rounding).
+**T = 0.75**, stored in the model JSON as `scoring.temperature`.
+
+Top match % for each temperature (simulated = the 667 training players; real = the 5 users with
+≥ 5 manual games on 2026-11-07, trophy denominators from fallbacks before the RAWG backfill):
+
+| T | Simulated pure (median, 10th–90th pct) | Simulated mixed (median) | Simulated at ≥ 90% | Real users |
+|---|---|---|---|---|
+| 0.5 | 93% (69–98) | 80% | 55% | 61–84% |
+| **0.75** | **79% (57–90)** | **63%** | **6%** | **48–64%** |
+| 1.0 | 66% (47–78) | 51% | 0% | 40–52% |
+
+Why 0.75:
+- **0.5 overclaims**: over half the simulated players would see a 90%+ match, which contradicts
+  the moderate overlap (silhouette 0.32).
+- **1.0 is too flat for real users**, who sit further from the centres than simulated players:
+  their top type would show around 40% with the second close behind, which reads as uncertain.
+- **0.75** gives typical players a clear lead, keeps mixed players visibly lower than pure ones
+  (63% vs 79%), keeps the second type visible so the full mix is worth showing, and gives almost
+  no one an unrealistic 90%+.
+
+The temperature only changes the displayed percentages, never the assigned archetype (the nearest
+centre is the same at every T), so choosing it with the 5 real users doesn't affect later
+validation, which compares assigned types.
+
 ## Changes during review
 
 - **Library sizes: clipping replaced with truncated sampling; clipping distorted the Steam
@@ -171,6 +203,10 @@ to "largest k" and the 5% size check.
 - **Trophy rate no longer matches ticked names to a list**: many lists in the achievements table
   are incomplete, so matching dropped real unlocks. The denominator is now RAWG's
   achievements_count, with the fallbacks above.
+- **Trophy fallback tightened**: a game with neither a RAWG count nor a list used to count its
+  ticked names as its whole list (100% unlocked); it is now left out. This only affects real
+  users' features, not training (simulated games never have ticks without a list), so no
+  training number changed.
 
 ## Limitations
 
@@ -185,8 +221,9 @@ to "largest k" and the 5% size check.
 - **RAWG achievement counts are mostly PC achievement counts and can differ from PlayStation
   trophy counts.** A player logging a PlayStation game may tick names from a trophy list whose
   size differs from the RAWG count, so their trophy rate for that game is approximate.
-- **Trophy fallback is generous**: for a game with no RAWG count and no list, the denominator is
-  the number of ticked names, so that game counts as fully unlocked.
+- **Until the RAWG backfill runs**, existing games have no achievements_count, so every game uses
+  the achievements-table fallback or is excluded. The fallback denominator can be too small when
+  the table's list is incomplete, which overstates the trophy rate for that game.
 - **Imputation is untested in training**: no simulated player had a missing trophy rate or genre
   diversity, but real users without trophy data get the training mean (0.357).
 - **The Main vs Devotee** depends on whether a single game is online, so one game's IGDB

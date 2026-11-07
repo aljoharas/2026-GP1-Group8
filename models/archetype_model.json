@@ -15,6 +15,10 @@
     "online_share",
     "log_games_played"
   ],
+  "scoring": {
+    "method": "softmax of negative Euclidean distances (scaled space) / temperature; whole-number percentages by largest remainder",
+    "temperature": 0.75
+  },
   "imputation": {
     "trophy_rate": 0.3572208953228012,
     "genre_diversity": 0.7000548669807145
