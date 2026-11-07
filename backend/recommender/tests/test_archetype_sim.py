@@ -91,6 +91,29 @@ def test_pure_players_respect_their_persona_ranges(players):
         assert cfg["active_months"][0] <= len(months) <= cfg["active_months"][1]
 
 
+def test_library_size_is_sampled_inside_the_range_not_clipped():
+    # Heavy-tailed like Steam: many small libraries, few big ones. Clipping to
+    # 10–40 would put every user with 5–9 games at exactly 10 (over half).
+    sizes = np.repeat(np.arange(5, 101), (600 / (np.arange(5, 101) - 4)).astype(int))
+    rng = np.random.default_rng(0)
+    drawn = np.array([sim.sample_library_size(sizes, (10, 40), rng) for _ in range(4000)])
+    assert drawn.min() >= 10 and drawn.max() <= 40
+
+    inside = sizes[(sizes >= 10) & (sizes <= 40)]
+    values, counts = np.unique(inside, return_counts=True)
+    source_share = dict(zip(values, counts / counts.sum()))
+    values, counts = np.unique(drawn, return_counts=True)
+    for value, share in zip(values, counts / counts.sum()):
+        # No size gets an unusually large share: each stays close to its share
+        # of the Steam users inside the range
+        assert share <= source_share[value] * 1.3 + 0.01, (value, share, source_share[value])
+
+
+def test_library_size_with_no_steam_users_in_range_fails_loudly():
+    with pytest.raises(ValueError):
+        sim.sample_library_size(np.array([5, 6, 7]), (10, 40), np.random.default_rng(0))
+
+
 def test_devotee_has_one_dominant_game(players):
     devotees = [p for p in players if p["persona"] == "devotee"]
     top_low = np.quantile(CALIBRATION["hours"], sim.PERSONAS["devotee"]["top_game_quantiles"][0])

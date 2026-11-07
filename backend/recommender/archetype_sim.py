@@ -31,6 +31,8 @@ MONTHS = [f"2025-{m:02d}" for m in range(1, 13)]  # one simulated year
 
 # Every persona parameter. Ranges are inclusive; quantiles index the Steam
 # per-game hours distribution; *_beta are (a, b) of a per-player Beta draw.
+# library_size is sampled from Steam users already inside the range
+# (truncated sampling), never clipped: clipping piled players up at the limits.
 PERSONAS = {
     "completionist": {
         "library_size": (5, 15),          # finishes what it starts, so a moderate library
@@ -127,6 +129,17 @@ def steam_calibration(plays: pd.DataFrame) -> dict:
 
 # --- Generator ----------------------------------------------------------------
 
+def sample_library_size(library_sizes: np.ndarray, size_range: tuple[int, int], rng: np.random.Generator) -> int:
+    """One Steam user's library size, drawn only from users whose size is
+    inside size_range (inclusive), so the Steam shape inside the range is kept.
+    """
+    low, high = size_range
+    inside = library_sizes[(library_sizes >= low) & (library_sizes <= high)]
+    if inside.size == 0:
+        raise ValueError(f"no Steam library sizes inside {size_range}")
+    return int(rng.choice(inside))
+
+
 def _player_params(name: str, rng: np.random.Generator, calibration: dict) -> dict:
     """Per-player draws for one persona: the Betas, favourites, library, months."""
     p = PERSONAS[name]
@@ -136,7 +149,7 @@ def _player_params(name: str, rng: np.random.Generator, calibration: dict) -> di
         "completion": rng.beta(*p["completion_beta"]),
         "online": rng.beta(*p["online_beta"]),
         "favourites": list(rng.choice(GENRES, size=n_fav, replace=False)),
-        "library_size": int(np.clip(rng.choice(calibration["library_sizes"]), *p["library_size"])),
+        "library_size": sample_library_size(calibration["library_sizes"], p["library_size"], rng),
         "active_months": int(rng.integers(p["active_months"][0], p["active_months"][1] + 1)),
     }
 

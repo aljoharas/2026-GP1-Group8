@@ -16,7 +16,8 @@ def utc(*args):
     return datetime(*args, tzinfo=timezone.utc)
 
 
-def row(id, game_id, hours=Decimal("2"), status="playing", logged_at=None, achievements=None, game_modes=None):
+def row(id, game_id, hours=Decimal("2"), status="playing", logged_at=None, achievements=None, game_modes=None,
+        achievements_count=None):
     return {
         "id": id,
         "game_id": game_id,
@@ -26,11 +27,12 @@ def row(id, game_id, hours=Decimal("2"), status="playing", logged_at=None, achie
         "name": f"Game {game_id}",
         "game_modes": game_modes,
         "achievements": achievements,
+        "achievements_count": achievements_count,
     }
 
 
-def build(rows, genres=None, names=None):
-    return archetypes.build_games(archetypes.prepare_logs(rows), genres or {}, names or {})
+def build(rows, genres=None, list_sizes=None):
+    return archetypes.build_games(archetypes.prepare_logs(rows), genres or {}, list_sizes or {})
 
 
 def by_id(games):
@@ -67,47 +69,66 @@ def test_online_and_genres_come_from_the_game():
     assert g[8]["is_online"] is False and g[8]["genres"] == []
 
 
-def test_an_achievement_ticked_on_several_logs_counts_once():
-    names = {7: {"first blood", "boss slayer", "collector"}}
-    games, unmatched = build([
-        row(1, 7, achievements=["First Blood"]),
-        row(2, 7, achievements=["first blood ", "Boss Slayer"]),   # repeat, other case/space
-        row(3, 7, achievements=["  FIRST BLOOD"]),
-    ], names=names)
+def test_a_name_ticked_on_several_logs_counts_once():
+    games, sources = build([
+        row(1, 7, achievements=["First Blood"], achievements_count=40),
+        row(2, 7, achievements=["first blood ", "Boss Slayer"], achievements_count=40),  # repeat, other case/space
+        row(3, 7, achievements=["  FIRST BLOOD"], achievements_count=40),
+    ])
     assert games[0]["trophies_unlocked"] == 2
-    assert games[0]["trophies_available"] == 3
-    assert unmatched == 0
+    assert games[0]["trophies_available"] == 40
+    assert sources == {"rawg_count": 1, "fallback": 0, "excluded": 0}
 
 
-def test_unmatched_names_are_counted_once_per_game_and_not_unlocked():
-    names = {7: {"first blood", "collector"}}
-    games, unmatched = build([
-        row(1, 7, achievements=["First Blood", "Renamed Trophy"]),
-        row(2, 7, achievements=["renamed trophy", "Another Typo"]),
-        row(3, 8, achievements=["Renamed Trophy"]),                 # other game: counted again
-    ], names=names)
+def test_names_are_not_matched_to_any_list():
+    # Ticked names the achievements table doesn't know still count
+    games, _ = build([row(1, 7, achievements=["Renamed Trophy", "Another"], achievements_count=10)],
+                     list_sizes={7: 3})
+    assert games[0]["trophies_unlocked"] == 2
+    assert games[0]["trophies_available"] == 10   # RAWG count wins over the table
+
+
+def test_fallback_1_uses_the_larger_of_list_size_and_ticked_names():
+    games, sources = build([
+        row(1, 7, achievements=["A", "B"], achievements_count=None),   # list 5 > 2 ticked → 5
+        row(2, 8, achievements=["A", "B", "C"], achievements_count=0),  # RAWG 0; list 1 < 3 ticked → 3
+        row(3, 9, achievements=["A"], achievements_count=None),         # no list → 1 ticked
+    ], list_sizes={7: 5, 8: 1})
     g = by_id(games)
-    assert g[7]["trophies_unlocked"] == 1
-    assert g[8]["trophies_unlocked"] == 0
-    assert unmatched == 3   # game 7: renamed trophy, another typo; game 8: renamed trophy
+    assert (g[7]["trophies_unlocked"], g[7]["trophies_available"]) == (2, 5)
+    assert (g[8]["trophies_unlocked"], g[8]["trophies_available"]) == (3, 3)
+    assert (g[9]["trophies_unlocked"], g[9]["trophies_available"]) == (1, 1)
+    assert sources == {"rawg_count": 0, "fallback": 3, "excluded": 0}
 
 
-def test_game_without_an_achievement_list_is_left_out_of_trophy_rate():
-    names = {7: {"a", "b", "c", "d"}}
-    rows = [row(1, 7, achievements=["A"])]
-    rows += [row(i, i, achievements=["Ticked Anyway"] if i == 2 else None) for i in range(2, 6)]
-    games, unmatched = build(rows, names=names)
+def test_ticked_names_above_the_rawg_count_are_capped_at_one():
+    rows = [row(1, 7, achievements=["A", "B", "C"], achievements_count=2)]
+    rows += [row(i, i, achievements_count=10) for i in range(2, 6)]
+    games, _ = build(rows)
+    # game 7: 3 ticked of 2 → counts as 2; others 0/10 → 2 / 42
+    assert compute_features(games)["trophy_rate"] == 2 / 42
+
+
+def test_fallback_2_game_without_any_list_is_left_out_of_trophy_rate():
+    rows = [row(1, 7, achievements=["A"], achievements_count=4)]
+    rows += [row(i, i, achievements=None, achievements_count=None) for i in range(2, 6)]
+    games, sources = build(rows)
     g = by_id(games)
-    assert g[2]["trophies_available"] == 0          # no list → excluded
-    assert unmatched == 1                           # its ticked name can't match
-    # Only game 7 has a list: 1 / 4
+    assert all(g[i]["trophies_available"] == 0 for i in range(2, 6))
+    assert sources == {"rawg_count": 1, "fallback": 0, "excluded": 4}
+    # Only game 7 counts: 1 / 4
     assert compute_features(games)["trophy_rate"] == 0.25
 
 
+def test_no_list_anywhere_leaves_trophy_rate_missing():
+    games, _ = build([row(i, i) for i in range(1, 6)])
+    assert compute_features(games)["trophy_rate"] is None
+
+
 def test_blank_and_null_names_are_ignored():
-    games, unmatched = build([row(1, 7, achievements=["", "   ", None, "A"])], names={7: {"a"}})
-    assert games[0]["trophies_unlocked"] == 1 and unmatched == 0
+    games, _ = build([row(1, 7, achievements=["", "   ", None, "A"], achievements_count=5)])
+    assert games[0]["trophies_unlocked"] == 1
 
 
 def test_no_logs_no_games():
-    assert build([]) == ([], 0)
+    assert build([]) == ([], {"rawg_count": 0, "fallback": 0, "excluded": 0})

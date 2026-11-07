@@ -79,25 +79,30 @@ async function saveGameToDB(rawgGame) {
     platforms,
     developers,
     publishers,
+    achievements_count,
   } = rawgGame;
 
   // Insert the game — ON CONFLICT DO NOTHING means if it's already there, skip
   const gameResult = await pool.query(
     `INSERT INTO games
        (rawg_id, slug, name, description, background_image,
-        released_at, rawg_rating, rawg_rating_count, playtime_hrs, esrb_rating, metacritic_score)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        released_at, rawg_rating, rawg_rating_count, playtime_hrs, esrb_rating, metacritic_score,
+        achievements_count)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
      ON CONFLICT (rawg_id) DO UPDATE
        SET name = EXCLUDED.name,
            description = COALESCE(EXCLUDED.description, games.description),
            rawg_rating = EXCLUDED.rawg_rating,
            metacritic_score = COALESCE(EXCLUDED.metacritic_score, games.metacritic_score),
+           achievements_count = COALESCE(EXCLUDED.achievements_count, games.achievements_count),
            updated_at = now()
      RETURNING id`,
     [
       rawg_id, slug, name, description_raw, background_image,
       released, rating, ratings_count, playtime,
       esrb_rating?.slug || null, metacritic || null,
+      // Player Archetypes' trophy_rate denominator; only list results lack it
+      Number.isInteger(achievements_count) && achievements_count >= 0 ? achievements_count : null,
     ]
   );
 
