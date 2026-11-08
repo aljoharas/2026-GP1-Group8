@@ -2,11 +2,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/sticky_tab_bar.dart';
+import '../../models/archetype.dart';
 import '../../providers/friends_provider.dart';
 import '../../providers/logged_games_provider.dart';
+import '../../services/archetype_service.dart';
 import '../../services/friend_service.dart';
 import '../../services/list_service.dart';
 import '../game/game_profile_screen.dart';
+import '../../widgets/archetype_card.dart';
 import 'list_detail_screen.dart';
 
 /// Another user's profile, opened from user search, the friends list, or a
@@ -67,6 +70,12 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   bool _isBusy = false;
   String? _error;
 
+  // Friends only: name and description, never scores or reasons
+  Archetype? _archetype;
+  bool _archetypeLoading = false;
+  String? _archetypeError;
+  bool get _canSeeArchetype => _friendStatus == 'friends' || _friendStatus == 'self';
+
   @override
   void initState() {
     super.initState();
@@ -108,6 +117,28 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         (results[2] as Map<String, dynamic>)['lists'] ?? [],
       );
       _isLoading = false;
+    });
+    _loadArchetype();
+  }
+
+  Future<void> _loadArchetype() async {
+    if (!_canSeeArchetype) {
+      setState(() => _archetype = null);
+      return;
+    }
+    setState(() {
+      _archetypeLoading = true;
+      _archetypeError = null;
+    });
+    final result = await ArchetypeService().getForUser(widget.userId);
+    if (!mounted) return;
+    setState(() {
+      _archetypeLoading = false;
+      if (result['success'] == true) {
+        _archetype = result['archetype'] as Archetype;
+      } else {
+        _archetypeError = result['message'] as String? ?? "Couldn't load the archetype.";
+      }
     });
   }
 
@@ -194,7 +225,10 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     // The status the button now shows came from an optimistic guess about what
     // the server did; re-reading it keeps the two in step.
     final fresh = await _service.getStatus(widget.userId);
-    if (mounted) setState(() => _friendStatus = fresh);
+    if (!mounted) return;
+    final wasFriend = _canSeeArchetype;
+    setState(() => _friendStatus = fresh);
+    if (wasFriend != _canSeeArchetype) _loadArchetype();
   }
 
   Future<bool?> _confirmUnfriend() {
@@ -544,6 +578,20 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     return ListView(
       padding: const EdgeInsets.only(top: 8, bottom: 32),
       children: [
+        if (_canSeeArchetype) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
+            child: ArchetypeCard(
+              archetype: _archetype,
+              loading: _archetypeLoading,
+              error: _archetypeError,
+              onRetry: _loadArchetype,
+              friendView: true,
+              username: username,
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         _sectionHeader(
           'Currently Playing',
           onSeeAll: playing.isEmpty

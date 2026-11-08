@@ -5,8 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/sticky_tab_bar.dart';
+import '../../models/archetype.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/game_provider.dart';
+import '../../services/archetype_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_service.dart';
 import '../../services/list_service.dart';
@@ -20,6 +22,7 @@ import 'list_editor_sheet.dart';
 import 'privacy_policy_screen.dart';
 import '../../providers/logged_games_provider.dart';
 import 'settings_screen.dart';
+import '../../widgets/archetype_card.dart';
 import '../../widgets/platinum_celebration.dart';
 import 'help_center_screen.dart';
 
@@ -59,6 +62,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   List<Map<String, dynamic>> _lists = [];
   bool _listsLoading = true;
 
+  Archetype? _archetype;
+  bool _archetypeLoading = true;
+  String? _archetypeError;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +75,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _loadFavorites();
       _loadFriendsCount();
       _loadLists();
+      _loadArchetype();
+    });
+  }
+
+  Future<void> _loadArchetype() async {
+    setState(() {
+      _archetypeLoading = true;
+      _archetypeError = null;
+    });
+    final result = await ArchetypeService().getMine();
+    if (!mounted) return;
+    setState(() {
+      _archetypeLoading = false;
+      if (result['success'] == true) {
+        _archetype = result['archetype'] as Archetype;
+      } else {
+        _archetypeError = result['message'] as String? ?? "Couldn't load the archetype.";
+      }
     });
   }
 
@@ -760,6 +785,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     await Future.wait([
       context.read<LoggedGamesProvider>().loadFromBackend(),
       _loadFavorites(),
+      _loadArchetype(),
     ]);
   }
 
@@ -925,6 +951,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return ListView(
       padding: const EdgeInsets.only(top: 8, bottom: 90),
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
+          child: ArchetypeCard(
+            archetype: _archetype,
+            loading: _archetypeLoading,
+            error: _archetypeError,
+            onRetry: _loadArchetype,
+          ),
+        ),
+        const SizedBox(height: 24),
         _sectionHeader('Currently Playing', 'See All', onAction: playing.isEmpty ? null : () {
           Navigator.push(context, MaterialPageRoute(
             builder: (_) => _MyGamesAllScreen(
