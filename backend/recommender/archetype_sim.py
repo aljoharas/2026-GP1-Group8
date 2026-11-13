@@ -225,13 +225,24 @@ def _simulate(sources: list[dict], weight: float, rng: np.random.Generator, cali
     return games
 
 
-def generate_players(calibration: dict, n_per_persona: int = 100, mix_share: float = 0.25, seed: int = 42) -> list[dict]:
+def generate_players(calibration: dict, n_per_persona: int = 100, mix_share: float = 0.25, seed: int = 42,
+                     version: int = 1, catalogue=None, rules: dict | None = None) -> list[dict]:
     """Simulated players: n_per_persona pure players per persona, plus mixed
     players so that mix_share of the whole population is mixed.
 
     Returns [{"player_id", "persona", "games"}]; persona is a PERSONAS name or
     "mixed:A+B"; games is compute_features' input. Same seed → same output.
+
+    version=1 (default) is the generator model v1.0.0 was trained on, unchanged.
+    version=2 is archetype_sim_v2 (real catalogue games, dependent features) and
+    needs catalogue (archetype_catalogue.load_catalogue); rules defaults to
+    archetype_sim_v2.RULES.
     """
+    if version == 2:
+        import archetype_sim_v2  # imports this module, so not at the top
+        return archetype_sim_v2.generate_players(calibration, catalogue, n_per_persona, mix_share, seed, rules)
+    if version != 1:
+        raise ValueError(f"unknown generator version {version}")
     rng = np.random.default_rng(seed)
     n_pure = n_per_persona * len(PERSONA_NAMES)
     n_mixed = int(round(n_pure * mix_share / (1 - mix_share)))
