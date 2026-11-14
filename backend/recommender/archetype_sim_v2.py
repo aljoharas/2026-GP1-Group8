@@ -46,6 +46,16 @@ RULES = {
                   "from a real one; common games are drawn more often.",
         "source": "Steam Store Games (Kaggle, SteamSpy 2019) + Steam 200k player counts",
     },
+    "game_hours": {
+        "on": True,
+        "min_players": 20,      # archetype_catalogue.GAME_HOURS_MIN_PLAYERS
+        "cap_quantile": 0.99,   # archetype_catalogue.GAME_HOURS_CAP_QUANTILE
+        "reason": "Hours depend on the game's length: a game with >= 20 Steam 200k players takes "
+                  "its hours from its own Steam 200k distribution at the persona's quantile u "
+                  "(capped at its own 99th pct), else from the global one. Drawing hours "
+                  "independently of the game made rule 1 inconsistent (3h on a 40h RPG).",
+        "source": "Steam 200k per-game playtime",
+    },
     "rule1_finish_needs_hours": {
         "on": True,
         "r_low": _R_LOW, "r_high": _R_HIGH, "edge": _EDGE,
@@ -57,11 +67,14 @@ RULES = {
     "rule2_trophies_follow_hours": {
         "on": True,
         "extra_ratio_E": 2.0,
-        "reason": "Trophies accrue evenly over the hours a full list takes, L * (1 + E); the part "
-                  "after the main story (r > 1) only counts once the game is completed. Full set "
-                  "only when completed and r >= 1 + E. Scaled by the per-game trophy Beta draw.",
-        "source": "Bailey et al.: +8.6h after the main story for shorter games, +23.6h for "
-                  "full-price ones, about 1.7-2.25x the main story -> E = 2",
+        "story_share_M": 0.6,
+        "reason": "Trophies rise with hours to a share M of the list by the end of the main story "
+                  "(r = 1); the remaining 1 - M rises over the extra E x length hours, reachable "
+                  "only on completed games. Full set only when completed and r >= 1 + E. Scaled "
+                  "by the per-game trophy Beta draw.",
+        "source": "E: Bailey et al.: +8.6h after the main story for shorter games, +23.6h for "
+                  "full-price ones, about 1.7-2.25x the main story -> E = 2. M = 0.6 is a design "
+                  "parameter, to be checked against survey trophy rates.",
     },
     "rule3_multiplayer_only_no_ending": {
         "on": True,
@@ -115,13 +128,28 @@ def finish_factor(r: float) -> float:
     return _sigmoid((math.log(r) - math.log(R_MID)) / R_SCALE)
 
 
+def trophy_progress(r: float, completed: bool, m: float, e: float) -> float:
+    """Rule 2: the share of the list a player who goes for every trophy reaches.
+    Rises linearly to m at r = 1 (end of the main story); the remaining 1 - m rises
+    linearly over 1 < r <= 1 + e, only when completed. 1.0 only when completed and
+    r >= 1 + e.
+    """
+    r = max(r, 0.0)
+    if r <= 1 or not completed:
+        return m * min(r, 1.0)
+    return m + (1 - m) * min((r - 1) / e, 1.0)
+
+
 # --- Catalogue pools ------------------------------------------------------------
 
 class Catalogue:
     """Fast weighted draws from the catalogue by (genre, online)."""
 
-    def __init__(self, cat: pd.DataFrame):
+    def __init__(self, cat: pd.DataFrame, game_hours: dict | None = None):
+        """game_hours: archetype_catalogue.game_hours (appid -> sorted hours); None = every
+        game uses the global distribution."""
         self.df = cat.reset_index(drop=True)
+        self.game_hours = game_hours or {}
         self.weight = self.df["steam200k_players"].to_numpy(dtype=float)
         self.online = self.df["is_online"].to_numpy(dtype=bool)
         self.genre_sets = [set(g) for g in self.df["genre_list"]]
@@ -173,12 +201,6 @@ def _game(params: dict, player: dict, rng, calibration, catalogue: Catalogue, ow
     t1, t2 = rng.beta(*p["trophy_beta"]), rng.beta(*p["trophy_beta"])
     hunt_floor = rng.beta(*r5["floor_beta"])
 
-    # Hours: v1's quantile draw, shifted by engagement and clipped to the persona range
-    low, high = p["top_game_quantiles"] if top_game else p["hours_quantiles"]
-    u = low + (high - low) * u_hours
-    u = min(max(u + r4["hours_quantile_shift"] * z, low), high)
-    hours = float(np.quantile(calibration["hours"], u))
-
     # A: a real game, from the persona's genre rule and P(online)
     genre = first_fav if u_fav < p["favourite_share"] else first_any
     want_online = bool(u_online < params["online"])
@@ -186,6 +208,15 @@ def _game(params: dict, player: dict, rng, calibration, catalogue: Catalogue, ow
     owned[row] = True
     log["fallback"][level] += 1
     g = catalogue.records[row]
+
+    # Hours: v1's quantile draw, shifted by engagement and clipped to the persona range,
+    # read off the game's own Steam 200k distribution when it has one
+    low, high = p["top_game_quantiles"] if top_game else p["hours_quantiles"]
+    u = low + (high - low) * u_hours
+    u = min(max(u + r4["hours_quantile_shift"] * z, low), high)
+    own = catalogue.game_hours.get(int(g["appid"])) if rules["game_hours"]["on"] else None
+    hours = float(np.quantile(own if own is not None else calibration["hours"], u))
+    log["hours_source"]["game" if own is not None else "global"] += 1
     length = float(g["typical_length_h"])
     r = hours / length
     mp_only = bool(g["is_multiplayer_only"])
@@ -210,8 +241,7 @@ def _game(params: dict, player: dict, rng, calibration, catalogue: Catalogue, ow
         r2 = rules["rule2_trophies_follow_hours"]
         if r2["on"]:
             e = r2["extra_ratio_E"]
-            progress = min(r, 1 + e) if completed else min(r, 1.0)
-            fraction = t1 * progress / (1 + e)
+            fraction = t1 * trophy_progress(r, completed, r2["story_share_M"], e)
             full_allowed = completed and r >= 1 + e
         else:  # v1: one Beta draw, the larger of two when completed; no gate
             fraction = max(t1, t2) if completed else t1
@@ -270,8 +300,9 @@ def _simulate(sources, weight, rng, calibration, catalogue, rules, log):
 def generate_players(calibration: dict, catalogue, n_per_persona: int = 100, mix_share: float = 0.25,
                      seed: int = 42, rules: dict | None = None, log: dict | None = None) -> list[dict]:
     """v2 players, same shape and population layout as archetype_sim.generate_players,
-    plus "z" and "hunter" per player. catalogue is archetype_catalogue.load_catalogue's
-    DataFrame (or a Catalogue). log, when given, collects fallback counts.
+    plus "z" and "hunter" per player. catalogue is a Catalogue (with game_hours), or
+    archetype_catalogue.load_catalogue's DataFrame (then every game uses the global hours).
+    log, when given, collects fallback and hours-source counts.
     """
     rules = RULES if rules is None else rules
     if not rules["real_games"]["on"]:
@@ -279,6 +310,7 @@ def generate_players(calibration: dict, catalogue, n_per_persona: int = 100, mix
     cat = catalogue if isinstance(catalogue, Catalogue) else Catalogue(catalogue)
     log = {} if log is None else log
     log.setdefault("fallback", [0, 0, 0, 0])
+    log.setdefault("hours_source", {"game": 0, "global": 0})
 
     rng = np.random.default_rng(seed)
     n_pure = n_per_persona * len(PERSONA_NAMES)

@@ -44,22 +44,25 @@ NAME_ORDER = ["Completionist", "Explorer", "Devotee", "The Main", "Competitor", 
 
 # --- Inputs -----------------------------------------------------------------------
 
-def load_inputs(steam200k_csv, store_csv=None, catalogue_csv=None):
-    """(plays, calibration, catalogue DataFrame, full catalogue, matches). Builds the
-    catalogue from steam.csv when store_csv is given, else reads catalogue_csv."""
+def load_inputs(steam200k_csv, catalogue_csv, store_csv=None):
+    """(plays, calibration, Catalogue, full catalogue, matches). Builds the catalogue
+    from steam.csv when store_csv is given and writes it (plus the Steam 200k title
+    matches, *_matches.csv) to catalogue_csv; otherwise reads both back."""
     plays = sim.load_steam_plays(str(steam200k_csv))
     cal = sim.steam_calibration(plays)
-    matches = None
+    catalogue_csv = Path(catalogue_csv)
+    matches_csv = catalogue_csv.with_name(catalogue_csv.stem + "_matches.csv")
     if store_csv is not None:
         full, matches = ac.build_catalogue(pd.read_csv(store_csv), plays)
-        if catalogue_csv is not None:
-            Path(catalogue_csv).parent.mkdir(parents=True, exist_ok=True)
-            full.to_csv(catalogue_csv, index=False)
+        catalogue_csv.parent.mkdir(parents=True, exist_ok=True)
+        full.to_csv(catalogue_csv, index=False)
+        matches.to_csv(matches_csv, index=False)
     else:
-        full = pd.read_csv(catalogue_csv)
+        full, matches = pd.read_csv(catalogue_csv), pd.read_csv(matches_csv)
     usable = full[full["typical_length_h"].notna() & (full["steam200k_players"] > 0)].copy()
     usable["genre_list"] = usable["genres"].str.split(";")
-    return plays, cal, usable.reset_index(drop=True), full, matches
+    hours = ac.game_hours(plays, matches)
+    return plays, cal, sim2.Catalogue(usable.reset_index(drop=True), hours), full, matches
 
 
 def players_v1(cal, seed=SEED):

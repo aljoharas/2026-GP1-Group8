@@ -1,0 +1,49 @@
+v1 archetype,feature,v1,v2 cluster,v2,Δ,Δ (v1 SD)
+Completionist,completion_rate,0.779,4,0.5504,-0.2286,-0.8389
+Completionist,trophy_rate,0.6333,4,0.3871,-0.2461,-1.5726
+Completionist,genre_diversity,0.7988,4,0.8148,0.016,0.0591
+Completionist,log_hours_per_game,2.0287,4,2.2919,0.2632,0.3738
+Completionist,top_game_share,0.404,4,0.4838,0.0798,0.2726
+Completionist,log_activity,2.4391,4,2.6531,0.214,0.2059
+Completionist,online_share,0.2711,4,0.3226,0.0515,0.1414
+Completionist,log_games_played,2.1374,4,1.9685,-0.1689,-0.3544
+Explorer,completion_rate,0.3517,6,0.1412,-0.2105,-0.7723
+Explorer,trophy_rate,0.2822,6,0.1161,-0.1661,-1.0613
+Explorer,genre_diversity,0.9711,6,0.9473,-0.0238,-0.0875
+Explorer,log_hours_per_game,1.1299,6,1.2589,0.129,0.1832
+Explorer,top_game_share,0.1796,6,0.2497,0.0701,0.2393
+Explorer,log_activity,1.9879,6,2.408,0.4201,0.4044
+Explorer,online_share,0.3231,6,0.3796,0.0565,0.1552
+Explorer,log_games_played,2.939,6,3.0315,0.0925,0.1941
+Devotee,completion_rate,0.4115,2,0.138,-0.2735,-1.0036
+Devotee,trophy_rate,0.2945,2,0.1092,-0.1853,-1.1842
+Devotee,genre_diversity,0.331,2,0.5028,0.1718,0.6327
+Devotee,log_hours_per_game,1.7555,2,1.7109,-0.0446,-0.0634
+Devotee,top_game_share,0.9421,2,0.9028,-0.0393,-0.1342
+Devotee,log_activity,3.8107,2,3.5377,-0.273,-0.2628
+Devotee,online_share,0.022,2,0.0375,0.0155,0.0426
+Devotee,log_games_played,1.9795,2,1.9379,-0.0416,-0.0873
+The Main,completion_rate,0.4494,1,0.0933,-0.3561,-1.3068
+The Main,trophy_rate,0.2897,1,0.0957,-0.1939,-1.2392
+The Main,genre_diversity,0.3147,1,0.524,0.2093,0.7708
+The Main,log_hours_per_game,1.7056,1,1.7483,0.0427,0.0607
+The Main,top_game_share,0.9209,1,0.9001,-0.0208,-0.0711
+The Main,log_activity,3.7336,1,3.6354,-0.0982,-0.0945
+The Main,online_share,0.9611,1,0.9542,-0.0069,-0.019
+The Main,log_games_played,1.9996,1,1.9112,-0.0884,-0.1856
+Competitor,completion_rate,0.4635,3,0.3235,-0.14,-0.5137
+Competitor,trophy_rate,0.3026,3,0.2016,-0.1009,-0.645
+Competitor,genre_diversity,0.797,3,0.8322,0.0352,0.1296
+Competitor,log_hours_per_game,2.6495,3,2.5478,-0.1017,-0.1444
+Competitor,top_game_share,0.3866,3,0.43,0.0434,0.1484
+Competitor,log_activity,3.0565,3,3.3087,0.2522,0.2427
+Competitor,online_share,0.788,3,0.8245,0.0365,0.1002
+Competitor,log_games_played,2.1251,3,2.2536,0.1286,0.2699
+Casual,completion_rate,0.3667,0,0.0853,-0.2814,-1.0327
+Casual,trophy_rate,0.2879,0,0.0683,-0.2196,-1.403
+Casual,genre_diversity,0.7847,0,0.8087,0.024,0.0884
+Casual,log_hours_per_game,0.9365,0,1.0729,0.1364,0.1937
+Casual,top_game_share,0.3663,0,0.4557,0.0894,0.3055
+Casual,log_activity,1.4226,0,1.5028,0.0802,0.0772
+Casual,online_share,0.3245,0,0.3318,0.0074,0.0203
+Casual,log_games_played,1.8547,0,1.9152,0.0605,0.1269

@@ -14,7 +14,9 @@ Per game:
     achievement_count    size of the Steam achievement list (0 = no list)
     typical_length_h     SteamSpy median_playtime in hours, clipped to LENGTH_CLIP;
                          NaN when median_playtime is 0 (no data)
-    steam200k_players    Steam 200k users with play hours > 0 on the title (0 = not matched)
+    steam200k_players    distinct Steam 200k users with play hours > 0 on the game (0 = not matched)
+
+game_hours() gives each game with enough players its own hours distribution.
 """
 
 from __future__ import annotations
@@ -30,6 +32,8 @@ from archetype_sim import GENRES
 ONLINE_CATEGORIES = {"Multi-player", "Online Multi-Player", "Online PvP", "MMO", "Online Co-op"}
 SINGLE_PLAYER = "Single-player"
 LENGTH_CLIP = (1.0, 150.0)  # hours
+GAME_HOURS_MIN_PLAYERS = 20     # a game's own hours distribution needs this many Steam 200k players
+GAME_HOURS_CAP_QUANTILE = 0.99  # per-game cap, as the global calibration's (idle clients)
 
 # Steam store genre -> RAWG genre. Steam genres with no RAWG equivalent are dropped:
 # business models (Early Access, Free to Play), content descriptors (Violent, Gore,
@@ -89,12 +93,36 @@ def match_steam200k(store: pd.DataFrame, plays: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def plays_by_appid(plays: pd.DataFrame, matches: pd.DataFrame) -> pd.DataFrame:
+    """Steam 200k plays of matched titles, summed per (user, appid): titles that are
+    the same store product ("X" and "X - Multiplayer") count once per user.
+    Columns: user_id, appid, hours.
+    """
+    m = matches.dropna(subset=["appid"])
+    joined = plays.merge(m[["game", "appid"]], on="game")
+    joined["appid"] = joined["appid"].astype(int)
+    return joined.groupby(["user_id", "appid"], as_index=False)["hours"].sum()
+
+
+def game_hours(plays: pd.DataFrame, matches: pd.DataFrame, min_players: int = GAME_HOURS_MIN_PLAYERS,
+               cap_quantile: float = GAME_HOURS_CAP_QUANTILE) -> dict[int, np.ndarray]:
+    """appid -> sorted per-player hours, capped at that game's own cap_quantile,
+    for games with at least min_players Steam 200k players. Other games use the
+    global distribution (archetype_sim.steam_calibration).
+    """
+    out = {}
+    for appid, h in plays_by_appid(plays, matches).groupby("appid")["hours"]:
+        if len(h) >= min_players:
+            out[int(appid)] = np.sort(h.clip(upper=float(h.quantile(cap_quantile))).to_numpy(dtype=float))
+    return out
+
+
 def build_catalogue(store: pd.DataFrame, plays: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """(catalogue, steam200k_matches). Games with no RAWG genre (software, or only
     content-descriptor genres) are dropped: the generator draws games by genre.
     """
     matches = match_steam200k(store, plays)
-    pop = matches.dropna(subset=["appid"]).groupby("appid")["players"].sum()
+    pop = plays_by_appid(plays, matches).groupby("appid")["user_id"].nunique()
 
     cats = store["categories"].map(lambda c: set(_split(c)))
     is_online = cats.map(lambda c: bool(c & ONLINE_CATEGORIES))

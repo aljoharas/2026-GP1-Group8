@@ -1,0 +1,9 @@
+check,count,out of,note
+completed with r < 0.3 (all games),2,2111,
+  of which multiplayer-only (rule 3's flat 2%),2,244,
+  of which not multiplayer-only (rule 1),0,1867,
+100% trophies on an unfinished game,0,3724,
+"100% trophies, hunters' unfinished games",0,410,
+100% trophies with r < 1 + E (3),0,4011,
+completed multiplayer-only games,14,664,rate 2.11% vs 2% (binomial ±2 SE: 0.91%–3.09%)
+full sets (100%) overall,2,4628,
