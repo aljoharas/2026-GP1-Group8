@@ -6,6 +6,9 @@ Users with >= 5 manual-log games. Output (anonymised, no ids): notebooks/sim_v2/
 
 Run from the repo root with the recommender venv:
     backend/recommender/.venv/bin/python notebooks/sim_v2_real_users.py
+Another candidate model (cluster names must end in the cluster id):
+    ... sim_v2_real_users.py MODEL_JSON RESULTS_JSON NAME_KEY OUT_CSV
+where RESULTS_JSON[NAME_KEY] maps cluster id -> matched v1 archetype.
 """
 import json
 import sys
@@ -20,10 +23,15 @@ import archetypes  # noqa: E402
 import wrapped  # noqa: E402
 from db import get_connection  # noqa: E402
 
-V1 = archetypes.load_model(REPO / "models" / "archetype_model.json")
-V2 = archetypes.load_model(REPO / "models" / "archetype_model_v2.json")
 RESULTS = REPO / "notebooks" / "sim_v2"
-match = json.loads((RESULTS / "results.json").read_text())["v1_vs_v2"]["v2_name_by_match"]
+if len(sys.argv) == 5:
+    MODEL_PATH, RESULTS_JSON, NAME_KEY, OUT_CSV = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3], Path(sys.argv[4])
+    match = json.loads(RESULTS_JSON.read_text())[NAME_KEY]
+else:
+    MODEL_PATH, OUT_CSV = REPO / "models" / "archetype_model_v2.json", RESULTS / "real_users.csv"
+    match = json.loads((RESULTS / "results.json").read_text())["v1_vs_v2"]["v2_name_by_match"]
+V1 = archetypes.load_model(REPO / "models" / "archetype_model.json")
+V2 = archetypes.load_model(MODEL_PATH)
 
 
 def main():
@@ -59,7 +67,7 @@ def main():
     finally:
         conn.close()
     out = pd.DataFrame(rows)
-    out.to_csv(RESULTS / "real_users.csv", index=False)
+    out.to_csv(OUT_CSV, index=False)
     print(out.to_string(index=False))
 
 

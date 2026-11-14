@@ -1,0 +1,6 @@
+user,games,v1 archetype,v1 %,v2 cluster,v2 cluster ≈ v1,v2 %,changed
+user 1,12,Competitor,48,v2-core k6 cluster 1,Competitor,35,False
+user 2,12,Completionist,49,v2-core k6 cluster 5,Completionist,75,False
+user 3,9,Competitor,57,v2-core k6 cluster 1,Competitor,44,False
+user 4,10,Competitor,64,v2-core k6 cluster 1,Competitor,48,False
+user 5,5,Completionist,64,v2-core k6 cluster 5,Completionist,81,False

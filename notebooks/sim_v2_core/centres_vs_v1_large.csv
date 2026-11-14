@@ -1,0 +1,25 @@
+reference,v2-core cluster,feature,v1 large,v2-core,Δ,Δ (ref SD)
+Competitor,1,completion_rate,0.4132,0.4226,0.0094,0.0348
+Competitor,1,trophy_rate,0.2914,0.2723,-0.0191,-0.1221
+Competitor,1,genre_diversity,0.7821,0.8286,0.0465,0.1738
+Competitor,1,log_hours_per_game,2.597,2.3682,-0.2287,-0.3266
+Competitor,1,top_game_share,0.4099,0.4333,0.0234,0.0808
+Competitor,1,log_activity,3.0341,2.8874,-0.1468,-0.1429
+Competitor,1,online_share,0.8012,0.5417,-0.2595,-0.711
+Competitor,1,log_games_played,2.0831,2.1122,0.0291,0.0596
+Devotee,2,completion_rate,0.4497,0.1402,-0.3095,-1.1448
+Devotee,2,trophy_rate,0.2968,0.0962,-0.2006,-1.2793
+Devotee,2,genre_diversity,0.3271,0.536,0.2089,0.7805
+Devotee,2,log_hours_per_game,1.6958,1.7821,0.0863,0.1233
+Devotee,2,top_game_share,0.947,0.8742,-0.0729,-0.2516
+Devotee,2,log_activity,3.7025,3.4172,-0.2854,-0.2779
+Devotee,2,online_share,0.0193,0.4038,0.3845,1.0536
+Devotee,2,log_games_played,1.9303,1.9173,-0.013,-0.0266
+Casual,0,completion_rate,0.3481,0.0916,-0.2566,-0.949
+Casual,0,trophy_rate,0.2825,0.0761,-0.2063,-1.3158
+Casual,0,genre_diversity,0.7752,0.8628,0.0876,0.3274
+Casual,0,log_hours_per_game,0.9049,1.1375,0.2326,0.3321
+Casual,0,top_game_share,0.3708,0.3811,0.0103,0.0354
+Casual,0,log_activity,1.3189,1.8095,0.4906,0.4779
+Casual,0,online_share,0.3051,0.3605,0.0555,0.152
+Casual,0,log_games_played,1.839,2.2979,0.4588,0.9389
