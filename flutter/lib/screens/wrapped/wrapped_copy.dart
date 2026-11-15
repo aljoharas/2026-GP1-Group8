@@ -5,6 +5,11 @@
 import '../../models/wrapped.dart';
 import 'wrapped_card.dart';
 
+// --- Card 0: intro -----------------------------------------------------------
+
+const kIntroEyebrow = 'YOUR YEAR IN GAMES';
+const kIntroLine = "Here's how you played.";
+
 // --- Card 1: total hours -----------------------------------------------------
 
 const kTotalHoursEyebrow = 'TIME PLAYED';

@@ -11,6 +11,7 @@ import 'cards/friends_hours_card.dart';
 import 'cards/game_status_card.dart';
 import 'cards/games_played_card.dart';
 import 'cards/gaming_twin_card.dart';
+import 'cards/intro_card.dart';
 import 'cards/player_type_card.dart';
 import 'cards/rating_card.dart';
 import 'cards/top_games_card.dart';
@@ -24,6 +25,7 @@ List<Widget> buildWrappedCards(WrappedResponse data) {
   final topGames = data.topGames ?? const <WrappedGame>[];
   final topOnlineGames = data.topOnlineGames ?? const <WrappedGame>[];
   return [
+    IntroCard(year: data.year, covers: data.gamesPlayedCovers),
     if (data.totalHours case final hours?) TotalHoursCard(hours: hours, year: data.year),
     if (data.gamesPlayed case final count?) GamesPlayedCard(count: count, covers: data.gamesPlayedCovers),
     if (topGames.isNotEmpty)
@@ -152,6 +154,8 @@ class _WrappedScreenState extends State<WrappedScreen> {
                 year: widget.data.year,
                 count: _cards.length,
                 current: _currentPage,
+                // The intro card already shows the title in full.
+                showWordmark: _currentPage != 0,
                 onClose: Navigator.canPop(context) ? () => Navigator.maybePop(context) : null,
               ),
             ),
@@ -167,9 +171,16 @@ class _StoryChrome extends StatelessWidget {
   final int year;
   final int count;
   final int current;
+  final bool showWordmark;
   final VoidCallback? onClose;
 
-  const _StoryChrome({required this.year, required this.count, required this.current, this.onClose});
+  const _StoryChrome({
+    required this.year,
+    required this.count,
+    required this.current,
+    this.showWordmark = true,
+    this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -206,9 +217,17 @@ class _StoryChrome extends StatelessWidget {
           Row(
             children: [
               const SizedBox(width: 4),
-              const Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.white),
-              const SizedBox(width: 8),
-              Text('$year ENDGAME', style: label),
+              AnimatedOpacity(
+                opacity: showWordmark ? 1 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text('$year ENDGAME', style: label),
+                  ],
+                ),
+              ),
               const Spacer(),
               if (onClose != null)
                 IconButton(
