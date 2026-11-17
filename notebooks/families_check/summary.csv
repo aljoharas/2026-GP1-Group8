@@ -1,0 +1,7 @@
+seed,first 3 merges = families,(a) all nearest = partner,(a) fails,(b) all top second = partner,(b) fails,close calls same-family,(c) > 60%,confirmed
+42,True,True,-,True,-,0.398,False,False
+0,True,True,-,True,-,0.405,False,False
+1,True,True,-,False,The Main,0.363,False,False
+2,True,False,Competitor,False,"Competitor, The Main",0.413,False,False
+3,True,True,-,True,-,0.332,False,False
+4,True,True,-,True,-,0.375,False,False
