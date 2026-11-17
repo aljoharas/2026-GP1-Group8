@@ -1,4 +1,128 @@
 {
+  "plausibility": [
+    {
+      "check": "completed with r < 0.3 (all games)",
+      "count": 29,
+      "out of": 10250,
+      "note": ""
+    },
+    {
+      "check": "  of which multiplayer-only (rule 3's flat 2%)",
+      "count": 27,
+      "out of": 1155,
+      "note": ""
+    },
+    {
+      "check": "  of which not multiplayer-only (rule 1)",
+      "count": 2,
+      "out of": 9095,
+      "note": ""
+    },
+    {
+      "check": "100% trophies on an unfinished game",
+      "count": 0,
+      "out of": 18180,
+      "note": ""
+    },
+    {
+      "check": "100% trophies, hunters' unfinished games",
+      "count": 0,
+      "out of": 0,
+      "note": ""
+    },
+    {
+      "check": "100% trophies with r < 1 + E (3)",
+      "count": 0,
+      "out of": 19472,
+      "note": ""
+    },
+    {
+      "check": "completed multiplayer-only games",
+      "count": 77,
+      "out of": 3268,
+      "note": "rate 2.36% vs 2% (binomial \u00b12 SE: 1.51%\u20132.49%)"
+    },
+    {
+      "check": "full sets (100%) overall",
+      "count": 5,
+      "out of": 22643,
+      "note": ""
+    }
+  ],
+  "expected_signs": {
+    "log_hours_per_game ~ trophy_rate": 0.6425564639587674,
+    "log_activity ~ trophy_rate": 0.3108542272474207,
+    "completion_rate ~ trophy_rate": 0.6587677261073048,
+    "online_share ~ completion_rate": 0.01835849120664208
+  },
+  "online_completion": {
+    "pooled": 0.01835849120664208,
+    "partial_given_hours": -0.1855788674904431,
+    "within_persona": {
+      "casual": -0.013791858537892991,
+      "competitor": -0.18565215713477293,
+      "completionist": -0.1643729369404722,
+      "devotee": -0.16574131308692808,
+      "explorer": -0.030580483156728958,
+      "mixed": -0.05007011927296719
+    },
+    "completed_by_game_kind": {
+      "multiplayer-only": {
+        "size": 3268,
+        "mean": 0.023561811505507957
+      },
+      "offline": {
+        "size": 20125,
+        "mean": 0.21724223602484471
+      },
+      "online with single-player": {
+        "size": 9495,
+        "mean": 0.2209583991574513
+      }
+    }
+  },
+  "persona_means": {
+    "casual": {
+      "completion_rate": 0.051616666666666665,
+      "trophy_rate": 0.05992323723664082
+    },
+    "competitor": {
+      "completion_rate": 0.28522340992340994,
+      "trophy_rate": 0.15419189509432027
+    },
+    "completionist": {
+      "completion_rate": 0.4846205960705961,
+      "trophy_rate": 0.3556035302396734
+    },
+    "devotee": {
+      "completion_rate": 0.13327857142857144,
+      "trophy_rate": 0.08096185812700128
+    },
+    "explorer": {
+      "completion_rate": 0.09820223867735163,
+      "trophy_rate": 0.07467634040355624
+    },
+    "mixed": {
+      "completion_rate": 0.21099778787447124,
+      "trophy_rate": 0.14349652769857493
+    }
+  },
+  "draws": {
+    "fallback": [
+      30692,
+      2023,
+      173,
+      0
+    ],
+    "hours_source": {
+      "game": 18178,
+      "global": 14710
+    }
+  },
+  "imputation": {
+    "trophy_rate": 0.1446310556660707,
+    "genre_diversity": 0.7741382420097214
+  },
   "players": 3333,
   "silhouette": 0.26012659903628815,
   "stability": {

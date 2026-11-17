@@ -132,7 +132,9 @@ def devotee_games():
 
 def test_response_shape(model):
     body = archetypes.archetype_response(devotee_games(), model)
-    assert set(body) == {"archetype", "description", "scores", "reasons", "games_played", "model_version"}
+    assert set(body) == {"archetype", "description", "family", "blend", "scores", "reasons", "games_played",
+                         "model_version"}
+    assert body["family"] == next(c["family"] for c in model["clusters"] if c["name"] == body["archetype"])
     names = [c["name"] for c in model["clusters"]]
     assert sorted(s["archetype"] for s in body["scores"]) == sorted(names)
     assert sum(s["percent"] for s in body["scores"]) == 100
@@ -187,3 +189,64 @@ def test_hours_sentences_round_sensibly():
         "A typical game gets about 4.5 hours from you"
     assert archetypes.reason_sentence("log_activity", True, games, features) == \
         "You average about 37 hours in each month you play"
+
+
+# --- family and blend ----------------------------------------------------------------
+
+def _clusters(*pairs):
+    return [{"name": n, "family": f} for n, f in pairs]
+
+
+def test_blend_when_top_two_are_close_and_in_the_same_family():
+    clusters = _clusters(("Competitor", "Committed"), ("Completionist", "Committed"), ("Casual", "Light"))
+    assert archetypes.blend_of(clusters, [0, 1, 2], [45, 35, 20]) == {"primary": "Competitor", "secondary": "Completionist"}
+    assert archetypes.blend_of(clusters, [1, 0, 2], [40, 41, 19]) == {"primary": "Completionist", "secondary": "Competitor"}
+
+
+def test_no_blend_when_the_gap_is_over_ten_points():
+    clusters = _clusters(("Competitor", "Committed"), ("Completionist", "Committed"), ("Casual", "Light"))
+    assert archetypes.blend_of(clusters, [0, 1, 2], [46, 35, 19]) is None
+
+
+def test_no_blend_across_families_even_when_close():
+    clusters = _clusters(("Competitor", "Committed"), ("Devotee", "One-game"), ("Casual", "Light"))
+    assert archetypes.blend_of(clusters, [0, 1, 2], [40, 39, 21]) is None
+
+
+def test_no_blend_or_family_for_a_model_without_families():
+    clusters = [{"name": "A"}, {"name": "B"}]
+    assert archetypes.blend_of(clusters, [0, 1], [50, 50]) is None
+
+
+def _between(model, a, b, monkeypatch):
+    """Patch compute_features so the user sits exactly between centres a and b."""
+    centres = {c["name"]: c["centre"] for c in model["clusters"]}
+    mid = {f: (centres[a][f] + centres[b][f]) / 2 for f in FEATURE_NAMES}
+    monkeypatch.setattr(archetypes, "compute_features", lambda games: dict(mid))
+    return archetypes.archetype_response([game(10) for _ in range(5)], model)
+
+
+def test_response_blends_competitor_and_completionist(model, monkeypatch):
+    body = _between(model, "Competitor", "Completionist", monkeypatch)
+    top2 = [s["archetype"] for s in body["scores"][:2]]
+    assert set(top2) == {"Competitor", "Completionist"}
+    assert body["scores"][0]["percent"] - body["scores"][1]["percent"] <= archetypes.BLEND_MAX_GAP
+    assert body["family"] == "Committed"
+    assert body["blend"] == {"primary": top2[0], "secondary": top2[1]}
+
+
+def test_response_has_no_blend_across_families(model, monkeypatch):
+    body = _between(model, "Competitor", "The Main", monkeypatch)
+    top2 = [s["archetype"] for s in body["scores"][:2]]
+    assert set(top2) == {"Competitor", "The Main"}
+    assert body["scores"][0]["percent"] - body["scores"][1]["percent"] <= archetypes.BLEND_MAX_GAP
+    assert body["blend"] is None
+
+
+def test_rollback_to_v1_is_a_file_swap(tmp_path):
+    """The v1 file loads unchanged; family and blend are then null, the rest as before."""
+    v1 = archetypes.load_model(archetypes.MODEL_PATH.with_name("archetype_model_v1.json"))
+    assert v1["version"] == "1.0.0"
+    body = archetypes.archetype_response(devotee_games(), v1)
+    assert body["archetype"] == "Devotee" and body["model_version"] == "1.0.0"
+    assert body["family"] is None and body["blend"] is None

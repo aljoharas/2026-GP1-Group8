@@ -30,7 +30,8 @@ import archetype_sim_v2 as sim2  # noqa: E402
 from archetype_features import FEATURE_NAMES, IMPUTED_FEATURES, compute_features  # noqa: E402
 
 FN = FEATURE_NAMES
-MODEL_V1 = json.loads((REPO / "models" / "archetype_model.json").read_text())
+# v1.0.0, kept as the rollback file since 2.0.0 became the served archetype_model.json
+MODEL_V1 = json.loads((REPO / "models" / "archetype_model_v1.json").read_text())
 SEED = MODEL_V1["seed"]
 N_PER_PERSONA = MODEL_V1["training"]["n_per_persona"]
 MIX_SHARE = MODEL_V1["training"]["mix_share"]

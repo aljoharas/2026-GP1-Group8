@@ -30,7 +30,7 @@ if len(sys.argv) == 5:
 else:
     MODEL_PATH, OUT_CSV = REPO / "models" / "archetype_model_v2.json", RESULTS / "real_users.csv"
     match = json.loads((RESULTS / "results.json").read_text())["v1_vs_v2"]["v2_name_by_match"]
-V1 = archetypes.load_model(REPO / "models" / "archetype_model.json")
+V1 = archetypes.load_model(REPO / "models" / "archetype_model_v1.json")
 V2 = archetypes.load_model(MODEL_PATH)
 
 

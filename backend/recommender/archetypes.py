@@ -37,6 +37,9 @@ MODEL_PATH = Path(os.environ.get(
     Path(__file__).resolve().parents[2] / "models" / "archetype_model.json",
 ))
 REASONS_LIMIT = 2
+# A blend is shown when the top two archetypes are this close (percentage points)
+# and in the same family, e.g. "Competitor, with a Completionist streak"
+BLEND_MAX_GAP = 10
 
 # Where a game's trophy_rate denominator came from (build_games' counts)
 TROPHY_RAWG = "rawg_count"
@@ -169,6 +172,9 @@ def load_model(path: Path = MODEL_PATH) -> dict:
     temperature = model.get("scoring", {}).get("temperature")
     if not isinstance(temperature, (int, float)) or temperature <= 0:
         raise ValueError("model JSON has no scoring.temperature > 0")
+    families = [c.get("family") for c in model["clusters"]]
+    if any(f is not None for f in families) and not all(isinstance(f, str) and f.strip() for f in families):
+        raise ValueError("model JSON gives a family to some clusters but not all")
     model["_mean"] = np.array(model["scaler"]["mean"], dtype=float)
     model["_scale"] = np.array(model["scaler"]["scale"], dtype=float)
     model["_centres"] = np.array([c["centre_scaled"] for c in model["clusters"]], dtype=float)
@@ -269,8 +275,25 @@ def top_reasons(z: np.ndarray, centre: np.ndarray, features: dict, games: list[d
     return [reason_sentence(f, z[FEATURE_NAMES.index(f)] >= 0, games, features) for f in chosen]
 
 
+def blend_of(clusters: list[dict], order: list[int], percents: list[int]) -> dict | None:
+    """{"primary", "secondary"} when the top two archetypes are within BLEND_MAX_GAP
+    percentage points and in the same family, else None. Models without families
+    (v1.0.0) never blend.
+    """
+    if len(order) < 2:
+        return None
+    first, second = clusters[order[0]], clusters[order[1]]
+    family = first.get("family")
+    if family is None or second.get("family") != family:
+        return None
+    if percents[order[0]] - percents[order[1]] > BLEND_MAX_GAP:
+        return None
+    return {"primary": first["name"], "secondary": second["name"]}
+
+
 def archetype_response(games: list[dict], model: dict) -> dict:
-    """The /archetype body for one user's games (build_games)."""
+    """The /archetype body for one user's games (build_games). family is the top
+    archetype's family (None for a model without families); blend, see blend_of."""
     features = compute_features(games)
     if features is None:
         return {
@@ -289,6 +312,8 @@ def archetype_response(games: list[dict], model: dict) -> dict:
     return {
         "archetype": clusters[nearest]["name"],
         "description": clusters[nearest]["description"],
+        "family": clusters[nearest].get("family"),
+        "blend": blend_of(clusters, order, percents),
         "scores": [
             {"archetype": clusters[i]["name"], "description": clusters[i]["description"], "percent": percents[i]}
             for i in order

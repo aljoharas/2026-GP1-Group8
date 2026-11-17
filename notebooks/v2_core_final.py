@@ -38,12 +38,49 @@ CORE = L.sim2.rules_variant(rule5_trophy_hunters={"on": False})
 plays, cal, CAT, _, _ = L.load_inputs(L.REPO / "data" / "steam-200k.csv", L.REPO / "data" / "steam_catalogue.csv")
 
 
-def population(seed):
-    return L.population(L.sim2.generate_players(cal, CAT, N, L.MIX_SHARE, seed, CORE))
+WRITE_MODEL = "--write-model" in sys.argv   # write models/archetype_model.json (2.0.0, confirmed)
+CONFIRMED_DESCRIPTIONS = {   # confirmed by the team; the other five keep v1's text
+    "Completionist": "You see more of your games through than most players, and pick up trophies on the way.",
+}
+
+
+def population(seed, log=None):
+    return L.population(L.sim2.generate_players(cal, CAT, N, L.MIX_SHARE, seed, CORE, log))
 
 
 # --- 1. Final training --------------------------------------------------------------
-run = population(L.SEED)
+LOG = {}
+run = population(L.SEED, LOG)
+
+# Plausibility on the training population itself
+checks = L.plausibility(run["players"], CORE)
+checks.to_csv(OUT / "plausibility.csv", index=False)
+rho = L.spearman_table(run["raw"])
+from scipy.stats import spearmanr  # noqa: E402
+Rk = run["raw"][["online_share", "completion_rate", "log_hours_per_game"]].rank()
+
+
+def _resid(y, x):
+    A_ = np.c_[np.ones(len(x)), x]
+    return y - A_ @ np.linalg.lstsq(A_, y, rcond=None)[0]
+
+
+partial = float(np.corrcoef(_resid(Rk["online_share"], Rk["log_hours_per_game"]),
+                            _resid(Rk["completion_rate"], Rk["log_hours_per_game"]))[0, 1])
+grp = run["group"]
+within = {g: float(spearmanr(run["raw"].loc[i, "online_share"], run["raw"].loc[i, "completion_rate"]).correlation)
+          for g, i in run["raw"].groupby(grp).groups.items()}
+G = L.game_table(run["players"])
+kind = np.where(G["_mp_only"], "multiplayer-only", np.where(G["is_online"], "online with single-player", "offline"))
+by_kind = G.groupby(kind)["completed"].agg(["size", "mean"])
+signs = {f"{a} ~ {b}": float(rho.loc[a, b]) for a, b, _ in L.EXPECTED_SIGNS}
+persona_means = run["raw"].groupby(grp)[["completion_rate", "trophy_rate"]].mean()
+print(checks.to_string())
+print("expected signs:", {k: round(v, 3) for k, v in signs.items()}, "| partial online~completion | hours:", round(partial, 3))
+print("within persona:", {k: round(v, 3) for k, v in within.items()})
+print(by_kind.round(3).to_string())
+print(persona_means.round(3).to_string())
+print("draws:", LOG)
 model = KMeans(n_clusters=K, n_init=L.N_INIT, random_state=L.SEED).fit(run["Z"])
 run.update(k=K, model=model)
 sil = float(silhouette_score(run["Z"], model.labels_))
@@ -126,7 +163,34 @@ temp_tab = pd.DataFrame(temp).T.rename_axis("T")
 temp_tab.round(3).to_csv(OUT / "temperature_simulated.csv")
 print(temp_tab.round(3).to_string())
 
+# Final 2.0.0 model: confirmed names (the Hungarian match), families, descriptions, T = 0.75
+final = json.loads(draft.read_text())
+final["version"] = "2.0.0"
+final["scoring"]["temperature"] = 0.75
+keys = ["id", "name", "family", "description", "centre_scaled", "centre", "training_share"]
+for c in final["clusters"]:
+    c["description"] = CONFIRMED_DESCRIPTIONS.get(c["name"], c["description"])
+final["clusters"] = [{k: c[k] for k in keys} for c in final["clusters"]]
+t = final["training"]
+t.pop("status", None)
+t["generator"] = "archetype_sim_v2, rules 1-4; rule 5 (trophy hunters) excluded: its 10% share has no source"
+t["k_decision"] = ("k = 6, adopted by majority across seeds after seeing the seed-42 result: the pre-set k rule "
+                   "picked k = 6 on generator seeds 0-4 and k = 3 on seed 42 (gap 0.0126 vs the 0.01 window)")
+t["families"] = {"Light": ["Casual", "Explorer"], "Committed": ["Competitor", "Completionist"],
+                 "One-game": ["Devotee", "The Main"]}
+t["previous_model"] = "models/archetype_model_v1.json (1.0.0)"
+if WRITE_MODEL:
+    target = L.REPO / "models" / "archetype_model.json"
+    target.write_text(json.dumps(final, indent=2) + "\n")
+    assert (L.Assigner.from_json(final).assign(run["raw"]) == model.labels_).all()
+    print("wrote", target.relative_to(L.REPO), final["version"])
+
 json.dump({
+    "plausibility": checks.fillna("").to_dict("records"), "expected_signs": signs,
+    "online_completion": {"pooled": float(rho.loc["online_share", "completion_rate"]), "partial_given_hours": partial,
+                          "within_persona": within, "completed_by_game_kind": by_kind.to_dict("index")},
+    "persona_means": persona_means.to_dict("index"), "draws": LOG,
+    "imputation": final["imputation"],
     "players": len(run["players"]), "silhouette": sil, "stability": stab, "persona_ari": L.persona_ari(run),
     "agreement_k6_seeds_0_4": agree, "agreement_range": [min(agree_vals), max(agree_vals)],
     "cluster_names_by_match": {int(j): n for j, n in name_of.items()}, "match_distance_v1_sd": {name_of[mapping[i]]: float(dist[i]) for i in mapping},

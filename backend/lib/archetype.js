@@ -54,12 +54,22 @@ function notEnoughGames(body) {
   };
 }
 
+// { primary, secondary } as Python sends it (two archetype names), else null
+function blendOf(blend) {
+  if (!blend || typeof blend.primary !== 'string' || typeof blend.secondary !== 'string') return null;
+  return { primary: blend.primary, secondary: blend.secondary };
+}
+
 function ownArchetype(body) {
   if (!body.archetype) return notEnoughGames(body);
   const scores = normaliseScores(body.scores || []);
   return {
     archetype: body.archetype,
     description: body.description,
+    // Model 2.0.0+: the top archetype's family, and a blend when the top two are
+    // within 10 points in the same family. null for a model without families.
+    family: typeof body.family === 'string' ? body.family : null,
+    blend: blendOf(body.blend),
     scores,
     reasons: (body.reasons || []).slice(0, 2),
     games_played: body.games_played,

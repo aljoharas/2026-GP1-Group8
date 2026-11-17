@@ -59,3 +59,43 @@ def test_centre_in_original_units_matches_the_scaled_centre(model):
 def test_temperature_is_recorded_and_the_service_accepts_the_model(model):
     assert model["scoring"]["temperature"] == 0.75
     archetypes.load_model(MODEL_PATH)
+
+
+# --- v2.0.0 and the v1 rollback file ----------------------------------------------
+
+FAMILIES = {"Casual": "Light", "Explorer": "Light", "Competitor": "Committed",
+            "Completionist": "Committed", "Devotee": "One-game", "The Main": "One-game"}
+V1_PATH = MODEL_PATH.with_name("archetype_model_v1.json")
+
+
+def test_served_model_is_v2_with_the_confirmed_names_and_families(model):
+    assert model["version"] == "2.0.0"
+    assert model["k"] == 6
+    assert {c["name"]: c["family"] for c in model["clusters"]} == FAMILIES
+    completionist = next(c for c in model["clusters"] if c["name"] == "Completionist")
+    assert completionist["description"] == \
+        "You see more of your games through than most players, and pick up trophies on the way."
+
+
+def test_v1_rollback_file_is_the_untouched_v1_model():
+    v1 = json.loads(V1_PATH.read_text())
+    assert v1["version"] == "1.0.0"
+    assert v1["k"] == 6 and v1["scoring"]["temperature"] == 0.75
+    assert all("family" not in c for c in v1["clusters"])
+    archetypes.load_model(V1_PATH)
+
+
+def test_v1_and_v2_share_names_and_the_unchanged_descriptions(model):
+    v1 = {c["name"]: c["description"] for c in json.loads(V1_PATH.read_text())["clusters"]}
+    v2 = {c["name"]: c["description"] for c in model["clusters"]}
+    assert set(v1) == set(v2)
+    assert {n: d for n, d in v1.items() if n != "Completionist"} == {n: d for n, d in v2.items() if n != "Completionist"}
+
+
+def test_a_model_with_families_on_only_some_clusters_is_refused(model, tmp_path):
+    data = json.loads(json.dumps(model))
+    data["clusters"][0].pop("family")
+    path = tmp_path / "m.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="family"):
+        archetypes.load_model(path)

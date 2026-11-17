@@ -56,7 +56,30 @@ test('ownArchetype keeps Python scores that already add up to 100', () => {
   assert.deepEqual(out.scores.map((s) => s.percent), [62, 21, 7, 5, 3, 2]);
   assert.equal(out.scores.length, 6);
   assert.deepEqual(Object.keys(out).sort(),
-    ['archetype', 'description', 'games_played', 'model_version', 'reasons', 'scores']);
+    ['archetype', 'blend', 'description', 'family', 'games_played', 'model_version', 'reasons', 'scores']);
+});
+
+test('ownArchetype passes on family and a blend', () => {
+  const out = ownArchetype({
+    ...PY_BODY, archetype: 'Competitor', family: 'Committed',
+    blend: { primary: 'Competitor', secondary: 'Completionist', extra: 'dropped' },
+  });
+  assert.equal(out.family, 'Committed');
+  assert.deepEqual(out.blend, { primary: 'Competitor', secondary: 'Completionist' });
+});
+
+test('ownArchetype gives null family and blend for a v1 body or a malformed blend', () => {
+  const v1 = ownArchetype(PY_BODY); // model 1.0.0 sends neither
+  assert.equal(v1.family, null);
+  assert.equal(v1.blend, null);
+  const bad = ownArchetype({ ...PY_BODY, family: 3, blend: { primary: 'Competitor' } });
+  assert.equal(bad.family, null);
+  assert.equal(bad.blend, null);
+});
+
+test('friendArchetype never shows family or blend', () => {
+  const out = friendArchetype({ ...PY_BODY, family: 'One-game', blend: { primary: 'Devotee', secondary: 'The Main' } });
+  assert.deepEqual(Object.keys(out).sort(), ['archetype', 'description']);
 });
 
 test('ownArchetype passes on not enough games', () => {

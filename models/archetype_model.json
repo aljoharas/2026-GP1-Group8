@@ -1,10 +1,10 @@
 {
-  "version": "1.0.0",
-  "trained_at": "2026-11-07T17:09:35+00:00",
+  "version": "2.0.0",
+  "trained_at": "2026-11-17T03:00:17+00:00",
   "seed": 42,
   "min_games": 5,
   "k": 6,
-  "silhouette": 0.3195,
+  "silhouette": 0.2601,
   "features": [
     "completion_rate",
     "trophy_rate",
@@ -20,200 +20,223 @@
     "temperature": 0.75
   },
   "imputation": {
-    "trophy_rate": 0.3572208953228012,
-    "genre_diversity": 0.7000548669807145
+    "trophy_rate": 0.1446310556660707,
+    "genre_diversity": 0.7741382420097214
   },
   "scaler": {
     "mean": [
-      0.4763515915809954,
-      0.3572208953228012,
-      0.7000548669807145,
-      1.6978546843311617,
-      0.4949131643351904,
-      2.618489711529685,
-      0.4090402012741735,
-      2.1649964669077577
+      0.2106906386686866,
+      0.1446310556660707,
+      0.7741382420097214,
+      1.690408965032667,
+      0.5150755289524699,
+      2.5412857035996566,
+      0.42967737480967544,
+      2.14721672055842
     ],
     "scale": [
-      0.27251718523083696,
-      0.156508563509064,
-      0.27153454597567794,
-      0.7041879920212837,
-      0.29280194006643234,
-      1.0389715127490384,
-      0.3640767869810244,
-      0.47641139819610057
+      0.21167715371130444,
+      0.1289809757110053,
+      0.18246281010971646,
+      0.694271671058459,
+      0.24918308777532086,
+      1.011644974907557,
+      0.3575605082182711,
+      0.49516605954075466
     ]
   },
   "clusters": [
     {
       "id": 0,
       "name": "Devotee",
+      "family": "One-game",
       "description": "One game you keep coming back to, over and over.",
       "centre_scaled": [
-        -0.23781399279194493,
-        -0.4004346621406655,
-        -1.359066514447397,
-        0.08182343614096471,
-        1.5271363964095839,
-        1.1474948316266327,
-        -1.063153669065423,
-        -0.3893426866794419
+        -0.2296553654302897,
+        -0.3852175329580306,
+        -1.3187054555855342,
+        0.07535976044008036,
+        1.5073760689933549,
+        0.9165984818165575,
+        -1.108691829221796,
+        -0.45795623183692163
       ],
       "centre": {
-        "completion_rate": 0.411543191656828,
-        "trophy_rate": 0.2945494415719283,
-        "genre_diversity": 0.3310213580294934,
-        "log_hours_per_game": 1.7554737655275494,
-        "top_game_share": 0.9420616639499768,
-        "log_activity": 3.8107041526165104,
-        "online_share": 0.02197062937374694,
-        "log_games_played": 1.9795091731693786
+        "completion_rate": 0.16207784457987337,
+        "trophy_rate": 0.09494532240415758,
+        "genre_diversity": 0.5335235388765709,
+        "log_hours_per_game": 1.7427291118439667,
+        "top_game_share": 0.8906881522628591,
+        "log_activity": 3.4685579517372727,
+        "online_share": 0.03325296089568541,
+        "log_games_played": 1.920452337797599
       },
-      "training_share": 0.1649
+      "training_share": 0.1362
     },
     {
       "id": 1,
       "name": "Competitor",
+      "family": "Committed",
       "description": "Online, competitive, and in it for the long sessions.",
       "centre_scaled": [
-        -0.04709384491960208,
-        -0.3492390111363732,
-        0.3570452222504908,
-        1.3513444029659616,
-        -0.3699654062189283,
-        0.42161460417738084,
-        1.0408288643292516,
-        -0.08383866014312674
+        0.3397437856466716,
+        0.1773911092560347,
+        0.3292195684421513,
+        1.1731147308144954,
+        -0.33208049701581416,
+        0.5542136715812189,
+        0.9603667855130638,
+        -0.0168990743392432
       ],
       "centre": {
-        "completion_rate": 0.4635177095218079,
-        "trophy_rate": 0.30256199936852146,
-        "genre_diversity": 0.7970049792972865,
-        "log_hours_per_game": 2.6494551859849627,
-        "top_game_share": 0.3865865756368224,
-        "log_activity": 3.056535274628945,
-        "online_share": 0.787981829996276,
-        "log_games_played": 2.125054773606083
+        "completion_rate": 0.28260663620547755,
+        "trophy_rate": 0.1675111340203716,
+        "genre_diversity": 0.8342085696107844,
+        "log_hours_per_game": 2.504869289538541,
+        "top_game_share": 0.4323266853161061,
+        "log_activity": 3.101953179479864,
+        "online_share": 0.7730666107136739,
+        "log_games_played": 2.1388488725079706
       },
-      "training_share": 0.1829
+      "training_share": 0.18
     },
     {
       "id": 2,
-      "name": "Completionist",
-      "description": "You finish what you start and chase the trophies.",
+      "name": "Explorer",
+      "family": "Light",
+      "description": "Always trying something new, across lots of genres.",
       "centre_scaled": [
-        1.1106088986989713,
-        1.7637620210003047,
-        0.3635822584577491,
-        0.46983511467655764,
-        -0.31038576632708936,
-        -0.1726714479413574,
-        -0.3788061236981092,
-        -0.05797151105931345
+        -0.4332190080294784,
+        -0.4628786817753064,
+        0.8796368199354773,
+        -0.700680276706861,
+        -0.9652662630248939,
+        -0.3354685486568431,
+        -0.22729660743836091,
+        1.5596084865728208
       ],
       "centre": {
-        "completion_rate": 0.7790116025467588,
-        "trophy_rate": 0.6332647556014025,
-        "genre_diversity": 0.798780010455851,
-        "log_hours_per_game": 2.0287069303163365,
-        "top_game_share": 0.4040316097856123,
-        "log_activity": 2.439088996053486,
-        "online_share": 0.27112568486942945,
-        "log_games_played": 2.1373781782684493
+        "completion_rate": 0.11898807211537187,
+        "trophy_rate": 0.08492851165486776,
+        "genre_diversity": 0.9346392480511232,
+        "log_hours_per_game": 1.2039464984456911,
+        "top_game_share": 0.27454750100658176,
+        "log_activity": 2.20191063211143,
+        "online_share": 0.3484050843377262,
+        "log_games_played": 2.9194819092810036
       },
-      "training_share": 0.1919
+      "training_share": 0.1785
     },
     {
       "id": 3,
       "name": "Casual",
+      "family": "Light",
       "description": "You play when life gives you time.",
       "centre_scaled": [
-        -0.4024180774147459,
-        -0.44301899633019154,
-        0.31161749685794876,
-        -1.0811712914552498,
-        -0.43941629769157825,
-        -1.1510297430160967,
-        -0.2323117523560181,
-        -0.6512310748208074
+        -0.6081343296612923,
+        -0.5500236431005578,
+        0.17083471739098416,
+        -0.8949796327283643,
+        -0.21111811112079706,
+        -1.0137204631698702,
+        -0.24854103595402127,
+        -0.5715368631801485
       ],
       "centre": {
-        "completion_rate": 0.3666857498379238,
-        "trophy_rate": 0.28788462859993563,
-        "genre_diversity": 0.7846697825081148,
-        "log_hours_per_game": 0.9365068435702313,
-        "top_game_share": 0.3662512198742873,
-        "log_activity": 1.4226025982091137,
-        "online_share": 0.32446088489846303,
-        "log_games_played": 1.8547425600036274
+        "completion_rate": 0.08196249469185213,
+        "trophy_rate": 0.073688469514839,
+        "genre_diversity": 0.8053092246091795,
+        "log_hours_per_game": 1.0690499598550596,
+        "top_game_share": 0.4624684661380964,
+        "log_activity": 1.5157604910728963,
+        "online_share": 0.34080891568086,
+        "log_games_played": 1.8642110641352223
       },
-      "training_share": 0.2069
+      "training_share": 0.2616
     },
     {
       "id": 4,
       "name": "The Main",
+      "family": "One-game",
       "description": "One online game has most of your hours.",
       "centre_scaled": [
-        -0.09882698466319509,
-        -0.43150538150452294,
-        -1.4191212569258704,
-        0.011013550415016173,
-        1.4549515334524774,
-        1.073250322796126,
-        1.5163411028986788,
-        -0.3471950898865703
+        -0.3850731958221515,
+        -0.28647494895899217,
+        -1.328955955366968,
+        0.29233871470373446,
+        1.4162126986437782,
+        0.961390455606138,
+        1.4540723117323533,
+        -0.4498916107450088
       ],
       "centre": {
-        "completion_rate": 0.44941953989573036,
-        "trophy_rate": 0.28968660791709766,
-        "genre_diversity": 0.31471442079691486,
-        "log_hours_per_game": 1.7056102942829372,
-        "top_game_share": 0.9209257960327065,
-        "log_activity": 3.73356622296357,
-        "online_share": 0.9611047979847874,
-        "log_games_played": 1.999588768688076
+        "completion_rate": 0.1291794406065378,
+        "trophy_rate": 0.10768123723257945,
+        "genre_diversity": 0.5316532038814215,
+        "log_hours_per_game": 1.893371453005111,
+        "top_game_share": 0.8679717821471464,
+        "log_activity": 3.5138715269376926,
+        "online_share": 0.949596209578812,
+        "log_games_played": 1.9244456644453707
       },
       "training_share": 0.0945
     },
     {
       "id": 5,
-      "name": "Explorer",
-      "description": "Always trying something new, across lots of genres.",
+      "name": "Completionist",
+      "family": "Committed",
+      "description": "You see more of your games through than most players, and pick up trophies on the way.",
       "centre_scaled": [
-        -0.45748260404855423,
-        -0.47910477326015927,
-        0.9981197642641029,
-        -0.8065632572761715,
-        -1.0768145611560915,
-        -0.6069069212453859,
-        -0.2360141667462321,
-        1.6247126837350727
+        1.6293234737293982,
+        1.8384851826386337,
+        0.29663959815812463,
+        0.7387487716691107,
+        -0.3476438989721105,
+        0.06451936242568743,
+        -0.3600351997165034,
+        -0.14048183818018933
       ],
       "centre": {
-        "completion_rate": 0.3516797200336099,
-        "trophy_rate": 0.28223689548951786,
-        "genre_diversity": 0.9710788639995184,
-        "log_hours_per_game": 1.1298825237517085,
-        "top_game_share": 0.17961977173690286,
-        "log_activity": 1.9879307094655045,
-        "online_share": 0.3231129217632016,
-        "log_games_played": 2.9390281082329226
+        "completion_rate": 0.5555811940627409,
+        "trophy_rate": 0.38176066835302747,
+        "genre_diversity": 0.8282639366794698,
+        "log_hours_per_game": 2.2033013092317644,
+        "top_game_share": 0.4284485487603477,
+        "log_activity": 2.606556392381843,
+        "online_share": 0.3009430058225757,
+        "log_games_played": 2.0776548823096936
       },
-      "training_share": 0.1589
+      "training_share": 0.1491
     }
   ],
   "training": {
-    "players": 667,
-    "n_per_persona": 100,
+    "players": 3333,
+    "n_per_persona": 500,
     "mix_share": 0.25,
     "kmeans": {
       "n_init": 20,
       "random_state": 42
     },
     "k_rule": "silhouettes within 0.01 -> largest k whose clusters all differ by >= 0.5 SD in some feature and hold >= 5% of players; else highest silhouette",
-    "stability_mean_pairwise_ari": 1.0,
-    "persona_sanity_ari": 0.8453,
-    "calibration": "Steam 200k: play rows > 0h, hours capped at the 99th pct, users with >= 5 games"
+    "stability_mean_pairwise_ari": 0.999,
+    "persona_sanity_ari": 0.584,
+    "calibration": "Steam 200k: play rows > 0h, hours capped at the 99th pct, users with >= 5 games",
+    "generator": "archetype_sim_v2, rules 1-4; rule 5 (trophy hunters) excluded: its 10% share has no source",
+    "k_decision": "k = 6, adopted by majority across seeds after seeing the seed-42 result: the pre-set k rule picked k = 6 on generator seeds 0-4 and k = 3 on seed 42 (gap 0.0126 vs the 0.01 window)",
+    "families": {
+      "Light": [
+        "Casual",
+        "Explorer"
+      ],
+      "Committed": [
+        "Competitor",
+        "Completionist"
+      ],
+      "One-game": [
+        "Devotee",
+        "The Main"
+      ]
+    },
+    "previous_model": "models/archetype_model_v1.json (1.0.0)"
   }
 }

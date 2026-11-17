@@ -19,7 +19,7 @@ from db import get_connection  # noqa: E402
 
 TEMPERATURES = [0.5, 0.6, 0.75, 1.0]
 OUT = REPO / "notebooks" / "v2_core_final"
-V1 = archetypes.load_model(REPO / "models" / "archetype_model.json")
+V1 = archetypes.load_model(REPO / "models" / "archetype_model_v1.json")
 DRAFT = archetypes.load_model(OUT / "archetype_model_v2_core_draft.json")
 
 
