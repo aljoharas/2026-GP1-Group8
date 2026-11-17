@@ -1,0 +1,7 @@
+cluster,proposed name,family,share,match distance (v1 SD),nearest v1 to this cluster,completion_rate v1,trophy_rate v1,genre_diversity v1,log_hours_per_game v1,top_game_share v1,log_activity v1,online_share v1,log_games_played v1,completion_rate v2,trophy_rate v2,genre_diversity v2,log_hours_per_game v2,top_game_share v2,log_activity v2,online_share v2,log_games_played v2
+0,Devotee,One-game,0.1362,1.7823,Devotee,0.4115,0.2945,0.331,1.7555,0.9421,3.8107,0.022,1.9795,0.1621,0.0949,0.5335,1.7427,0.8907,3.4686,0.0333,1.9205
+1,Competitor,Committed,0.18,1.1292,Competitor,0.4635,0.3026,0.797,2.6495,0.3866,3.0565,0.788,2.1251,0.2826,0.1675,0.8342,2.5049,0.4323,3.102,0.7731,2.1388
+2,Explorer,Light,0.1785,1.5816,Explorer,0.3517,0.2822,0.9711,1.1299,0.1796,1.9879,0.3231,2.939,0.119,0.0849,0.9346,1.2039,0.2745,2.2019,0.3484,2.9195
+3,Casual,Light,0.2616,1.7676,Casual,0.3667,0.2879,0.7847,0.9365,0.3663,1.4226,0.3245,1.8547,0.082,0.0737,0.8053,1.069,0.4625,1.5158,0.3408,1.8642
+4,The Main,One-game,0.0945,1.8831,The Main,0.4494,0.2897,0.3147,1.7056,0.9209,3.7336,0.9611,1.9996,0.1292,0.1077,0.5317,1.8934,0.868,3.5139,0.9496,1.9244
+5,Completionist,Committed,0.1491,1.8393,Competitor,0.779,0.6333,0.7988,2.0287,0.404,2.4391,0.2711,2.1374,0.5556,0.3818,0.8283,2.2033,0.4284,2.6066,0.3009,2.0777

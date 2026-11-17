@@ -1,0 +1,90 @@
+{
+  "players": 3333,
+  "silhouette": 0.26012659903628815,
+  "stability": {
+    "mean_pairwise": 0.9990163671915279,
+    "min_pairwise": 0.9980731471742424,
+    "mean_vs_model": 0.9973168254420317
+  },
+  "persona_ari": 0.5839683288921614,
+  "agreement_k6_seeds_0_4": {
+    "0": {
+      "seed 42 players": 0.9670919784982421,
+      "seed 0 players": 0.9651824097458545
+    },
+    "1": {
+      "seed 42 players": 0.9243203770886549,
+      "seed 1 players": 0.9089516477595279
+    },
+    "2": {
+      "seed 42 players": 0.9678809722888517,
+      "seed 2 players": 0.9684470525381128
+    },
+    "3": {
+      "seed 42 players": 0.969667572839847,
+      "seed 3 players": 0.9567251626076854
+    },
+    "4": {
+      "seed 42 players": 0.9581908692728819,
+      "seed 4 players": 0.9526161885228008
+    }
+  },
+  "agreement_range": [
+    0.9089516477595279,
+    0.969667572839847
+  ],
+  "cluster_names_by_match": {
+    "0": "Devotee",
+    "1": "Competitor",
+    "5": "Completionist",
+    "3": "Casual",
+    "4": "The Main",
+    "2": "Explorer"
+  },
+  "match_distance_v1_sd": {
+    "Devotee": 1.7822930004976114,
+    "Competitor": 1.1291821763845524,
+    "Completionist": 1.839336997741656,
+    "Casual": 1.7675593321870944,
+    "The Main": 1.8830706325090274,
+    "Explorer": 1.5816183905737629
+  },
+  "shares": {
+    "Devotee": 0.13621362136213622,
+    "Competitor": 0.18001800180018002,
+    "Explorer": 0.1785178517851785,
+    "Casual": 0.26162616261626165,
+    "The Main": 0.09450945094509451,
+    "Completionist": 0.1491149114911491
+  },
+  "temperature_simulated": {
+    "0.5": {
+      "pure median": 88.0,
+      "pure p10": 55.0,
+      "pure p90": 97.0,
+      "mixed median": 78.0,
+      "at >= 90%": 0.40744074407440745
+    },
+    "0.6": {
+      "pure median": 81.0,
+      "pure p10": 50.0,
+      "pure p90": 94.0,
+      "mixed median": 70.0,
+      "at >= 90%": 0.23342334233423342
+    },
+    "0.75": {
+      "pure median": 72.0,
+      "pure p10": 45.0,
+      "pure p90": 88.0,
+      "mixed median": 61.0,
+      "at >= 90%": 0.05340534053405341
+    },
+    "1.0": {
+      "pure median": 59.0,
+      "pure p10": 38.0,
+      "pure p90": 76.0,
+      "mixed median": 50.0,
+      "at >= 90%": 0.0
+    }
+  }
+}
