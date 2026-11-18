@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -11,6 +12,32 @@ import '../logGames/log_game_search_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/user_profile_screen.dart';
 import '../wrapped/wrapped_entry_screen.dart';
+
+// The home banner for the year-in-review: hidden most of the year, a teaser
+// the week before release, then open from Dec 31 for two weeks.
+enum _EndgamePhase { hidden, teaser, open }
+
+// Debug-only override so the banner can be seen outside its dates:
+//   flutter run --dart-define=ENDGAME_PREVIEW=teaser   (or =open)
+// Ignored in release builds (kDebugMode is false there).
+const _endgamePreview = String.fromEnvironment('ENDGAME_PREVIEW');
+
+_EndgamePhase _endgamePhase(DateTime now) {
+  if (kDebugMode) {
+    if (_endgamePreview == 'teaser') return _EndgamePhase.teaser;
+    if (_endgamePreview == 'open') return _EndgamePhase.open;
+  }
+  final month = now.month;
+  final day   = now.day;
+  if (month == 12 && day >= 24 && day <= 30) return _EndgamePhase.teaser;
+  if ((month == 12 && day == 31) || (month == 1 && day <= 14)) {
+    return _EndgamePhase.open;
+  }
+  return _EndgamePhase.hidden;
+}
+
+// The year being reviewed: in January that's the year that just ended.
+int _endgameYear(DateTime now) => now.month == 1 ? now.year - 1 : now.year;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,6 +79,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth     = context.watch<AuthProvider>();
     final home     = context.watch<HomeProvider>();
     final username = auth.currentUser?['username'] as String? ?? 'Gamer';
+    final now          = DateTime.now();
+    final endgamePhase = _endgamePhase(now);
 
     return Scaffold(
       backgroundColor: bg,
@@ -67,8 +96,12 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.top + 16)),
               SliverToBoxAdapter(child: _buildHeader(username)),
               const SliverToBoxAdapter(child: SizedBox(height: 22)),
-              SliverToBoxAdapter(child: _buildEndgameBanner()),
-              const SliverToBoxAdapter(child: SizedBox(height: 28)),
+              if (endgamePhase != _EndgamePhase.hidden) ...[
+                SliverToBoxAdapter(
+                    child: _buildEndgameBanner(endgamePhase, _endgameYear(now))),
+                const SliverToBoxAdapter(child: SizedBox(height: 28)),
+              ] else
+                const SliverToBoxAdapter(child: SizedBox(height: 6)),
               SliverToBoxAdapter(
                   child: _buildSectionHeader('RECOMMENDED FOR YOU',
                       onSeeAll: () => _showAllGames('RECOMMENDED FOR YOU', home.recommendedGames))),
@@ -170,10 +203,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Endgame ────────────────────────────────────────────────────────────────
 
-  // Entry point to the year-in-review (served by /users/me/wrapped). Whether
-  // it's unlocked yet is decided on the entry screen, so this always shows.
-  Widget _buildEndgameBanner() {
-    final year = DateTime.now().year;
+  // Entry point to the year-in-review (served by /users/me/wrapped). Shown only
+  // around release (see _endgamePhase). The server still decides whether it's
+  // unlocked, so a tap during the teaser opens the "on its way" message.
+  Widget _buildEndgameBanner(_EndgamePhase phase, int year) {
+    final teaser = phase == _EndgamePhase.teaser;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
@@ -243,8 +277,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               fontWeight: FontWeight.w800,
                               letterSpacing: -0.3)),
                       const SizedBox(height: 2),
-                      const Text('Your hours, top games and trophies',
-                          style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text(
+                          teaser
+                              ? 'Coming December 31'
+                              : 'Your hours, top games and trophies',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -254,8 +291,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.white.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.play_arrow_rounded,
-                      color: Colors.white, size: 22),
+                  child: Icon(
+                      teaser ? Icons.lock_rounded : Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: teaser ? 18 : 22),
                 ),
               ]),
             ),
