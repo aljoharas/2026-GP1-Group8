@@ -82,7 +82,7 @@ router.get('/me', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, email, username, bio, avatar_url,
-              notifications_enabled, created_at
+              notifications_enabled, created_at, wrapped_early_access
        FROM users WHERE id = $1`,
       [uid]
     );
@@ -155,7 +155,8 @@ router.patch('/me', verifyToken, async (req, res) => {
     const result = await pool.query(
       `UPDATE users SET ${fields.join(', ')}
        WHERE id = $${i}
-       RETURNING id, email, username, bio, avatar_url, notifications_enabled, updated_at`,
+       RETURNING id, email, username, bio, avatar_url, notifications_enabled, updated_at,
+                 wrapped_early_access`,
       values
     );
 

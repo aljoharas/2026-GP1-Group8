@@ -22,6 +22,7 @@ import psycopg2.extras
 from db import get_connection
 from recommender import build_feature_matrix, build_item_similarity, recommend
 import wrapped
+import wrapped_cache
 
 # --- Shared state loaded at startup -------------------------------------------
 
@@ -120,6 +121,30 @@ async def _periodic_collab_refresh():
             print(f"[recommender] background collab refresh failed: {e}")
 
 
+_WRAPPED_CLEANUP_INTERVAL = 24 * 60 * 60  # once a day
+
+
+def _delete_expired_wrapped_cache():
+    conn = get_connection()
+    try:
+        return wrapped_cache.delete_expired(conn, datetime.now(wrapped.WRAPPED_TZ))
+    finally:
+        conn.close()
+
+
+async def _periodic_wrapped_cache_cleanup():
+    """Delete stored Wrapped rows whose release window (to Jan 14) has ended.
+    Runs at startup, then daily; deleting is idempotent."""
+    while True:
+        try:
+            deleted = await asyncio.to_thread(_delete_expired_wrapped_cache)
+            if deleted:
+                print(f"[recommender] wrapped cache cleanup — {deleted} rows deleted")
+        except Exception as e:
+            print(f"[recommender] wrapped cache cleanup failed: {e}")
+        await asyncio.sleep(_WRAPPED_CLEANUP_INTERVAL)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     count = _load_matrix()
@@ -129,10 +154,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[recommender] startup collab warm failed: {e}")
     refresh_task = asyncio.create_task(_periodic_collab_refresh())
+    cleanup_task = asyncio.create_task(_periodic_wrapped_cache_cleanup())
     try:
         yield
     finally:
         refresh_task.cancel()
+        cleanup_task.cancel()
 
 
 app = FastAPI(title="Loadout Recommender", version="1.0.0", lifespan=lifespan)
@@ -338,15 +365,21 @@ def get_wrapped(
         if access == wrapped.LOCKED:
             return wrapped.locked_response(target_year)
 
-        rows = wrapped.load_manual_logs(conn, uid)
-        year_logs = wrapped.select_year_logs(wrapped.prepare_logs(rows), target_year, now)
-        return wrapped.build_wrapped(
-            target_year, access, year_logs, now,
-            game_lookup=lambda game_ids: wrapped.load_games(conn, game_ids),
-            trophy_lookup=lambda: wrapped.load_trophy_unlocks(conn, uid),
-            me={"user_id": uid, "username": user["username"], "avatar_url": user["avatar_url"]},
-            friends_lookup=lambda: wrapped.load_friends_with_logs(conn, uid),
-            genre_lookup=lambda game_ids: wrapped.load_game_genres(conn, game_ids),
+        def build():
+            rows = wrapped.load_manual_logs(conn, uid)
+            year_logs = wrapped.select_year_logs(wrapped.prepare_logs(rows), target_year, now)
+            return wrapped.build_wrapped(
+                target_year, access, year_logs, now,
+                game_lookup=lambda game_ids: wrapped.load_games(conn, game_ids),
+                trophy_lookup=lambda: wrapped.load_trophy_unlocks(conn, uid),
+                me={"user_id": uid, "username": user["username"], "avatar_url": user["avatar_url"]},
+                friends_lookup=lambda: wrapped.load_friends_with_logs(conn, uid),
+                genre_lookup=lambda game_ids: wrapped.load_game_genres(conn, game_ids),
+            )
+
+        # Stored during the release window for normal users; see wrapped_cache.py
+        return wrapped_cache.get_or_build(
+            conn, uid, target_year, access, user["wrapped_early_access"], now, build,
         )
     except psycopg2.Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

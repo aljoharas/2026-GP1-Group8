@@ -1,8 +1,9 @@
 """
 Gaming Wrapped — a yearly summary of a user's gaming activity.
 
-Calculated live on every request and never stored. Node verifies the Firebase
-token and calls GET /wrapped?uid=...&year=...; this module does the rest.
+Calculated live, except during a year's release window (Dec 31 - Jan 14) when
+normal users' responses are stored; see wrapped_cache.py. Node verifies the
+Firebase token and calls GET /wrapped?uid=...&year=...; this module does the rest.
 
 Data source: library_entries rows with source = 'manual' only. Steam rows are
 out of scope and are filtered out in SQL, so they never reach pandas.

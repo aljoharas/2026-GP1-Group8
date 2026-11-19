@@ -14,7 +14,9 @@ import '../profile/user_profile_screen.dart';
 import '../wrapped/wrapped_entry_screen.dart';
 
 // The home banner for the year-in-review: hidden most of the year, a teaser
-// the week before release, then open from Dec 31 for two weeks.
+// the week before release, then open from Dec 31 for two weeks. Accounts with
+// wrapped_early_access (internal testers) see it open all year; the server
+// returns their current year as a partial preview.
 enum _EndgamePhase { hidden, teaser, open }
 
 // Debug-only override so the banner can be seen outside its dates:
@@ -22,11 +24,12 @@ enum _EndgamePhase { hidden, teaser, open }
 // Ignored in release builds (kDebugMode is false there).
 const _endgamePreview = String.fromEnvironment('ENDGAME_PREVIEW');
 
-_EndgamePhase _endgamePhase(DateTime now) {
+_EndgamePhase _endgamePhase(DateTime now, {bool earlyAccess = false}) {
   if (kDebugMode) {
     if (_endgamePreview == 'teaser') return _EndgamePhase.teaser;
     if (_endgamePreview == 'open') return _EndgamePhase.open;
   }
+  if (earlyAccess) return _EndgamePhase.open;
   final month = now.month;
   final day   = now.day;
   if (month == 12 && day >= 24 && day <= 30) return _EndgamePhase.teaser;
@@ -80,7 +83,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final home     = context.watch<HomeProvider>();
     final username = auth.currentUser?['username'] as String? ?? 'Gamer';
     final now          = DateTime.now();
-    final endgamePhase = _endgamePhase(now);
+    final endgamePhase = _endgamePhase(now,
+        earlyAccess: auth.currentUser?['wrapped_early_access'] == true);
 
     return Scaffold(
       backgroundColor: bg,

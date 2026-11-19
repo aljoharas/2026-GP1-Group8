@@ -114,7 +114,8 @@ router.post('/register', verifyToken, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (id, email, username, bio, avatar_url)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, email, username, bio, avatar_url, notifications_enabled, created_at`,
+       RETURNING id, email, username, bio, avatar_url, notifications_enabled, created_at,
+                 wrapped_early_access`,
       [uid, email, username.trim(), bio ? bio.trim() : null, avatar_url || null]
     );
 
@@ -136,7 +137,8 @@ router.post('/login', verifyToken, async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, email, username, bio, avatar_url, notifications_enabled, created_at
+      `SELECT id, email, username, bio, avatar_url, notifications_enabled, created_at,
+              wrapped_early_access
        FROM users WHERE id = $1`,
       [uid]
     );
