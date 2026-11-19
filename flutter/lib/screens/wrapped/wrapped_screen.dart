@@ -19,6 +19,7 @@ import 'cards/total_hours_card.dart';
 import 'cards/trophies_card.dart';
 import 'wrapped_card.dart';
 import 'wrapped_copy.dart';
+import 'wrapped_export.dart';
 
 /// The cards to show, in order. A card whose data is null is left out.
 List<Widget> buildWrappedCards(WrappedResponse data) {
@@ -157,6 +158,17 @@ class _WrappedScreenState extends State<WrappedScreen> {
                 // The intro card already shows the title in full.
                 showWordmark: _currentPage != 0,
                 onClose: Navigator.canPop(context) ? () => Navigator.maybePop(context) : null,
+              ),
+            ),
+            // Save/share, in the bottom clearance every card keeps empty. A
+            // sibling of the tap-to-step detector, so its taps never step.
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: WrappedExportButton(year: widget.data.year, cards: _cards, current: _currentPage),
+                ),
               ),
             ),
           ],

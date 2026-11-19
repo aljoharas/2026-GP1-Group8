@@ -49,6 +49,10 @@ abstract class WrappedCardState<T extends StatefulWidget> extends State<T> with 
 
   bool _active = false;
 
+  /// Completes once the card has everything it shows (see wrapped_export.dart).
+  /// Cards that load extra data after their first build override this.
+  Future<void> get exportReady => Future.value();
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();

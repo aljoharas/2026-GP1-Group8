@@ -8,6 +8,10 @@
         android:maxSdkVersion="32"/>
     <!-- push notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Saving Endgame cards to the gallery (gal). Only Android 7-10 needs it;
+         later versions save through MediaStore without a permission. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"/>
     <application
         android:label="loadout"
         android:name="${applicationName}"

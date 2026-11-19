@@ -61,10 +61,15 @@ class _IntroCardState extends WrappedCardState<IntroCard> {
   @override
   List<AnimationController> get loops => [_scroll];
 
+  Future<void> _fillersLoaded = Future.value();
+
+  @override
+  Future<void> get exportReady => _fillersLoaded;
+
   @override
   void initState() {
     super.initState();
-    if (widget.covers.length < _targetCovers) _loadFillers();
+    if (widget.covers.length < _targetCovers) _fillersLoaded = _loadFillers().catchError((_) {});
   }
 
   Future<void> _loadFillers() async {

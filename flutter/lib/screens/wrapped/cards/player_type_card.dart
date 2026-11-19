@@ -55,16 +55,21 @@ class _PlayerTypeCardState extends WrappedCardState<PlayerTypeCard> {
   @override
   List<AnimationController> get loops => [_kenBurns];
 
+  late Future<void> _photoChecked;
+
+  @override
+  Future<void> get exportReady => _photoChecked;
+
   @override
   void initState() {
     super.initState();
-    _checkPhoto();
+    _photoChecked = _checkPhoto();
   }
 
   @override
   void didUpdateWidget(PlayerTypeCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.type != widget.type) _checkPhoto();
+    if (oldWidget.type != widget.type) _photoChecked = _checkPhoto();
   }
 
   Future<void> _checkPhoto() async {

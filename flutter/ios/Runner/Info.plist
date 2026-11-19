@@ -67,7 +67,9 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>Choose a profile picture from your photo library.</string>
+		<string>Choose a profile picture from your photo library and save your Endgame cards.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>Save your Endgame cards to your photo library.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>Take a photo to use as your profile picture.</string>
 		<key>UIStatusBarHidden</key>
