@@ -37,8 +37,8 @@ MODEL_PATH = Path(os.environ.get(
     Path(__file__).resolve().parents[2] / "models" / "archetype_model.json",
 ))
 REASONS_LIMIT = 2
-# A blend is shown when the top two archetypes are this close (percentage points)
-# and in the same family, e.g. "Competitor, with a Completionist streak"
+# A blend is returned when the top two archetypes are this close (percentage
+# points), whatever their families: "<primary>, with a touch of <secondary>"
 BLEND_MAX_GAP = 10
 
 # Where a game's trophy_rate denominator came from (build_games' counts)
@@ -277,18 +277,17 @@ def top_reasons(z: np.ndarray, centre: np.ndarray, features: dict, games: list[d
 
 def blend_of(clusters: list[dict], order: list[int], percents: list[int]) -> dict | None:
     """{"primary", "secondary"} when the top two archetypes are within BLEND_MAX_GAP
-    percentage points and in the same family, else None. Models without families
-    (v1.0.0) never blend.
+    percentage points, whatever their families; else None. The app shows it as
+    "<primary>, with a touch of <secondary>".
+
+    Family-agnostic since the families check (notebooks/families_check): only
+    33-41% of close calls were same-family, so the pre-set fallback applied.
     """
     if len(order) < 2:
         return None
-    first, second = clusters[order[0]], clusters[order[1]]
-    family = first.get("family")
-    if family is None or second.get("family") != family:
-        return None
     if percents[order[0]] - percents[order[1]] > BLEND_MAX_GAP:
         return None
-    return {"primary": first["name"], "secondary": second["name"]}
+    return {"primary": clusters[order[0]]["name"], "secondary": clusters[order[1]]["name"]}
 
 
 def archetype_response(games: list[dict], model: dict) -> dict:

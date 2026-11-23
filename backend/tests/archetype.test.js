@@ -68,13 +68,22 @@ test('ownArchetype passes on family and a blend', () => {
   assert.deepEqual(out.blend, { primary: 'Competitor', secondary: 'Completionist' });
 });
 
-test('ownArchetype gives null family and blend for a v1 body or a malformed blend', () => {
-  const v1 = ownArchetype(PY_BODY); // model 1.0.0 sends neither
+test('ownArchetype gives null family and blend when Python sends none, or a malformed blend', () => {
+  const v1 = ownArchetype(PY_BODY); // no family, no blend
   assert.equal(v1.family, null);
   assert.equal(v1.blend, null);
   const bad = ownArchetype({ ...PY_BODY, family: 3, blend: { primary: 'Competitor' } });
   assert.equal(bad.family, null);
   assert.equal(bad.blend, null);
+});
+
+test('ownArchetype passes on a cross-family blend', () => {
+  const out = ownArchetype({
+    ...PY_BODY, archetype: 'Competitor', family: 'Committed',
+    blend: { primary: 'Competitor', secondary: 'The Main' },
+  });
+  assert.equal(out.family, 'Committed');
+  assert.deepEqual(out.blend, { primary: 'Competitor', secondary: 'The Main' });
 });
 
 test('friendArchetype never shows family or blend', () => {

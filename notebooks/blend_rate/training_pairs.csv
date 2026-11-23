@@ -1,0 +1,27 @@
+,count
+Completionist → Competitor,32
+Explorer → Casual,31
+Competitor → Completionist,30
+Casual → Explorer,24
+Competitor → Casual,18
+Casual → Competitor,18
+Competitor → The Main,15
+Competitor → Explorer,14
+The Main → Competitor,14
+Explorer → Competitor,13
+Casual → Devotee,12
+Devotee → Casual,10
+Casual → The Main,8
+The Main → Casual,8
+Devotee → Completionist,7
+Completionist → Casual,7
+Explorer → Completionist,6
+Casual → Completionist,6
+Completionist → Explorer,5
+Completionist → Devotee,5
+Competitor → Devotee,3
+Devotee → Competitor,3
+Explorer → Devotee,2
+The Main → Explorer,1
+The Main → Completionist,1
+Explorer → The Main,1

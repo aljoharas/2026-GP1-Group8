@@ -24,8 +24,9 @@ The nearest centre is the archetype. The match % is a softmax over the negative 
 Since 2.0.0 the response also carries:
 
 - **`family`**: the top archetype's family (see [Families and blends](#families-and-blends)).
-- **`blend`**: `{"primary", "secondary"}` when the top two archetypes are within 10 percentage points **and** in the
-  same family, otherwise `null`. The app can then show, for example, "Competitor, with a Completionist streak".
+- **`blend`**: `{"primary", "secondary"}` when the top two archetypes are within 10 percentage points, whatever their
+  families; otherwise `null`. The app shows it as "*primary*, with a touch of *secondary*", for example "Competitor,
+  with a touch of The Main".
 
 The model is trained **once, offline**. The service only loads the JSON; it never retrains.
 
@@ -72,11 +73,99 @@ lets a game be finished, or its trophies be earned, with enough hours (see [Simu
 | **Committed** | Competitor, Completionist | Most hours per game and the highest completion and trophy rates; they differ in online share and finishing |
 | **One-game** | Devotee, The Main | One game has about 90% of the hours; they differ only in whether that game is online |
 
-A user between two archetypes of the same family is described better by a blend than by a near-coin-flip label.
-So when the top two archetypes are within 10 points and share a family, the API returns `blend`. Across families
-it never does, because those mixes aren't one coherent style.
+The families are an interpretation layer: they group the six archetypes for display and don't change how a user
+is assigned. Models without a `family` field (1.0.0) return `family: null`.
 
-Models without a `family` field (1.0.0) always return `family: null` and `blend: null`.
+### Families check
+
+Before relying on the families, they were tested against the model with a rule fixed in advance. The families
+would count as confirmed only if all three held:
+- **(a)** for every archetype, its nearest centre is its family partner;
+- **(b)** for every archetype, its family partner is the most common second-highest archetype among its players;
+- **(c)** more than 60% of close calls (top two within 10 points) are same-family.
+
+The pre-set fallback was: if the check failed, keep the families (if the dendrogram supports them) but make the
+blend family-agnostic.
+
+The check ran on the served model (seed 42, its own 3,333 training players, served scoring at T = 0.75) and on the
+k = 6 fits for generator seeds 0–4.
+
+| Seed | First 3 Ward merges = families | (a) nearest = partner | (b) top second = partner | (c) close calls same-family | Confirmed |
+|---|---|---|---|---|---|
+| **42 (served)** | yes | all 6 | all 6 | **39.8%** (of 294) | **no** |
+| 0 | yes | all 6 | all 6 | 40.5% (of 353) | no |
+| 1 | yes | all 6 | fails: The Main | 36.3% (of 347) | no |
+| 2 | yes | fails: Competitor | fails: Competitor, The Main | 41.3% (of 315) | no |
+| 3 | yes | all 6 | all 6 | 33.2% (of 388) | no |
+| 4 | yes | all 6 | all 6 | 37.5% (of 328) | no |
+
+**The dendrogram supports the families.** Ward linkage on the six centres merges Casual + Explorer (height 2.48),
+Competitor + Completionist (2.57) and Devotee + The Main (2.58) first, on every seed. The merges between families
+come much later, at 4.32 and 4.93. The figure is
+`notebooks/figures/v2/families_dendrogram.png`.
+
+**Where players are undecided doesn't follow the families.** Only 33–41% of close calls are same-family, so
+condition (c) fails on every seed. The most common cross-family close calls on the served model:
+
+| Pair | Players |
+|---|---|
+| Casual / Competitor | 36 |
+| Competitor / The Main | 29 |
+| Competitor / Explorer | 27 |
+| Casual / Devotee | 22 |
+| Casual / The Main | 16 |
+
+On four of the other five seeds, Competitor / The Main is the most common.
+
+**Competitor is a hub.** Its two nearest centres are almost equally close: Completionist at 2.57 SD and The Main at
+2.81 SD. It borders The Main through online play, and Casual and Explorer through hours per game. Its players'
+runner-up splits Completionist 39.5% and The Main 27.8%. On seed 2 The Main becomes its nearest centre. Casual, the
+largest and most central cluster, is the other common side of a close call.
+
+The full analysis is in `notebooks/families_check/` (`report.md`, tables, `families_check.py`).
+
+### Blend rule
+
+**The blend rule was changed to family-agnostic because condition (c) failed, as decided in advance.** A blend is
+returned whenever the top two archetypes are within 10 points, whatever their families. The families, the model and
+the temperature are unchanged.
+
+The first version of 2.0.0 blended only same-family near-ties, which would have covered fewer than half of the
+players who are actually undecided.
+
+Because the blend no longer uses families, it works with any model file. A rollback to 1.0.0 returns
+`family: null`, but still returns a blend for near-ties.
+
+**Blend rate.** These were measured through the served code path (`archetype_response` with this model); the script
+is `notebooks/blend_rate.py`.
+
+- **Training players:** 294 of 3,333 blend (**8.8%**). 117 are same-family and 177 cross-family. The same-family rule
+  would have given 117 (3.5%).
+- **By group:** mixed players blend most (14.4%), against 2.4–12.6% for each pure persona.
+- **By top archetype:**
+
+  | Archetype | Blend rate |
+  |---|---|
+  | Competitor | 13.3% |
+  | Completionist | 9.9% |
+  | Explorer | 8.9% |
+  | Casual | 7.8% |
+  | The Main | 7.6% |
+  | Devotee | 4.4% |
+
+- **Most common blends:**
+
+  | Blend | Players |
+  |---|---|
+  | Completionist → Competitor | 32 |
+  | Explorer → Casual | 31 |
+  | Competitor → Completionist | 30 |
+  | Casual → Explorer | 24 |
+  | Competitor → Casual | 18 |
+  | Casual → Competitor | 18 |
+
+- **Real users** (5 with ≥ 5 manual games, 2026-11-23): **1 of 5** blends: "Competitor, with a touch of
+  Completionist" (35% / 25%). The others lead by 13–74 points.
 
 ## Features
 
@@ -290,9 +379,9 @@ Why 0.75 (the same criteria as for 1.0.0):
 - **T = 1.0 is too flat:** real users' top type would show 31–68%.
 - **Leads are smaller than in 1.0.0** (pure median 72% vs 79%; real users 35–81% vs 48–64%), because the clusters
   overlap more (silhouette 0.26 vs 0.32).
-  - The real Competitors show 35–48%, so their mix matters more. That's partly why a same-family blend is now
-    returned.
-  - One real user (Competitor 35% / Completionist 25%) gets that blend.
+  - The real Competitors show 35–48%, so their mix matters more. That's partly why a blend is returned for
+    near-ties.
+  - One real user (Competitor 35% / Completionist 25%) gets a blend.
 
 The temperature only changes the displayed percentages, never the assigned archetype.
 
@@ -301,8 +390,9 @@ The temperature only changes the displayed percentages, never the assigned arche
 `models/archetype_model_v1.json` is the unchanged 1.0.0 model. Rolling back is a file swap: copy it over
 `models/archetype_model.json` (or set `ARCHETYPE_MODEL_PATH`) and restart the service.
 
-The code serves both versions. With 1.0.0, `family` and `blend` are `null` and everything else is as before. This
-was checked on 2026-11-17 by serving both files locally.
+The code serves both versions. With 1.0.0, `family` is `null`, and `blend` follows the same family-agnostic rule
+(within 10 points). Everything else is as before. Serving both files locally was checked on 2026-11-17, before the
+blend rule changed. The rollback with the new rule is covered by `test_rollback_to_v1_is_a_file_swap`.
 
 ## Changes from 1.0.0
 
@@ -311,6 +401,8 @@ was checked on 2026-11-17 by serving both files locally.
 - **k = 6 kept, by majority across seeds**, not by the rule on seed 42 (see above).
 - **Completionist description reworded;** `family` added to each cluster.
 - **API:** `family` and `blend` added to the response. Nothing was removed or renamed.
+- **Blend rule made family-agnostic** after the families check failed condition (c) (see
+  [Families check](#families-check)). Model, families and temperature unchanged.
 
 1.0.0's earlier review changes still apply: truncated library sampling, the 8th feature `log_games_played`, RAWG
 trophy denominators, and the tightened trophy fallback.

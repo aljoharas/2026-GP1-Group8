@@ -66,8 +66,9 @@ function ownArchetype(body) {
   return {
     archetype: body.archetype,
     description: body.description,
-    // Model 2.0.0+: the top archetype's family, and a blend when the top two are
-    // within 10 points in the same family. null for a model without families.
+    // family: the top archetype's family (2.0.0+; null for a model without families).
+    // blend: { primary, secondary } when the top two are within 10 points, whatever
+    // their families, else null. The app shows "<primary>, with a touch of <secondary>".
     family: typeof body.family === 'string' ? body.family : null,
     blend: blendOf(body.blend),
     scores,

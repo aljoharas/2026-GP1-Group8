@@ -192,30 +192,36 @@ def test_hours_sentences_round_sensibly():
 
 
 # --- family and blend ----------------------------------------------------------------
+# The blend is family-agnostic: the top two within BLEND_MAX_GAP points, whatever
+# their families (changed after the families check failed its condition (c)).
 
 def _clusters(*pairs):
     return [{"name": n, "family": f} for n, f in pairs]
 
 
-def test_blend_when_top_two_are_close_and_in_the_same_family():
+def test_blend_when_top_two_are_within_ten_points_same_family():
     clusters = _clusters(("Competitor", "Committed"), ("Completionist", "Committed"), ("Casual", "Light"))
     assert archetypes.blend_of(clusters, [0, 1, 2], [45, 35, 20]) == {"primary": "Competitor", "secondary": "Completionist"}
     assert archetypes.blend_of(clusters, [1, 0, 2], [40, 41, 19]) == {"primary": "Completionist", "secondary": "Competitor"}
 
 
+def test_blend_across_families_when_within_ten_points():
+    clusters = _clusters(("Competitor", "Committed"), ("The Main", "One-game"), ("Casual", "Light"))
+    assert archetypes.blend_of(clusters, [0, 1, 2], [40, 39, 21]) == {"primary": "Competitor", "secondary": "The Main"}
+    assert archetypes.blend_of(clusters, [0, 1, 2], [45, 35, 20]) == {"primary": "Competitor", "secondary": "The Main"}
+
+
 def test_no_blend_when_the_gap_is_over_ten_points():
-    clusters = _clusters(("Competitor", "Committed"), ("Completionist", "Committed"), ("Casual", "Light"))
-    assert archetypes.blend_of(clusters, [0, 1, 2], [46, 35, 19]) is None
+    same = _clusters(("Competitor", "Committed"), ("Completionist", "Committed"), ("Casual", "Light"))
+    cross = _clusters(("Competitor", "Committed"), ("The Main", "One-game"), ("Casual", "Light"))
+    assert archetypes.blend_of(same, [0, 1, 2], [46, 35, 19]) is None
+    assert archetypes.blend_of(cross, [0, 1, 2], [46, 35, 19]) is None
 
 
-def test_no_blend_across_families_even_when_close():
-    clusters = _clusters(("Competitor", "Committed"), ("Devotee", "One-game"), ("Casual", "Light"))
-    assert archetypes.blend_of(clusters, [0, 1, 2], [40, 39, 21]) is None
-
-
-def test_no_blend_or_family_for_a_model_without_families():
+def test_blend_does_not_need_families():
     clusters = [{"name": "A"}, {"name": "B"}]
-    assert archetypes.blend_of(clusters, [0, 1], [50, 50]) is None
+    assert archetypes.blend_of(clusters, [0, 1], [50, 50]) == {"primary": "A", "secondary": "B"}
+    assert archetypes.blend_of(clusters, [0, 1], [61, 39]) is None
 
 
 def _between(model, a, b, monkeypatch):
@@ -223,6 +229,13 @@ def _between(model, a, b, monkeypatch):
     centres = {c["name"]: c["centre"] for c in model["clusters"]}
     mid = {f: (centres[a][f] + centres[b][f]) / 2 for f in FEATURE_NAMES}
     monkeypatch.setattr(archetypes, "compute_features", lambda games: dict(mid))
+    return archetypes.archetype_response([game(10) for _ in range(5)], model)
+
+
+def _at(model, a, monkeypatch):
+    """Patch compute_features so the user sits exactly on centre a."""
+    centre = next(c["centre"] for c in model["clusters"] if c["name"] == a)
+    monkeypatch.setattr(archetypes, "compute_features", lambda games: dict(centre))
     return archetypes.archetype_response([game(10) for _ in range(5)], model)
 
 
@@ -235,18 +248,32 @@ def test_response_blends_competitor_and_completionist(model, monkeypatch):
     assert body["blend"] == {"primary": top2[0], "secondary": top2[1]}
 
 
-def test_response_has_no_blend_across_families(model, monkeypatch):
+def test_response_blends_across_families(model, monkeypatch):
+    # Competitor / The Main: the most common cross-family close call
     body = _between(model, "Competitor", "The Main", monkeypatch)
     top2 = [s["archetype"] for s in body["scores"][:2]]
     assert set(top2) == {"Competitor", "The Main"}
     assert body["scores"][0]["percent"] - body["scores"][1]["percent"] <= archetypes.BLEND_MAX_GAP
+    assert body["family"] == next(c["family"] for c in model["clusters"] if c["name"] == top2[0])
+    assert body["blend"] == {"primary": top2[0], "secondary": top2[1]}
+
+
+def test_response_has_no_blend_with_a_clear_lead(model, monkeypatch):
+    body = _at(model, "Competitor", monkeypatch)
+    assert body["archetype"] == "Competitor" and body["family"] == "Committed"
+    assert body["scores"][0]["percent"] - body["scores"][1]["percent"] > archetypes.BLEND_MAX_GAP
     assert body["blend"] is None
 
 
-def test_rollback_to_v1_is_a_file_swap(tmp_path):
-    """The v1 file loads unchanged; family and blend are then null, the rest as before."""
+def test_rollback_to_v1_is_a_file_swap(monkeypatch):
+    """The v1 file loads unchanged. family is null (v1 has no families); the
+    family-agnostic blend still applies to near-ties."""
     v1 = archetypes.load_model(archetypes.MODEL_PATH.with_name("archetype_model_v1.json"))
     assert v1["version"] == "1.0.0"
     body = archetypes.archetype_response(devotee_games(), v1)
     assert body["archetype"] == "Devotee" and body["model_version"] == "1.0.0"
     assert body["family"] is None and body["blend"] is None
+    tie = _between(v1, "Competitor", "The Main", monkeypatch)
+    top2 = [s["archetype"] for s in tie["scores"][:2]]
+    assert tie["family"] is None
+    assert tie["blend"] == {"primary": top2[0], "secondary": top2[1]}
