@@ -1,8 +1,8 @@
 """Model 2.0.1 = 2.0.0 plus the atypical check. Nothing else changes: centres, scaler, imputation,
 names, families, descriptions and temperature are copied as they are.
 
-For each of the 3,333 training players (v2-core, seed 42; tables/v2core_training_features.csv
-reproduces the model's own training shares exactly), the distance to the nearest centre in the
+For each of the 3,333 training players (v2-core, seed 42; v2core_training_features.csv, written by
+v2_core_final.py, reproduces the model's own training shares exactly), the distance to the nearest centre in the
 scaled space, exactly as the service scores. Stored:
   atypical_distance_threshold   the 95th percentile of those distances
   training_distance_quantiles   the 0th..100th percentiles (101 values), for distance_percentile
@@ -20,7 +20,7 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parents[2]
 MODEL = REPO / "models" / "archetype_model.json"
-TRAIN = REPO / "notebooks" / "survey_validation" / "tables" / "v2core_training_features.csv"
+TRAIN = REPO / "notebooks" / "v2_core_final" / "v2core_training_features.csv"   # written by v2_core_final.py
 PERCENTILE = 95
 
 

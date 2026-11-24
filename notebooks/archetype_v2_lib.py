@@ -1,8 +1,9 @@
 """Simulation v2 analysis: training, plausibility checks, v1 vs v2 comparison, sensitivity.
 
-Used by notebooks/archetypes_training_v2.ipynb and notebooks/run_sim_v2.py. The training
-pipeline is the v1 notebook's (cells 12-17, 25-27, 33, 39) and the comparison is the
-robustness check's (~/archetype-robustness/pipeline.py, run_robustness.py), copied, not
+Used by notebooks/v2_core_final.py, which trains the served model. The experiments that also
+used it (the v2 notebook, sensitivity, size, families and survey checks) are archived in
+"archetypes dataset/archive_2026-11-25" and at Git tag archetypes-experiments-archive. The
+training pipeline is the v1 notebook's and the comparison is the robustness check's, copied, not
 changed: StandardScaler, k = 2..8, the pre-registered k rule, KMeans(n_init=20,
 random_state=42), Hungarian matching, ARI on common players, the same verdict rule.
 """

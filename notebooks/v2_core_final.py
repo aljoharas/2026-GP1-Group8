@@ -5,11 +5,13 @@ k = 6 is adopted by majority across generator seeds: the pre-set k rule picked k
 and k = 3 on seed 42 (gap 0.0126 vs the 0.01 window). This choice was made after seeing the
 seed-42 result.
 
-Writes notebooks/v2_core_final/ (results.json, tables, a DRAFT model JSON with v1's names and
-descriptions as proposals plus a family field). Nothing in models/ is touched; names,
-descriptions and temperature await confirmation.
+Writes notebooks/v2_core_final/ (results.json, tables, the training players' features
+v2core_training_features.csv, and a draft model JSON). With --write-model it also writes the
+confirmed 2.0.0 to models/archetype_model.json; notebooks/v2_core_final/atypical_threshold.py then
+turns it into 2.0.1.
 
-    python notebooks/v2_core_final.py
+    python notebooks/v2_core_final.py --build-catalogue   # once: data/steam_catalogue.csv from data/steam.csv
+    python notebooks/v2_core_final.py --write-model
 """
 import json
 import sys
@@ -35,7 +37,11 @@ OUT.mkdir(exist_ok=True)
 FN = L.FN
 CORE = L.sim2.rules_variant(rule5_trophy_hunters={"on": False})
 
-plays, cal, CAT, _, _ = L.load_inputs(L.REPO / "data" / "steam-200k.csv", L.REPO / "data" / "steam_catalogue.csv")
+# --build-catalogue: (re)build data/steam_catalogue.csv (+ _matches.csv) from the Kaggle Steam Store
+# Games data/steam.csv with archetype_catalogue, as the original v2 notebook did
+STORE = L.REPO / "data" / "steam.csv" if "--build-catalogue" in sys.argv else None
+plays, cal, CAT, _, _ = L.load_inputs(L.REPO / "data" / "steam-200k.csv", L.REPO / "data" / "steam_catalogue.csv",
+                                      store_csv=STORE)
 
 
 WRITE_MODEL = "--write-model" in sys.argv   # write models/archetype_model.json (2.0.0, confirmed)
@@ -51,6 +57,8 @@ def population(seed, log=None):
 # --- 1. Final training --------------------------------------------------------------
 LOG = {}
 run = population(L.SEED, LOG)
+# The training players' features: the atypical threshold (2.0.1) and the report figures use them
+run["raw"].to_csv(OUT / "v2core_training_features.csv", index=False)
 
 # Plausibility on the training population itself
 checks = L.plausibility(run["players"], CORE)
@@ -184,6 +192,9 @@ if WRITE_MODEL:
     target.write_text(json.dumps(final, indent=2) + "\n")
     assert (L.Assigner.from_json(final).assign(run["raw"]) == model.labels_).all()
     print("wrote", target.relative_to(L.REPO), final["version"])
+# The draft only bridges training and the final JSON; it is archived, not kept (--keep-draft keeps it)
+if "--keep-draft" not in sys.argv:
+    draft.unlink()
 
 json.dump({
     "plausibility": checks.fillna("").to_dict("records"), "expected_signs": signs,

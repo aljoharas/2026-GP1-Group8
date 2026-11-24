@@ -4,7 +4,7 @@
 |---|---|
 | Model | K-Means, k = 6, frozen as JSON (`models/archetype_model.json`) |
 | Version | **2.0.1** (seed 42): 2.0.0 plus the [atypical check](#atypical-check), with scoring otherwise identical. Replaces 1.0.0, which is kept as `models/archetype_model_v1.json` for rollback. |
-| Trained by | `notebooks/v2_core_final.py --write-model` (2.0.0), then `notebooks/v2_core_final/atypical_threshold.py` (2.0.1). The analysis is in `notebooks/archetypes_training_v2.ipynb` and the `notebooks/sim_v2*` reports. |
+| Trained by | `notebooks/v2_core_final.py --write-model` (2.0.0), then `notebooks/v2_core_final/atypical_threshold.py` (2.0.1). The v2 analysis notebook and the `sim_v2*` reports are archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`. |
 | Served by | Python service, `GET /archetype?uid=...`, behind Node `GET /users/me/archetype` |
 | Status | **Prototype. Not validated on real users.** It was trained on simulated players only, and a first survey (n = 20) found no agreement with self-descriptions beyond chance. See [Survey validation](#survey-validation). |
 
@@ -107,7 +107,7 @@ k = 6 fits for generator seeds 0–4.
 **The dendrogram supports the families.** Ward linkage on the six centres merges Casual + Explorer (height 2.48),
 Competitor + Completionist (2.57) and Devotee + The Main (2.58) first, on every seed. The merges between families
 come much later, at 4.32 and 4.93. The figure is
-`notebooks/figures/v2/families_dendrogram.png`.
+`docs/archetypes/figures/families_dendrogram.png`.
 
 **Where players are undecided doesn't follow the families.** Only 33–41% of close calls are same-family, so
 condition (c) fails on every seed. The most common cross-family close calls on the served model:
@@ -127,7 +127,7 @@ On four of the other five seeds, Competitor / The Main is the most common.
 runner-up splits Completionist 39.5% and The Main 27.8%. On seed 2 The Main becomes its nearest centre. Casual, the
 largest and most central cluster, is the other common side of a close call.
 
-The full analysis is in `notebooks/families_check/` (`report.md`, tables, `families_check.py`).
+The full analysis (`families_check/report.md`, tables, `families_check.py`) is archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`.
 
 ### Blend rule
 
@@ -142,7 +142,7 @@ Because the blend no longer uses families, it works with any model file. A rollb
 `family: null`, but still returns a blend for near-ties.
 
 **Blend rate.** These were measured through the served code path (`archetype_response` with this model); the script
-is `notebooks/blend_rate.py`.
+(`blend_rate.py`) is archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`.
 
 - **Training players:** 294 of 3,333 blend (**8.8%**). 117 are same-family and 177 cross-family. The same-family rule
   would have given 117 (3.5%).
@@ -423,8 +423,8 @@ doesn't cover the players it's meant for. See below.
 
 The frozen model (2.0.0, which scores identically to 2.0.1) was tested on **20 survey respondents**. All consented;
 they were used only as a test set, and nothing was retrained or renamed. Each listed 5 games with hours, status and
-trophy share, plus active months and a self-description. Rules were fixed before scoring. The full report is
-`notebooks/survey_validation/report.md`.
+trophy share, plus active months and a self-description. Rules were fixed before scoring. The full report (`survey_validation/report.md`) is
+archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`.
 
 **Result: no evidence of agreement beyond chance.**
 
@@ -491,7 +491,7 @@ trophy denominators, and the tightened trophy fallback.
 
 These were run, reported and kept on their own branches. None changed the served model.
 
-**v3: clustering real Steam players** (`feature/archetype-v3-real`, `notebooks/v3_real/`)
+**v3: clustering real Steam players** (branch `feature/archetype-v3-real`; archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`, folder `v3_real/`)
 - 2,408 real Steam 200k players, with no personas.
 - **The structure is weak.** With simulated completion and trophies added, the best silhouette is 0.215, at k = 4. On
   the five real features alone it's 0.282, at k = 3.
@@ -506,7 +506,7 @@ These were run, reported and kept on their own branches. None changed the served
 - The calibration gap is large. Respondents average about 43h per game against the simulation's 4h, a trophy rate of
   0.55 against 0.10, and an online share of 0.92 against 0.38.
 
-**v2.2: v2-core recalibrated to the survey** (`feature/archetype-v2-2`, `notebooks/v2_2/report.md`)
+**v2.2: v2-core recalibrated to the survey** (branch `feature/archetype-v2-2`; archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`, `v2_2/report.md`)
 - Five common level shifts fit the survey's medians, and the targets were met.
 - **But online share overshot** (median 0.985, IQR 0.15), so almost every simulated player became an online player.
 - **The cluster matched to Devotee became an offline group** (online share 0.25), not a one-game group.
@@ -560,9 +560,12 @@ allows more than 5 games.
 ## Reproducing
 
 1. Put `steam-200k.csv` and `steam.csv` (Kaggle Steam Store Games) in `data/`.
-2. Run `notebooks/archetypes_training_v2.ipynb` once to build `data/steam_catalogue.csv`.
-3. Run `python notebooks/v2_core_final.py --write-model`. It writes `models/archetype_model.json` (2.0.0) and the
-   tables in `notebooks/v2_core_final/`. Seed 42 reproduces every number here; only `trained_at` changes.
-4. Run `python notebooks/v2_core_final/atypical_threshold.py` to turn 2.0.0 into 2.0.1. It needs
-   `notebooks/survey_validation/tables/v2core_training_features.csv`, the same 3,333 players.
-5. 1.0.0 is reproduced by `notebooks/archetypes_training.ipynb`, which now writes to `models/archetype_model_v1.json`.
+2. Run `python notebooks/v2_core_final.py --build-catalogue` once to build `data/steam_catalogue.csv` with
+   `backend/recommender/archetype_catalogue.py`.
+3. Run `python notebooks/v2_core_final.py --write-model`. It writes `models/archetype_model.json` (2.0.0), the
+   tables in `notebooks/v2_core_final/` and the training players' features (`v2core_training_features.csv`). Seed 42 reproduces every number here; only `trained_at` changes.
+4. Run `python notebooks/v2_core_final/atypical_threshold.py` to turn 2.0.0 into 2.0.1. It reads
+   `notebooks/v2_core_final/v2core_training_features.csv`, the same 3,333 players.
+5. The report figures in `docs/archetypes/figures/` are drawn by `python notebooks/v2_core_final/figures.py`.
+6. 1.0.0 was trained by `archetypes_training.ipynb`, now archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`; it writes
+   `models/archetype_model_v1.json`, which stays in the repo as the rollback file.

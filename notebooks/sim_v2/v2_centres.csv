@@ -1,8 +1,0 @@
-cluster,completion_rate,trophy_rate,genre_diversity,log_hours_per_game,top_game_share,log_activity,online_share,log_games_played,players,suggested (nearest persona),nearest v1 archetype
-0,0.0853,0.0683,0.8087,1.0729,0.4557,1.5028,0.3318,1.9152,182,casual,Casual
-1,0.0933,0.0957,0.524,1.7483,0.9001,3.6354,0.9542,1.9112,53,devotee,The Main
-2,0.138,0.1092,0.5028,1.7109,0.9028,3.5377,0.0375,1.9379,76,devotee,Devotee
-3,0.3235,0.2016,0.8322,2.5478,0.43,3.3087,0.8245,2.2536,120,competitor,Competitor
-4,0.5504,0.3871,0.8148,2.2919,0.4838,2.6531,0.3226,1.9685,98,completionist,Completionist
-5,0.109,0.5113,0.8166,1.2724,0.4759,1.8052,0.3287,2.0761,39,completionist,unmatched v2 cluster 5
-6,0.1412,0.1161,0.9473,1.2589,0.2497,2.408,0.3796,3.0315,99,explorer,Explorer

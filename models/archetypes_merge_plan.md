@@ -2,14 +2,18 @@
 
 **Status:** nothing is merged yet. This plan is for review.
 
+**Pre-merge cleanup (2026-11-25):** the experiment notebooks, reports and tables were removed from
+`feature/archetype-sim-v2`. They are archived in `archetypes dataset/archive_2026-11-25` (with a README index) and at
+the Git tag `archetypes-experiments-archive`; `feature/archetype-v3-real` and `feature/archetype-v2-2` are pushed.
+
 ## Branches
 
 | Branch | What it holds | Relation to `main` | Merge? |
 |---|---|---|---|
 | `feature/player-archetypes` | v1: features, simulator, model 1.0.0, `/archetype`, app card | 5 commits ahead; `main` is an ancestor; pushed | **Yes**, first |
 | `feature/archetype-sim-v2` | everything in `player-archetypes`, plus: sim v2, model 2.0.1 (v2-core, k = 6, atypical check), family and blend, survey validation, Flutter card states, model card | branched from `player-archetypes`; merges into `main` with no conflicts (checked with `git merge-tree`); **local is ahead of `origin`**, the latest commits aren't pushed | **Yes**, second |
-| `feature/archetype-v3-real` | the real-Steam-players experiment (analysis only, `notebooks/v3_real/`) | branched from `sim-v2` at `f9250fa` | **No.** Keep it as a reference branch. Its notebooks aren't needed in `main`. |
-| `feature/archetype-v2-2` | the v2.2 recalibration experiment (analysis only, `notebooks/v2_2/`); not adopted | branched from `sim-v2` | **No.** Keep it as a reference branch. |
+| `feature/archetype-v3-real` | the real-Steam-players experiment (analysis only, `notebooks/v3_real/` on that branch) | branched from `sim-v2` at `f9250fa` | **No.** Keep it as a reference branch. Its notebooks aren't needed in `main`. |
+| `feature/archetype-v2-2` | the v2.2 recalibration experiment (analysis only, `notebooks/v2_2/` on that branch); not adopted | branched from `sim-v2` | **No.** Keep it as a reference branch. |
 
 **Order:**
 1. **PR 1: `feature/player-archetypes` → `main`.** Reviewing v1 on its own keeps the diff readable.
@@ -33,8 +37,10 @@ and `flutter/test/failures/` stay uncommitted.
 ## Deployment checklist
 
 **Database**
-- [ ] **Run the RAWG achievements_count backfill: `node scripts/backfill_achievements_count.js`. It has not run yet:
-  on 2026-11-24, 0 of 1,195 games had `achievements_count`.** Until it runs, every real user's trophy rate uses the
+- [ ] **Run the RAWG achievements_count backfill if RAWG is reachable, dry-run first:**
+  `node scripts/backfill_achievements_count.js --dry-run`, check the report, then run it without `--dry-run`.
+  RAWG responded on 2026-11-25 (HTTP 200, with `achievements_count` in the game details). The backfill has not run
+  yet: on 2026-11-24, 0 of 1,195 games had `achievements_count`. Until it runs, every real user's trophy rate uses the
   achievements-table fallback (see the model card's limitations). New games get the count from `saveGameToDB`.
 - [ ] Optionally run `node scripts/backfill_igdb_enrichment.js --dry-run`, then without `--dry-run`, to fill
   `game_modes` for the 692 games (58%) still without them. All 50 games in manual logs already have modes.

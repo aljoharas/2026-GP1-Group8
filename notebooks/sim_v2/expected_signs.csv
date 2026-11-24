@@ -1,5 +1,0 @@
-pair,expected,v1,v2,v2 sign as expected
-log_hours_per_game ↔ trophy_rate,+,0.2983,0.5488,True
-log_activity ↔ trophy_rate,+,-0.0112,0.2723,True
-completion_rate ↔ trophy_rate,+,0.5162,0.5551,True
-online_share ↔ completion_rate,−,-0.0143,0.1007,False

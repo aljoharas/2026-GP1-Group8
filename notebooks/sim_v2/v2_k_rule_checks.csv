@@ -1,3 +1,0 @@
-k,silhouette,closest pair,its largest gap (SD),smallest cluster share,(a) gap >= 0.5 SD,(b) share >= 5%,passes
-3,0.25605087099373214,0-2,1.742508397289475,0.2128935532233883,True,True,True
-7,0.2472794208918037,3-4,1.3979023329597329,0.05847076461769116,True,True,True

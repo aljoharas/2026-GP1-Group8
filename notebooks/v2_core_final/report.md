@@ -6,8 +6,10 @@ per persona (3,333 players), seed 42, k = 6, StandardScaler, `KMeans(n_init=20, 
 **How k = 6 was chosen:** by majority across generator seeds. The pre-set k rule picked k = 6 on seeds 0–4 and
 k = 3 on seed 42 (gap 0.0126 vs the 0.01 window). This choice was made after seeing the seed-42 result.
 
-**Status:** nothing in `models/` has changed. The draft model is `archetype_model_v2_core_draft.json`, in this
-folder. Scripts: `notebooks/v2_core_final.py` and `notebooks/v2_core_real_users.py`.
+**Status at the time (steps 1–4):** nothing in `models/` had changed yet. The names, descriptions and temperature
+were then confirmed and the model served as 2.0.0, later 2.0.1. Script: `notebooks/v2_core_final.py`. The draft
+model JSON and the real-user script (`v2_core_real_users.py`) are archived in `archetypes dataset/archive_2026-11-25`
+and at Git tag `archetypes-experiments-archive`.
 
 ## 1. Final training
 

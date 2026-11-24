@@ -302,7 +302,7 @@ def blend_of(clusters: list[dict], order: list[int], percents: list[int]) -> dic
     percentage points, whatever their families; else None. The app shows it as
     "<primary>, with a touch of <secondary>".
 
-    Family-agnostic since the families check (notebooks/families_check): only
+    Family-agnostic since the families check (model card, "Families check"): only
     33-41% of close calls were same-family, so the pre-set fallback applied.
     """
     if len(order) < 2:
