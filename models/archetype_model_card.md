@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | Model | K-Means, k = 6, frozen as JSON (`models/archetype_model.json`) |
-| Version | **2.0.0** (seed 42). Replaces 1.0.0, which is kept as `models/archetype_model_v1.json` for rollback. |
-| Trained by | `notebooks/v2_core_final.py --write-model`. The analysis is in `notebooks/archetypes_training_v2.ipynb` and the `notebooks/sim_v2*` reports. |
+| Version | **2.0.1** (seed 42): 2.0.0 plus the [atypical check](#atypical-check), with scoring otherwise identical. Replaces 1.0.0, which is kept as `models/archetype_model_v1.json` for rollback. |
+| Trained by | `notebooks/v2_core_final.py --write-model` (2.0.0), then `notebooks/v2_core_final/atypical_threshold.py` (2.0.1). The analysis is in `notebooks/archetypes_training_v2.ipynb` and the `notebooks/sim_v2*` reports. |
 | Served by | Python service, `GET /archetype?uid=...`, behind Node `GET /users/me/archetype` |
-| Status | Trained on simulated players only. **Not yet validated on real players.** |
+| Status | **Prototype. Not validated on real users.** It was trained on simulated players only, and a first survey (n = 20) found no agreement with self-descriptions beyond chance. See [Survey validation](#survey-validation). |
 
 ## What it does
 
@@ -26,7 +26,12 @@ Since 2.0.0 the response also carries:
 - **`family`**: the top archetype's family (see [Families and blends](#families-and-blends)).
 - **`blend`**: `{"primary", "secondary"}` when the top two archetypes are within 10 percentage points, whatever their
   families; otherwise `null`. The app shows it as "*primary*, with a touch of *secondary*", for example "Competitor,
-  with a touch of The Main".
+  with a touch of The Main". There's never a blend for an atypical user.
+- **`atypical`** (2.0.1): `true` when the user's distance to their nearest centre is beyond what 95% of training
+  players have. The app then says "Closest match: *archetype*" instead of claiming a match. See
+  [Atypical check](#atypical-check).
+- **`distance_percentile`** (2.0.1): where that distance falls among the training players, from 0 to 100. Python
+  returns it; Node doesn't pass it to the app.
 
 The model is trained **once, offline**. The service only loads the JSON; it never retrains.
 
@@ -385,13 +390,86 @@ Why 0.75 (the same criteria as for 1.0.0):
 
 The temperature only changes the displayed percentages, never the assigned archetype.
 
+## Atypical check
+
+**Why it exists.** The softmax always gives some archetype the biggest share. Even a user far from every centre gets
+a confident-looking "48% match". The survey showed this is common: real players are much more engaged than the
+simulated training players, so many sit far outside the training cloud. The check makes that visible instead of
+overstating the match.
+
+**How the threshold is computed** (`notebooks/v2_core_final/atypical_threshold.py`):
+- For each of the 3,333 training players, take the distance to their nearest centre in the scaled space, exactly as
+  the service scores. The script first checks the feature table reproduces the model's own training shares.
+- `atypical_distance_threshold` is the **95th percentile** of those distances: **2.641 SD**. It flags 5.0% of
+  training players by construction.
+- `training_distance_quantiles` (the 0th–100th percentiles) gives `distance_percentile`.
+- Nothing else changed from 2.0.0. A test pins 2.0.0's scoring fields (scaler, imputation, centres, names, families,
+  descriptions and temperature) by hash.
+
+**Effect:** an atypical user keeps the same scores and nearest archetype, but gets `atypical: true` and no blend.
+The app shows "Closest match: *archetype*" with no %, and a line saying the playstyle doesn't closely match any type
+yet. A model file without a threshold (1.0.0) always returns `atypical: false`.
+
+| Who | Flagged atypical |
+|---|---|
+| Training players (3,333) | 5.0% (by construction) |
+| **Survey respondents (20)** | **17 (85%)**; median distance percentile 100 |
+| **Real app users (5, ≥ 5 manual games, 2026-11-24)** | **3** (two Completionists and one Competitor) |
+
+**Most real players are flagged.** The flag is honest about that, but it also shows the model's training population
+doesn't cover the players it's meant for. See below.
+
+## Survey validation
+
+The frozen model (2.0.0, which scores identically to 2.0.1) was tested on **20 survey respondents**. All consented;
+they were used only as a test set, and nothing was retrained or renamed. Each listed 5 games with hours, status and
+trophy share, plus active months and a self-description. Rules were fixed before scoring. The full report is
+`notebooks/survey_validation/report.md`.
+
+**Result: no evidence of agreement beyond chance.**
+
+| Model | Top-1 agreement with self-description | Chance (permutation) | p | Top-2 agreement | Chance | p |
+|---|---|---|---|---|---|---|
+| **2.0.0** | **4 / 20 = 20%** (95% CI 8–42%) | 25% | **0.81** | 10 / 20 = 50% | 41% | 0.19 |
+| 1.0.0 | 6 / 20 = 30% (15–52%) | 21% | 0.17 | 10 / 20 = 50% | 41% | 0.21 |
+
+- **v1 was not significantly better** (30% vs 21% chance, p = 0.17).
+- **No sensitivity changed an agreement result:** games played = 5, activity = training mean, alternative game
+  matches, and without an implausible respondent.
+
+**The model gives only three archetypes to these respondents:** Completionist 10, Competitor 6, The Main 4. Explorer,
+Casual and Devotee never appear.
+
+**The calibration gap**, survey median vs v2-core training players:
+
+| Feature | Survey | Training players |
+|---|---|---|
+| Hours per game | ≈ 43h | ≈ 4h |
+| Trophy rate | 0.55 | 0.10 |
+| Online share | 0.92 | 0.38 |
+
+The simulation's engagement levels are far below real players', so real users land in a corner of the space the
+training data barely covers. That's why the atypical check flags most of them.
+
+**Form limitations:**
+- **5-game cap.** Games played isn't observed, and it's Explorer's defining feature.
+- **Very engaged sample.** 13 of 20 play daily, so Casual can hardly appear.
+- **Self-reported ranges** converted to midpoints.
+- **Hours are probably lifetime.**
+- **5 self-descriptions mapped to 6 archetypes.**
+- **n = 20**, so the confidence intervals are wide.
+
+**Next step:** recalibrate the simulation's engagement levels (hours per game, trophy rate, online share, activity)
+on real data, then test on **new** survey responses. These 20 have been seen and can't serve as an independent test
+of a recalibrated model.
+
 ## Rollback
 
 `models/archetype_model_v1.json` is the unchanged 1.0.0 model. Rolling back is a file swap: copy it over
 `models/archetype_model.json` (or set `ARCHETYPE_MODEL_PATH`) and restart the service.
 
-The code serves both versions. With 1.0.0, `family` is `null`, and `blend` follows the same family-agnostic rule
-(within 10 points). Everything else is as before. Serving both files locally was checked on 2026-11-17, before the
+The code serves both versions. With 1.0.0, `family` is `null`, `atypical` is `false` (there's no threshold), and
+`blend` follows the same family-agnostic rule (within 10 points). Everything else is as before. Serving both files locally was checked on 2026-11-17, before the
 blend rule changed. The rollback with the new rule is covered by `test_rollback_to_v1_is_a_file_swap`.
 
 ## Changes from 1.0.0
@@ -403,6 +481,8 @@ blend rule changed. The rollback with the new rule is covered by `test_rollback_
 - **API:** `family` and `blend` added to the response. Nothing was removed or renamed.
 - **Blend rule made family-agnostic** after the families check failed condition (c) (see
   [Families check](#families-check)). Model, families and temperature unchanged.
+- **2.0.1: atypical check added** (`atypical_distance_threshold`, `training_distance_quantiles`). Scoring is identical
+  to 2.0.0. The API adds `atypical` and `distance_percentile`, and there's no blend when the user is atypical.
 
 1.0.0's earlier review changes still apply: truncated library sampling, the 8th feature `log_games_played`, RAWG
 trophy denominators, and the tightened trophy fallback.
@@ -434,10 +514,16 @@ trophy denominators, and the tightened trophy fallback.
 
 ## Validation plan
 
-Real players, collected later through a survey form, are used **only to test the frozen model**: they are scored by
-this JSON and compared with what they report about themselves. They are never used to retrain it. The survey should
-also report completion and trophy rates (to check rule 2's M) and whether players chase trophies on every game (to
-decide on rule 5).
+Real players from a survey form are used **only to test a frozen model**: they're scored by the JSON and compared with
+what they report about themselves, never used to retrain it.
+
+The first round (n = 20) is reported in [Survey validation](#survey-validation). It found no agreement beyond chance.
+It also showed that real trophy rates (median 0.55) are far above the simulation's, and that high trophy shares on
+unfinished games are almost all online games: no respondent had 2 or more offline ones, so the survey gives no
+support for rule 5.
+
+The next round should test a model recalibrated on real engagement levels, with **new** respondents and a form that
+allows more than 5 games.
 
 ## Reproducing
 
@@ -445,4 +531,6 @@ decide on rule 5).
 2. Run `notebooks/archetypes_training_v2.ipynb` once to build `data/steam_catalogue.csv`.
 3. Run `python notebooks/v2_core_final.py --write-model`. It writes `models/archetype_model.json` (2.0.0) and the
    tables in `notebooks/v2_core_final/`. Seed 42 reproduces every number here; only `trained_at` changes.
-4. 1.0.0 is reproduced by `notebooks/archetypes_training.ipynb`, which now writes to `models/archetype_model_v1.json`.
+4. Run `python notebooks/v2_core_final/atypical_threshold.py` to turn 2.0.0 into 2.0.1. It needs
+   `notebooks/survey_validation/tables/v2core_training_features.csv`, the same 3,333 players.
+5. 1.0.0 is reproduced by `notebooks/archetypes_training.ipynb`, which now writes to `models/archetype_model_v1.json`.
