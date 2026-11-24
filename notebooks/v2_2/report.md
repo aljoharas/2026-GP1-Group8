@@ -16,9 +16,10 @@ and there is no new test set.
 |---|---|
 | (a) k = 6 within 0.01 of the best silhouette on most seeds | **Pass.** 6 of 6 seeds; the best k is 5 on five seeds and 6 on one |
 | (b) six archetypes matched one-to-one, descriptions still fit | **Not met as it stands.** Matched one-to-one, but **Devotee isn't a mutual-nearest match**, and its description doesn't fit the cluster (below) |
-| (c) plausibility | **Pass** (one judgement call, below) |
+| (c) plausibility | **Pass** (one judgement call, accepted; below) |
 
-So v2.2 is saved here as a finding, and `models/` is unchanged.
+**Decision, 2026-11-24:** keep 2.0.1 served and don't serve v2.2. v2.2 is recorded in the model card under
+"Experiments not adopted", and `models/` is unchanged.
 
 **Why (b) fails: the cluster matched to Devotee is "the offline group", not "one game".**
 - Its centre has an online share of 0.25. It's the only offline cluster; every other is 0.88–0.98.
@@ -29,9 +30,10 @@ So v2.2 is saved here as a finding, and `models/` is unchanged.
 - "One game you keep coming back to, over and over" would be wrong for them. A rewording such as "Mostly offline
   play" would describe a different archetype, not a small wording edit. That's for you to decide.
 
-**Judgement call on (c).** One completion below 0.3 × length came from rule 1 out of 797 games (0.13%). My automated
-check used a 0.1% bar, so it reported a fail. But rule 1 allows up to about 0.34% at r = 0.3 by design, and v2-core
-had 2 of 9,095 accepted as "near 0". I count this as a pass. Everything else in (c) passes outright:
+**Judgement call on (c), accepted as a pass.** One completion below 0.3 × length came from rule 1 out of 797 games
+(0.13%). The automated check used a 0.1% bar, so it reported a fail. But that is within rule 1's design rate (up to
+about 0.34% at r = 0.3), which is the same standard v2-core was held to (2 of 9,095 accepted as "near 0"). Decision,
+2026-11-24: (c) is a pass. Everything else in (c) passes outright:
 - no 100% trophy sets on unfinished games, and none with r < 3;
 - multiplayer-only completion at 2.07%;
 - all four correlation signs as expected. Online ↔ completion is now −0.10.
