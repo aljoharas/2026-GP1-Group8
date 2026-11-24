@@ -1,0 +1,528 @@
+{
+  "main": {
+    "players": 2408,
+    "imputed": {
+      "genre_diversity": 13,
+      "online_share": 13
+    },
+    "silhouette": {
+      "2": 0.26695581099170007,
+      "3": 0.2824575324687654,
+      "4": 0.2554273772666332,
+      "5": 0.24475917963508378,
+      "6": 0.22404733292383822,
+      "7": 0.22229071831125122,
+      "8": 0.21168792561707767
+    },
+    "inertia": {
+      "2": 8472.836157329872,
+      "3": 6962.678568572048,
+      "4": 5932.500553212734,
+      "5": 5058.234466075401,
+      "6": 4688.453051686929,
+      "7": 4351.389961889781,
+      "8": 4096.80983930372
+    },
+    "best_k": 3,
+    "within_0.01": [
+      3
+    ],
+    "k": {
+      "3": {
+        "restart": {
+          "mean_pairwise": 0.9981065329101461,
+          "min_pairwise": 0.9965985913956606
+        },
+        "centres": [
+          {
+            "log_games_played": 3.4608,
+            "log_hours_per_game": 2.0328,
+            "top_game_share": 0.3129,
+            "genre_diversity": 0.7238,
+            "online_share": 0.7824,
+            "players": 930,
+            "share": 0.3862,
+            "\u2248 games": 31.8431,
+            "\u2248 hours/game": 6.6352,
+            "nearest served archetype": "Explorer"
+          },
+          {
+            "log_games_played": 2.3342,
+            "log_hours_per_game": 2.0956,
+            "top_game_share": 0.4542,
+            "genre_diversity": 0.5227,
+            "online_share": 0.2468,
+            "players": 386,
+            "share": 0.1603,
+            "\u2248 games": 10.3209,
+            "\u2248 hours/game": 7.1299,
+            "nearest served archetype": "Completionist"
+          },
+          {
+            "log_games_played": 2.147,
+            "log_hours_per_game": 2.2191,
+            "top_game_share": 0.6528,
+            "genre_diversity": 0.4604,
+            "online_share": 0.9552,
+            "players": 1092,
+            "share": 0.4535,
+            "\u2248 games": 8.5595,
+            "\u2248 hours/game": 8.199,
+            "nearest served archetype": "The Main"
+          }
+        ],
+        "resemblance": [
+          {
+            "served archetype": "Devotee",
+            "group": NaN,
+            "distance (SD)": NaN,
+            "mutual nearest": false,
+            "half gap": 1.2868,
+            "resembles": false
+          },
+          {
+            "served archetype": "Competitor",
+            "group": NaN,
+            "distance (SD)": NaN,
+            "mutual nearest": false,
+            "half gap": 0.698,
+            "resembles": false
+          },
+          {
+            "served archetype": "Explorer",
+            "group": 0.0,
+            "distance (SD)": 2.3351,
+            "mutual nearest": true,
+            "half gap": 1.1886,
+            "resembles": false
+          },
+          {
+            "served archetype": "Casual",
+            "group": NaN,
+            "distance (SD)": NaN,
+            "mutual nearest": false,
+            "half gap": 0.8517,
+            "resembles": false
+          },
+          {
+            "served archetype": "The Main",
+            "group": 2.0,
+            "distance (SD)": 1.1491,
+            "mutual nearest": true,
+            "half gap": 1.2868,
+            "resembles": true
+          },
+          {
+            "served archetype": "Completionist",
+            "group": 1.0,
+            "distance (SD)": 1.7696,
+            "mutual nearest": true,
+            "half gap": 0.698,
+            "resembles": false
+          }
+        ],
+        "resembles": [
+          "The Main"
+        ]
+      },
+      "6": {
+        "restart": {
+          "mean_pairwise": 0.9829925324637925,
+          "min_pairwise": 0.9284990424356926
+        },
+        "centres": [
+          {
+            "log_games_played": 2.1582,
+            "log_hours_per_game": 1.9886,
+            "top_game_share": 0.7819,
+            "genre_diversity": 0.385,
+            "online_share": 0.9663,
+            "players": 518,
+            "share": 0.2151,
+            "\u2248 games": 8.6556,
+            "\u2248 hours/game": 6.3054,
+            "nearest served archetype": "The Main"
+          },
+          {
+            "log_games_played": 2.225,
+            "log_hours_per_game": 1.3553,
+            "top_game_share": 0.4885,
+            "genre_diversity": 0.6574,
+            "online_share": 0.8957,
+            "players": 384,
+            "share": 0.1595,
+            "\u2248 games": 9.2531,
+            "\u2248 hours/game": 2.8779,
+            "nearest served archetype": "Casual"
+          },
+          {
+            "log_games_played": 2.2929,
+            "log_hours_per_game": 2.0016,
+            "top_game_share": 0.4865,
+            "genre_diversity": 0.4936,
+            "online_share": 0.1869,
+            "players": 293,
+            "share": 0.1217,
+            "\u2248 games": 9.9041,
+            "\u2248 hours/game": 6.4011,
+            "nearest served archetype": "Devotee"
+          },
+          {
+            "log_games_played": 2.016,
+            "log_hours_per_game": 3.4272,
+            "top_game_share": 0.5025,
+            "genre_diversity": 0.4558,
+            "online_share": 0.8998,
+            "players": 287,
+            "share": 0.1192,
+            "\u2248 games": 7.508,
+            "\u2248 hours/game": 29.79,
+            "nearest served archetype": "Competitor"
+          },
+          {
+            "log_games_played": 4.1134,
+            "log_hours_per_game": 1.9367,
+            "top_game_share": 0.227,
+            "genre_diversity": 0.762,
+            "online_share": 0.6308,
+            "players": 409,
+            "share": 0.1699,
+            "\u2248 games": 61.157,
+            "\u2248 hours/game": 5.936,
+            "nearest served archetype": "Explorer"
+          },
+          {
+            "log_games_played": 3.0154,
+            "log_hours_per_game": 2.3402,
+            "top_game_share": 0.4004,
+            "genre_diversity": 0.6551,
+            "online_share": 0.8714,
+            "players": 517,
+            "share": 0.2147,
+            "\u2248 games": 20.3976,
+            "\u2248 hours/game": 9.3831,
+            "nearest served archetype": "Competitor"
+          }
+        ],
+        "resemblance": [
+          {
+            "served archetype": "Devotee",
+            "group": 2,
+            "distance (SD)": 1.8891,
+            "mutual nearest": true,
+            "half gap": 1.2868,
+            "resembles": false
+          },
+          {
+            "served archetype": "Competitor",
+            "group": 3,
+            "distance (SD)": 2.5165,
+            "mutual nearest": false,
+            "half gap": 0.698,
+            "resembles": false
+          },
+          {
+            "served archetype": "Explorer",
+            "group": 4,
+            "distance (SD)": 2.9126,
+            "mutual nearest": false,
+            "half gap": 1.1886,
+            "resembles": false
+          },
+          {
+            "served archetype": "Casual",
+            "group": 1,
+            "distance (SD)": 1.9435,
+            "mutual nearest": true,
+            "half gap": 0.8517,
+            "resembles": false
+          },
+          {
+            "served archetype": "The Main",
+            "group": 0,
+            "distance (SD)": 1.0047,
+            "mutual nearest": true,
+            "half gap": 1.2868,
+            "resembles": true
+          },
+          {
+            "served archetype": "Completionist",
+            "group": 5,
+            "distance (SD)": 2.6617,
+            "mutual nearest": false,
+            "half gap": 0.698,
+            "resembles": false
+          }
+        ],
+        "resembles": [
+          "The Main"
+        ]
+      }
+    }
+  },
+  "no_dota": {
+    "players": 2338,
+    "imputed": {
+      "genre_diversity": 14,
+      "online_share": 14
+    },
+    "silhouette": {
+      "2": 0.2627355840275604,
+      "3": 0.27424356450929493,
+      "4": 0.2547265116103119,
+      "5": 0.24610517653132627,
+      "6": 0.2277913355911956,
+      "7": 0.22672496432719175,
+      "8": 0.21141689089646676
+    },
+    "inertia": {
+      "2": 8269.718309096203,
+      "3": 6825.521485364441,
+      "4": 5810.797084223963,
+      "5": 4942.8334850792035,
+      "6": 4586.673982171947,
+      "7": 4248.672127974444,
+      "8": 3994.032170663071
+    },
+    "best_k": 3,
+    "within_0.01": [
+      3
+    ],
+    "k": {
+      "3": {
+        "restart": {
+          "mean_pairwise": 0.999519860963152,
+          "min_pairwise": 0.9989711306353255
+        },
+        "centres": [
+          {
+            "log_games_played": 2.1384,
+            "log_hours_per_game": 2.1577,
+            "top_game_share": 0.6403,
+            "genre_diversity": 0.4669,
+            "online_share": 0.9489,
+            "players": 1019,
+            "share": 0.4358,
+            "\u2248 games": 8.4858,
+            "\u2248 hours/game": 7.6511,
+            "nearest served archetype": "The Main"
+          },
+          {
+            "log_games_played": 2.3243,
+            "log_hours_per_game": 2.0983,
+            "top_game_share": 0.4558,
+            "genre_diversity": 0.52,
+            "online_share": 0.2447,
+            "players": 391,
+            "share": 0.1672,
+            "\u2248 games": 10.22,
+            "\u2248 hours/game": 7.1522,
+            "nearest served archetype": "Completionist"
+          },
+          {
+            "log_games_played": 3.4538,
+            "log_hours_per_game": 2.0231,
+            "top_game_share": 0.2978,
+            "genre_diversity": 0.7295,
+            "online_share": 0.7601,
+            "players": 928,
+            "share": 0.3969,
+            "\u2248 games": 31.6199,
+            "\u2248 hours/game": 6.5619,
+            "nearest served archetype": "Explorer"
+          }
+        ],
+        "resemblance": [
+          {
+            "served archetype": "Devotee",
+            "group": NaN,
+            "distance (SD)": NaN,
+            "mutual nearest": false,
+            "half gap": 1.2868,
+            "resembles": false
+          },
+          {
+            "served archetype": "Competitor",
+            "group": NaN,
+            "distance (SD)": NaN,
+            "mutual nearest": false,
+            "half gap": 0.698,
+            "resembles": false
+          },
+          {
+            "served archetype": "Explorer",
+            "group": 2.0,
+            "distance (SD)": 2.2703,
+            "mutual nearest": true,
+            "half gap": 1.1886,
+            "resembles": false
+          },
+          {
+            "served archetype": "Casual",
+            "group": NaN,
+            "distance (SD)": NaN,
+            "mutual nearest": false,
+            "half gap": 0.8517,
+            "resembles": false
+          },
+          {
+            "served archetype": "The Main",
+            "group": 0.0,
+            "distance (SD)": 1.137,
+            "mutual nearest": true,
+            "half gap": 1.2868,
+            "resembles": true
+          },
+          {
+            "served archetype": "Completionist",
+            "group": 1.0,
+            "distance (SD)": 1.778,
+            "mutual nearest": true,
+            "half gap": 0.698,
+            "resembles": false
+          }
+        ],
+        "resembles": [
+          "The Main"
+        ]
+      },
+      "6": {
+        "restart": {
+          "mean_pairwise": 0.9436888517227626,
+          "min_pairwise": 0.8788063414653933
+        },
+        "centres": [
+          {
+            "log_games_played": 2.3039,
+            "log_hours_per_game": 1.9913,
+            "top_game_share": 0.4811,
+            "genre_diversity": 0.4958,
+            "online_share": 0.1891,
+            "players": 306,
+            "share": 0.1309,
+            "\u2248 games": 10.0132,
+            "\u2248 hours/game": 6.3254,
+            "nearest served archetype": "Devotee"
+          },
+          {
+            "log_games_played": 4.0622,
+            "log_hours_per_game": 1.9169,
+            "top_game_share": 0.232,
+            "genre_diversity": 0.7568,
+            "online_share": 0.6317,
+            "players": 458,
+            "share": 0.1959,
+            "\u2248 games": 58.1013,
+            "\u2248 hours/game": 5.8001,
+            "nearest served archetype": "Explorer"
+          },
+          {
+            "log_games_played": 2.3418,
+            "log_hours_per_game": 1.371,
+            "top_game_share": 0.4819,
+            "genre_diversity": 0.6652,
+            "online_share": 0.8926,
+            "players": 414,
+            "share": 0.1771,
+            "\u2248 games": 10.4003,
+            "\u2248 hours/game": 2.9394,
+            "nearest served archetype": "Competitor"
+          },
+          {
+            "log_games_played": 2.1046,
+            "log_hours_per_game": 1.9742,
+            "top_game_share": 0.7599,
+            "genre_diversity": 0.3853,
+            "online_share": 0.9621,
+            "players": 499,
+            "share": 0.2134,
+            "\u2248 games": 8.2042,
+            "\u2248 hours/game": 6.201,
+            "nearest served archetype": "The Main"
+          },
+          {
+            "log_games_played": 2.8224,
+            "log_hours_per_game": 2.4719,
+            "top_game_share": 0.3905,
+            "genre_diversity": 0.6551,
+            "online_share": 0.8601,
+            "players": 474,
+            "share": 0.2027,
+            "\u2248 games": 16.8177,
+            "\u2248 hours/game": 10.8448,
+            "nearest served archetype": "Competitor"
+          },
+          {
+            "log_games_played": 1.9772,
+            "log_hours_per_game": 3.6744,
+            "top_game_share": 0.4798,
+            "genre_diversity": 0.4244,
+            "online_share": 0.871,
+            "players": 187,
+            "share": 0.08,
+            "\u2248 games": 7.2227,
+            "\u2248 hours/game": 38.4266,
+            "nearest served archetype": "Competitor"
+          }
+        ],
+        "resemblance": [
+          {
+            "served archetype": "Devotee",
+            "group": 0,
+            "distance (SD)": 1.9138,
+            "mutual nearest": true,
+            "half gap": 1.2868,
+            "resembles": false
+          },
+          {
+            "served archetype": "Competitor",
+            "group": 4,
+            "distance (SD)": 1.7201,
+            "mutual nearest": true,
+            "half gap": 0.698,
+            "resembles": false
+          },
+          {
+            "served archetype": "Explorer",
+            "group": 1,
+            "distance (SD)": 2.8262,
+            "mutual nearest": false,
+            "half gap": 1.1886,
+            "resembles": false
+          },
+          {
+            "served archetype": "Casual",
+            "group": 2,
+            "distance (SD)": 2.0241,
+            "mutual nearest": false,
+            "half gap": 0.8517,
+            "resembles": false
+          },
+          {
+            "served archetype": "The Main",
+            "group": 3,
+            "distance (SD)": 0.9893,
+            "mutual nearest": true,
+            "half gap": 1.2868,
+            "resembles": true
+          },
+          {
+            "served archetype": "Completionist",
+            "group": 5,
+            "distance (SD)": 3.4662,
+            "mutual nearest": false,
+            "half gap": 0.698,
+            "resembles": false
+          }
+        ],
+        "resembles": [
+          "The Main"
+        ]
+      }
+    }
+  },
+  "ari_main_vs_no_dota": {
+    "3": 0.8176753221850691,
+    "6": 0.7141457654426249
+  }
+}

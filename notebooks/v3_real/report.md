@@ -234,5 +234,6 @@ Seed-to-seed noise at k = 6 is ARI **0.54–0.60**.
 - **The archetype-match criterion (half the nearest-neighbour gap) is mine**, stated before looking, but not
   pre-registered by you.
 
-A possible next step, not run: cluster on the five real features alone. That would show what real data supports
-without any simulated features.
+**Follow-up, run:** clustering on the five real features alone (`real_only/report.md`) gives a clearer best k = 3
+(silhouette 0.28): one online game, a big varied library, and mostly offline players. Only The Main matches a
+served archetype.

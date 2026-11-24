@@ -1,0 +1,7 @@
+served archetype,group,distance (SD),mutual nearest,half gap,resembles
+Devotee,,,False,1.2868,False
+Competitor,,,False,0.698,False
+Explorer,2.0,2.2703,True,1.1886,False
+Casual,,,False,0.8517,False
+The Main,0.0,1.137,True,1.2868,True
+Completionist,1.0,1.778,True,0.698,False
