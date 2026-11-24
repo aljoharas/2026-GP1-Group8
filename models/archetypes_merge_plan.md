@@ -1,6 +1,6 @@
 # Player Archetypes: merge plan and deployment checklist
 
-**Status:** nothing is merged yet. This plan is for review.
+**Status:** nothing is merged yet. One pull request is open for review: `feature/archetype-sim-v2` → `main`.
 
 **Pre-merge cleanup (2026-11-25):** the experiment notebooks, reports and tables were removed from
 `feature/archetype-sim-v2`. They are archived in `archetypes dataset/archive_2026-11-25` (with a README index) and at
@@ -8,31 +8,28 @@ the Git tag `archetypes-experiments-archive`; `feature/archetype-v3-real` and `f
 
 ## Branches
 
-| Branch | What it holds | Relation to `main` | Merge? |
-|---|---|---|---|
-| `feature/player-archetypes` | v1: features, simulator, model 1.0.0, `/archetype`, app card | 5 commits ahead; `main` is an ancestor; pushed | **Yes**, first |
-| `feature/archetype-sim-v2` | everything in `player-archetypes`, plus: sim v2, model 2.0.1 (v2-core, k = 6, atypical check), family and blend, survey validation, Flutter card states, model card | branched from `player-archetypes`; merges into `main` with no conflicts (checked with `git merge-tree`); **local is ahead of `origin`**, the latest commits aren't pushed | **Yes**, second |
-| `feature/archetype-v3-real` | the real-Steam-players experiment (analysis only, `notebooks/v3_real/` on that branch) | branched from `sim-v2` at `f9250fa` | **No.** Keep it as a reference branch. Its notebooks aren't needed in `main`. |
-| `feature/archetype-v2-2` | the v2.2 recalibration experiment (analysis only, `notebooks/v2_2/` on that branch); not adopted | branched from `sim-v2` | **No.** Keep it as a reference branch. |
+| Branch | What it holds | Merge? |
+|---|---|---|
+| `feature/archetype-sim-v2` | everything in `feature/player-archetypes` (v1, `/archetype`, the app card), plus sim v2, model 2.0.1 (v2-core, k = 6, atypical check), family and blend, the IGDB enrichment fix, the Flutter card states, the model card | **Yes: the only PR** |
+| `feature/player-archetypes` | v1 only; every one of its commits is in `sim-v2` (checked with `git merge-base --is-ancestor`) | **No separate PR** (it arrives with `sim-v2`) |
+| `feature/archetype-v3-real` | the real-Steam-players experiment (analysis only, `notebooks/v3_real/` on that branch) | **No.** Keep it as a reference branch |
+| `feature/archetype-v2-2` | the v2.2 recalibration experiment (analysis only, `notebooks/v2_2/` on that branch); not adopted | **No.** Keep it as a reference branch |
 
-**Order:**
-1. **PR 1: `feature/player-archetypes` → `main`.** Reviewing v1 on its own keeps the diff readable.
-2. **PR 2: `feature/archetype-sim-v2` → `main`.** It now contains only the v2 work on top of PR 1.
+**Merge sim-v2 only:** one PR, `feature/archetype-sim-v2` → `main`. Don't merge the experiment branches; both are
+summarised in the model card under "Experiments not adopted".
 
-   Push it first (`git push origin feature/archetype-sim-v2`): `origin` is several commits behind.
-
-   *Alternative:* if one PR is preferred, merge `sim-v2` alone. It contains every `player-archetypes` commit.
-3. Don't merge `feature/archetype-v3-real` or `feature/archetype-v2-2`. Both experiments are summarised in the
-   model card under "Experiments not adopted".
-
-**Before opening the PRs:** the working tree has your own uncommitted, unrelated changes. Keep them out of both PRs,
-or commit them on their own branch first:
-- modified: `backend/recommender/wrapped.py`
-- untracked: `flutter/test/failures/`
-
-The IGDB enrichment fix (`routes/games.js`, `lib/igdb.js`, `scripts/backfill_igdb_enrichment.js`,
-`tests/igdb.test.js`) is now committed on `feature/archetype-sim-v2` (`18a09bf`). Only `wrapped.py` (comment edits)
-and `flutter/test/failures/` stay uncommitted.
+**Checked against the teammates' work (2026-11-25):**
+- `main` is at `809858d` (Wrapped cache, Endgame cards, notifications). `git merge-tree` reports no conflicts for
+  `sim-v2` → `main`.
+- Only two files are changed on both sides: `backend/recommender/main.py` and `backend/routes/users.js`. The hunks
+  are separate.
+- No Wrapped file, router, `main.dart`, `home_screen.dart`, `constants.dart` or `pubspec` change comes from this
+  branch.
+- **Migration renamed to `015_games_achievements_count.sql`.** The teammates added `013_wrapped_ready_notification`
+  and `014_wrapped_cache`. `run_migrations.js` re-runs every file in name order, and this migration is idempotent,
+  so the rename doesn't affect the database.
+- **The local `wrapped.py` edits were discarded** in favour of the teammates' version. They're saved as
+  `archetypes dataset/archive_2026-11-25/wrapped_py_local_edits.patch`. The working tree is clean.
 
 ## Deployment checklist
 
@@ -44,7 +41,7 @@ and `flutter/test/failures/` stay uncommitted.
   achievements-table fallback (see the model card's limitations). New games get the count from `saveGameToDB`.
 - [ ] Optionally run `node scripts/backfill_igdb_enrichment.js --dry-run`, then without `--dry-run`, to fill
   `game_modes` for the 692 games (58%) still without them. All 50 games in manual logs already have modes.
-- [ ] Migration `013_games_achievements_count.sql` is applied (already done). Confirm with
+- [ ] Migration `015_games_achievements_count.sql` (was `013_…` before the rename) is applied (already done). Confirm with
   `SELECT column_name FROM information_schema.columns WHERE table_name = 'games' AND column_name = 'achievements_count';`.
   No other migration is needed.
 
@@ -84,6 +81,5 @@ and `flutter/test/failures/` stay uncommitted.
 
 **Back to 2.0.1:** restore the file (`git checkout models/archetype_model.json`) and restart.
 
-**Code:** revert the PR 2 merge commit (`git revert -m 1 <merge>`). This takes `main` back to v1 (PR 1).
-Reverting PR 1 as well removes archetypes entirely. The routes are additive, so no data migration is needed either
-way: migration 013 only adds a nullable column.
+**Code:** revert the merge commit (`git revert -m 1 <merge>`). This removes archetypes from `main` entirely. The routes are additive, so no data migration is needed either
+way: migration 015 only adds a nullable column.

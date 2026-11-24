@@ -1,6 +1,6 @@
 /**
  * Backfill games.achievements_count from RAWG game details (achievements_count).
- * Needs migration 013. New games get the count from saveGameToDB; this fills
+ * Needs migration 015 (015_games_achievements_count.sql). New games get the count from saveGameToDB; this fills
  * the games saved before that. One RAWG request per game, at most one per
  * second; 429s, 5xx (including Cloudflare's 52x when RAWG is down), timeouts
  * and non-JSON answers are retried with exponential backoff.
