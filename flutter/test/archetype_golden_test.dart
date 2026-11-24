@@ -10,7 +10,7 @@ import 'package:loadout/models/archetype.dart';
 import 'package:loadout/services/archetype_service.dart';
 import 'package:loadout/widgets/archetype_card.dart';
 
-import 'archetype_test.dart' show mineJson, lockedJson, friendJson;
+import 'archetype_test.dart' show mineJson, blendJson, atypicalJson, lockedJson, friendJson;
 import 'golden_fonts.dart';
 
 const _screens = [
@@ -82,6 +82,8 @@ void main() {
 
   final states = <String, Widget>{
     'card': ArchetypeCard(archetype: Archetype.fromJson(mineJson)),
+    'blend': ArchetypeCard(archetype: Archetype.fromJson(blendJson)),
+    'atypical': ArchetypeCard(archetype: Archetype.fromJson(atypicalJson)),
     'locked': ArchetypeCard(archetype: Archetype.fromJson(lockedJson)),
     'friend': ArchetypeCard(
       archetype: Archetype.fromJson(friendJson),
@@ -111,22 +113,27 @@ void main() {
       });
     }
 
-    testWidgets('archetype mix sheet ${screen.name}', (tester) async {
-      tester.view.physicalSize = screen.size * 3;
-      tester.view.devicePixelRatio = 3;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        _profile(
-          ArchetypeCard(archetype: Archetype.fromJson(mineJson)),
-          screen.textScale,
-        ),
-      );
-      await tester.tap(find.byType(ArchetypeCard));
-      await tester.pumpAndSettle();
-      await expectLater(
-        find.byType(MaterialApp),
-        matchesGoldenFile('goldens/archetype_sheet_${screen.name}.png'),
-      );
-    });
+    for (final sheet in [
+      (name: 'sheet', json: mineJson),
+      (name: 'sheet_atypical', json: atypicalJson),
+    ]) {
+      testWidgets('archetype ${sheet.name} ${screen.name}', (tester) async {
+        tester.view.physicalSize = screen.size * 3;
+        tester.view.devicePixelRatio = 3;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          _profile(
+            ArchetypeCard(archetype: Archetype.fromJson(sheet.json)),
+            screen.textScale,
+          ),
+        );
+        await tester.tap(find.byType(ArchetypeCard));
+        await tester.pumpAndSettle();
+        await expectLater(
+          find.byType(MaterialApp),
+          matchesGoldenFile('goldens/archetype_${sheet.name}_${screen.name}.png'),
+        );
+      });
+    }
   }
 }

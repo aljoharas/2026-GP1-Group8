@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/archetype.dart';
 
 // Player Archetype on a profile. Your own profile shows the top type with its
-// match %, and taps open the full mix; a friend's profile shows only the name
-// and description (the server never sends their scores or reasons).
+// match % (or a blend of two close types, or only the closest type when you're
+// far from all of them), and taps open the full mix; a friend's profile shows
+// only the name and description (the server never sends their scores or reasons).
 
 const _surface = Color(0xFF16161E);
 const _surface2 = Color(0xFF1E1E2A);
@@ -118,26 +119,61 @@ class ArchetypeCard extends StatelessWidget {
       } else {
         children.addAll(_locked(a));
       }
-    } else {
-      final title = friendView || a.topPercent == null ? a.name! : '${a.name} · ${a.topPercent}% match';
-      children.add(Text(title,
-          style: const TextStyle(color: _kText, fontSize: 17, fontWeight: FontWeight.w700)));
-      if ((a.description ?? '').isNotEmpty) {
+    } else if (friendView) {
+      children.add(_title(a.name!));
+      children.addAll(_description(a.description));
+    } else if (a.atypical) {
+      // Far from every type: name the closest one without a %, and say so
+      children.add(_title('Closest match: ${a.name}'));
+      children.addAll(_description(a.description));
+      children.addAll(const [
+        SizedBox(height: 6),
+        Text("Your playstyle doesn't closely match any one type yet.",
+            style: TextStyle(color: _kText, fontSize: 13, height: 1.35)),
+      ]);
+      children.addAll(_tapHint(a));
+    } else if (a.blend != null) {
+      children.add(_title(a.blend!.label));
+      if (a.topPercent != null) {
         children.addAll([
-          const SizedBox(height: 4),
-          Text(a.description!, style: const TextStyle(color: _muted, fontSize: 13, height: 1.35)),
+          const SizedBox(height: 2),
+          Text('${a.topPercent}% ${a.blend!.primary}',
+              style: const TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w600)),
         ]);
       }
-      if (!friendView && a.scores.isNotEmpty) {
-        children.addAll(const [
-          SizedBox(height: 10),
-          Text('Tap to see your full mix',
-              style: TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w600)),
-        ]);
-      }
+      children.addAll(_description(a.description));
+      children.addAll(_family(a.family));
+      children.addAll(_tapHint(a));
+    } else {
+      children.add(_title(a.topPercent == null ? a.name! : '${a.name} · ${a.topPercent}% match'));
+      children.addAll(_description(a.description));
+      children.addAll(_family(a.family));
+      children.addAll(_tapHint(a));
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: children);
   }
+
+  Widget _title(String text) =>
+      Text(text, style: const TextStyle(color: _kText, fontSize: 17, fontWeight: FontWeight.w700));
+
+  List<Widget> _description(String? text) => (text ?? '').isEmpty
+      ? const []
+      : [
+          const SizedBox(height: 4),
+          Text(text!, style: const TextStyle(color: _muted, fontSize: 13, height: 1.35)),
+        ];
+
+  List<Widget> _family(String? family) => family == null
+      ? const []
+      : [const SizedBox(height: 8), _FamilyChip(family: family)];
+
+  List<Widget> _tapHint(Archetype a) => a.scores.isEmpty
+      ? const []
+      : const [
+          SizedBox(height: 10),
+          Text('Tap to see your full mix',
+              style: TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w600)),
+        ];
 
   List<Widget> _locked(Archetype? a) {
     final played = a?.gamesPlayed ?? 0;
@@ -172,6 +208,27 @@ class _Badge extends StatelessWidget {
         height: 44,
         decoration: BoxDecoration(color: _accent.withValues(alpha: 0.12), shape: BoxShape.circle),
         child: Icon(icon, color: _accent, size: 22),
+      );
+}
+
+class _FamilyChip extends StatelessWidget {
+  final String family;
+  const _FamilyChip({required this.family});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: '$family family',
+        excludeSemantics: true,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: _surface2,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: _border),
+          ),
+          child: Text('$family family',
+              style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+        ),
       );
 }
 
@@ -234,11 +291,19 @@ class ArchetypeMixSheet extends StatelessWidget {
               const SizedBox(height: 18),
               const _Label('YOUR PLAYSTYLE MIX'),
               const SizedBox(height: 6),
-              Text('${a.name} · ${a.topPercent}% match',
+              Text(
+                  a.atypical
+                      ? 'Closest match: ${a.name}'
+                      : a.blend?.label ?? '${a.name} · ${a.topPercent}% match',
                   style: const TextStyle(color: _kText, fontSize: 20, fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
               Text('Based on the ${a.gamesPlayed} games you\'ve logged',
                   style: const TextStyle(color: _muted, fontSize: 13)),
+              if (a.atypical) ...[
+                const SizedBox(height: 12),
+                const Text('These show how close you are to each type; none is a close match.',
+                    style: TextStyle(color: _kText, fontSize: 13, height: 1.4)),
+              ],
               const SizedBox(height: 20),
               for (final (i, s) in a.scores.indexed) _ScoreRow(score: s, top: i == 0),
               if (a.reasons.isNotEmpty) ...[

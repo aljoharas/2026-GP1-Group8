@@ -4,21 +4,47 @@ import 'package:loadout/models/archetype.dart';
 import 'package:loadout/services/archetype_service.dart';
 import 'package:loadout/widgets/archetype_card.dart';
 
-/// The shape GET /users/me/archetype returns (a real response, 2026-11-07)
-const mineJson = {
+const _desc = {
+  'Competitor': 'Online, competitive, and in it for the long sessions.',
+  'Devotee': 'One game you keep coming back to, over and over.',
+  'The Main': 'One online game has most of your hours.',
+  'Completionist': 'You see more of your games through than most players, and pick up trophies on the way.',
+  'Explorer': 'Always trying something new, across lots of genres.',
+  'Casual': 'You play when life gives you time.',
+};
+
+List<Map<String, Object>> _scores(List<(String, int)> s) =>
+    [for (final (n, p) in s) {'archetype': n, 'description': _desc[n]!, 'percent': p}];
+
+/// The shape GET /users/me/archetype returns with model 2.0.1: a clear Competitor
+final mineJson = {
   'archetype': 'Competitor',
-  'description': 'Online, competitive, and in it for the long sessions.',
-  'scores': [
-    {'archetype': 'Competitor', 'description': 'Online, competitive, and in it for the long sessions.', 'percent': 48},
-    {'archetype': 'Devotee', 'description': 'One game you keep coming back to, over and over.', 'percent': 22},
-    {'archetype': 'The Main', 'description': 'One online game has most of your hours.', 'percent': 18},
-    {'archetype': 'Completionist', 'description': 'You finish what you start and chase the trophies.', 'percent': 7},
-    {'archetype': 'Explorer', 'description': 'Always trying something new, across lots of genres.', 'percent': 3},
-    {'archetype': 'Casual', 'description': 'You play when life gives you time.', 'percent': 2},
-  ],
+  'description': _desc['Competitor'],
+  'family': 'Committed',
+  'atypical': false,
+  'blend': null,
+  'scores': _scores([('Competitor', 48), ('Devotee', 22), ('The Main', 18), ('Completionist', 7), ('Explorer', 3), ('Casual', 2)]),
   'reasons': ['A typical game gets about 41 hours from you', 'You average about 168 hours in each month you play'],
   'games_played': 12,
-  'model_version': '1.0.0',
+  'model_version': '2.0.1',
+};
+
+/// Top two within 10 points: a blend
+final blendJson = {
+  ...mineJson,
+  'scores': _scores([('Competitor', 35), ('Completionist', 25), ('The Main', 18), ('Devotee', 12), ('Explorer', 6), ('Casual', 4)]),
+  'blend': {'primary': 'Competitor', 'secondary': 'Completionist'},
+};
+
+/// Far from every type: closest match only, no %, no blend
+final atypicalJson = {
+  ...mineJson,
+  'archetype': 'Completionist',
+  'description': _desc['Completionist'],
+  'atypical': true,
+  'scores': _scores([('Completionist', 81), ('Competitor', 7), ('The Main', 5), ('Devotee', 4), ('Explorer', 2), ('Casual', 1)]),
+  'reasons': ["You've unlocked 88% of the trophies in your games", "You've finished 4 of your 5 games"],
+  'games_played': 5,
 };
 
 const lockedJson = {'archetype': null, 'reason': 'not_enough_games', 'games_played': 3, 'min_games': 5};
@@ -66,10 +92,36 @@ void main() {
     });
   });
 
-  testWidgets('own card shows "<Archetype> · <top %>% match" and opens the full mix', (tester) async {
+  group('2.0.1 fields', () {
+    test('parse family, blend and atypical', () {
+      final a = Archetype.fromJson(mineJson);
+      expect(a.family, 'Committed');
+      expect(a.blend, isNull);
+      expect(a.atypical, isFalse);
+      final b = Archetype.fromJson(blendJson);
+      expect(b.blend!.label, 'Competitor, with a touch of Completionist');
+      expect(Archetype.fromJson(atypicalJson).atypical, isTrue);
+    });
+
+    test('a 1.0.0 response (no family, blend or atypical) still parses', () {
+      final old = Map<String, dynamic>.from(mineJson)..remove('family')..remove('atypical')..remove('blend');
+      final a = Archetype.fromJson(old);
+      expect(a.family, isNull);
+      expect(a.blend, isNull);
+      expect(a.atypical, isFalse);
+    });
+
+    test('an atypical response never keeps a blend, even if one is sent', () {
+      final both = {...atypicalJson, 'blend': {'primary': 'Completionist', 'secondary': 'Competitor'}};
+      expect(Archetype.fromJson(both).blend, isNull);
+    });
+  });
+
+  testWidgets('normal card: "<Archetype> · <top %>% match", description, family, tap hint', (tester) async {
     await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(mineJson))));
     expect(find.text('Competitor · 48% match'), findsOneWidget);
     expect(find.text('Online, competitive, and in it for the long sessions.'), findsOneWidget);
+    expect(find.text('Committed family'), findsOneWidget);
     expect(find.text('Tap to see your full mix'), findsOneWidget);
 
     await tester.tap(find.byType(ArchetypeCard));
@@ -84,6 +136,54 @@ void main() {
     expect(find.text('A typical game gets about 41 hours from you'), findsOneWidget);
     expect(find.text('You average about 168 hours in each month you play'), findsOneWidget);
     expect(find.text('You play when life gives you time.'), findsOneWidget);
+  });
+
+  testWidgets('the family label is hidden when family is null', (tester) async {
+    final noFamily = Map<String, dynamic>.from(mineJson)..remove('family');
+    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(noFamily))));
+    expect(find.text('Competitor · 48% match'), findsOneWidget);
+    expect(find.textContaining('family'), findsNothing);
+  });
+
+  testWidgets('blend card: "<primary>, with a touch of <secondary>", top %, primary description', (tester) async {
+    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(blendJson))));
+    expect(find.text('Competitor, with a touch of Completionist'), findsOneWidget);
+    expect(find.text('35% Competitor'), findsOneWidget);
+    expect(find.text('Online, competitive, and in it for the long sessions.'), findsOneWidget);
+    expect(find.textContaining('· 35% match'), findsNothing);
+    await tester.tap(find.byType(ArchetypeCard));
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: find.byType(ArchetypeMixSheet), matching: find.text('Competitor, with a touch of Completionist')),
+        findsOneWidget);
+  });
+
+  testWidgets('atypical card: "Closest match", no %, no blend, the honesty line; sheet says none is close', (tester) async {
+    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(atypicalJson))));
+    expect(find.text('Closest match: Completionist'), findsOneWidget);
+    expect(find.text("Your playstyle doesn't closely match any one type yet."), findsOneWidget);
+    expect(find.textContaining('%'), findsNothing);
+    expect(find.textContaining('with a touch of'), findsNothing);
+    expect(find.textContaining('family'), findsNothing);
+    expect(find.text('Tap to see your full mix'), findsOneWidget);
+
+    await tester.tap(find.byType(ArchetypeCard));
+    await tester.pumpAndSettle();
+    final sheet = find.byType(ArchetypeMixSheet);
+    expect(find.descendant(of: sheet, matching: find.text('Closest match: Completionist')), findsOneWidget);
+    expect(find.descendant(of: sheet, matching: find.text('These show how close you are to each type; none is a close match.')),
+        findsOneWidget);
+    // All six bars, highest first, and the reasons
+    for (final p in ['81%', '7%', '5%', '4%', '2%', '1%']) {
+      expect(find.descendant(of: sheet, matching: find.text(p)), findsOneWidget);
+    }
+    expect(find.text("You've unlocked 88% of the trophies in your games"), findsOneWidget);
+  });
+
+  testWidgets('the normal sheet has no "none is a close match" line', (tester) async {
+    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(mineJson))));
+    await tester.tap(find.byType(ArchetypeCard));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('none is a close match'), findsNothing);
   });
 
   testWidgets('below 5 games the card asks for more logs and is not tappable', (tester) async {
@@ -107,10 +207,16 @@ void main() {
     expect(find.byType(ArchetypeMixSheet), findsNothing);
   });
 
-  testWidgets("a friend's card ignores scores even if they were somehow present", (tester) async {
-    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(mineJson), friendView: true)));
-    expect(find.text('Competitor'), findsOneWidget);
-    expect(find.textContaining('% match'), findsNothing);
+  testWidgets("a friend's card ignores scores, family, blend and atypical even if they were somehow present", (tester) async {
+    for (final json in [mineJson, blendJson, atypicalJson]) {
+      await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(json), friendView: true)));
+      expect(find.text(json['archetype'] as String), findsOneWidget);
+      expect(find.textContaining('%'), findsNothing);
+      expect(find.textContaining('family'), findsNothing);
+      expect(find.textContaining('with a touch of'), findsNothing);
+      expect(find.textContaining('Closest match'), findsNothing);
+      expect(find.textContaining('closely match'), findsNothing);
+    }
   });
 
   testWidgets('loading shows placeholders, not text', (tester) async {
