@@ -23,17 +23,21 @@
 
 **Before opening the PRs:** the working tree has your own uncommitted, unrelated changes. Keep them out of both PRs,
 or commit them on their own branch first:
-- modified: `backend/recommender/wrapped.py`, `backend/routes/games.js`
-- untracked: `backend/lib/igdb.js`, `backend/scripts/backfill_igdb_enrichment.js`, `backend/tests/igdb.test.js`,
-  `flutter/test/failures/`
+- modified: `backend/recommender/wrapped.py`
+- untracked: `flutter/test/failures/`
 
-The committed `games.js` doesn't depend on `lib/igdb.js`; only the WIP version does. The survey's lookup script
-(`notebooks/survey_validation/lookup_games.js`) needs `backend/lib/igdb.js` to re-run Step 1. Its outputs are already
-committed.
+The IGDB enrichment fix (`routes/games.js`, `lib/igdb.js`, `scripts/backfill_igdb_enrichment.js`,
+`tests/igdb.test.js`) is now committed on `feature/archetype-sim-v2` (`18a09bf`). Only `wrapped.py` (comment edits)
+and `flutter/test/failures/` stay uncommitted.
 
 ## Deployment checklist
 
 **Database**
+- [ ] **Run the RAWG achievements_count backfill: `node scripts/backfill_achievements_count.js`. It has not run yet:
+  on 2026-11-24, 0 of 1,195 games had `achievements_count`.** Until it runs, every real user's trophy rate uses the
+  achievements-table fallback (see the model card's limitations). New games get the count from `saveGameToDB`.
+- [ ] Optionally run `node scripts/backfill_igdb_enrichment.js --dry-run`, then without `--dry-run`, to fill
+  `game_modes` for the 692 games (58%) still without them. All 50 games in manual logs already have modes.
 - [ ] Migration `013_games_achievements_count.sql` is applied (already done). Confirm with
   `SELECT column_name FROM information_schema.columns WHERE table_name = 'games' AND column_name = 'achievements_count';`.
   No other migration is needed.
@@ -49,7 +53,7 @@ committed.
 
 **Node**
 - [ ] `RECOMMENDER_URL=http://127.0.0.1:8000`.
-- [ ] `node --test tests/archetype.test.js` (14 passing).
+- [ ] `node --test tests/archetype.test.js tests/igdb.test.js` (21 passing).
 - [ ] Smoke test: `GET /users/me/archetype` with a test user's token returns `archetype`, `scores` (summing to 100),
   `family`, `blend` and `atypical`. `GET /users/:id/archetype` for a friend returns only `archetype` and
   `description`.
