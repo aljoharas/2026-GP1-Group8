@@ -1,0 +1,4 @@
+k,"restart ARI mean (10 restarts, seed 42)",restart ARI min,seed-to-seed ARI min (vs seed 42),seed-to-seed ARI max
+3,0.9618,0.9308,0.5939,0.6273
+4,0.987,0.9742,0.6172,0.687
+6,0.9314,0.8536,0.5386,0.5948

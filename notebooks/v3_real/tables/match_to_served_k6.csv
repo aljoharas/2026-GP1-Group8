@@ -1,0 +1,7 @@
+v2-core archetype,v3 cluster,distance (SD),mutual nearest,half gap,appears
+Devotee,0,1.8378,True,1.2901,False
+Competitor,1,2.7216,False,1.262,False
+Explorer,2,2.944,False,1.1926,False
+Casual,3,2.4011,False,1.1926,False
+The Main,5,0.9701,True,1.2901,True
+Completionist,4,3.0203,False,1.262,False

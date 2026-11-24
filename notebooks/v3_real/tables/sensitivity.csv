@@ -1,0 +1,9 @@
+variant,players,best k,within 0.01,silhouette k=6,ARI vs main k=6
+activity (8 features),2408,2,"[2, 3, 4, 5]",0.1718,0.5238
+engagement × 0,2408,4,"[3, 4]",0.181,0.839
+engagement × 0.5,2408,4,[4],0.1825,0.8937
+engagement × 1.5,2408,4,[4],0.1798,0.6419
+propensity mean +0.1,2408,4,"[2, 4]",0.1787,0.6863
+propensity mean -0.1,2408,4,[4],0.1838,0.8086
+users ≥ 80% hours matched,1634,4,[4],0.171,0.5654
+Dota 2 removed,2338,4,"[2, 3, 4]",0.1836,0.7453

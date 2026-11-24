@@ -1,0 +1,8 @@
+check,count,out of
+completed with r < 0.3 (all games),67,17111
+  of which multiplayer-only (rule 3's flat 2%),63,2826
+  of which not multiplayer-only (rule 1),4,14285
+100% trophies on an unfinished game,0,23816
+100% trophies with r < 1 + E (3),0,23773
+completed multiplayer-only games,187,8838
+completed games overall,12541,57210
