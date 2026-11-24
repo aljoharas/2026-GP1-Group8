@@ -9,6 +9,7 @@
 | `feature/player-archetypes` | v1: features, simulator, model 1.0.0, `/archetype`, app card | 5 commits ahead; `main` is an ancestor; pushed | **Yes**, first |
 | `feature/archetype-sim-v2` | everything in `player-archetypes`, plus: sim v2, model 2.0.1 (v2-core, k = 6, atypical check), family and blend, survey validation, Flutter card states, model card | branched from `player-archetypes`; merges into `main` with no conflicts (checked with `git merge-tree`); **local is ahead of `origin`**, the latest commits aren't pushed | **Yes**, second |
 | `feature/archetype-v3-real` | the real-Steam-players experiment (analysis only, `notebooks/v3_real/`) | branched from `sim-v2` at `f9250fa` | **No.** Keep it as a reference branch. Its notebooks aren't needed in `main`. |
+| `feature/archetype-v2-2` | the v2.2 recalibration experiment (analysis only, `notebooks/v2_2/`); not adopted | branched from `sim-v2` | **No.** Keep it as a reference branch. |
 
 **Order:**
 1. **PR 1: `feature/player-archetypes` → `main`.** Reviewing v1 on its own keeps the diff readable.
@@ -17,7 +18,8 @@
    Push it first (`git push origin feature/archetype-sim-v2`): `origin` is several commits behind.
 
    *Alternative:* if one PR is preferred, merge `sim-v2` alone. It contains every `player-archetypes` commit.
-3. Don't merge `feature/archetype-v3-real`.
+3. Don't merge `feature/archetype-v3-real` or `feature/archetype-v2-2`. Both experiments are summarised in the
+   model card under "Experiments not adopted".
 
 **Before opening the PRs:** the working tree has your own uncommitted, unrelated changes. Keep them out of both PRs,
 or commit them on their own branch first:

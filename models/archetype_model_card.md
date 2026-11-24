@@ -487,6 +487,38 @@ blend rule changed. The rollback with the new rule is covered by `test_rollback_
 1.0.0's earlier review changes still apply: truncated library sampling, the 8th feature `log_games_played`, RAWG
 trophy denominators, and the tightened trophy fallback.
 
+## Experiments not adopted
+
+These were run, reported and kept on their own branches. None changed the served model.
+
+**v3: clustering real Steam players** (`feature/archetype-v3-real`, `notebooks/v3_real/`)
+- 2,408 real Steam 200k players, with no personas.
+- **The structure is weak.** With simulated completion and trophies added, the best silhouette is 0.215, at k = 4. On
+  the five real features alone it's 0.282, at k = 3.
+- **Only The Main is confirmed**, about 1 SD from its served centre.
+- **Real players split mainly by online share and library size:**
+  - one online game (45%);
+  - a big, varied library (39%);
+  - mostly offline (16%).
+
+**Survey validation of 2.0.0** (n = 20; [Survey validation](#survey-validation))
+- Top-1 agreement with self-descriptions was **20%, against 25% by chance** (p = 0.81).
+- The calibration gap is large. Respondents average about 43h per game against the simulation's 4h, a trophy rate of
+  0.55 against 0.10, and an online share of 0.92 against 0.38.
+
+**v2.2: v2-core recalibrated to the survey** (`feature/archetype-v2-2`, `notebooks/v2_2/report.md`)
+- Five common level shifts fit the survey's medians, and the targets were met.
+- **But online share overshot** (median 0.985, IQR 0.15), so almost every simulated player became an online player.
+- **The cluster matched to Devotee became an offline group** (online share 0.25), not a one-game group.
+- **4 of the 5 app users would have been labelled Devotee**, three of them with no dominant game.
+- Its 7 / 20 agreement on the survey is in-sample: those are the calibration responses, so it's **not validation**.
+- **Not adopted**, because the calibration sample is very online and doesn't represent the app's users. The app users'
+  online share was 0.00–0.39 for four of the five.
+
+**Common finding: online vs offline is the dominant real-world axis.** It separates real Steam players, it's where the
+survey and the simulation differ most, and it's what moved real app users between clusters in v2.2. Any future
+recalibration should treat online share separately, and calibrate on data that looks like Loadout's own users.
+
 ## Limitations
 
 - **Simulated training data.** The archetypes come from personas we designed. The model reproduces their structure,
