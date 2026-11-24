@@ -6,12 +6,11 @@ const { recordActivity } = require('../lib/activity');
 const { getOrCreateGuide } = require('../lib/achievementGuide');
 const { getGameAchievements } = require('../lib/achievements');
 const { getPlatinum } = require('../lib/guide/platinum');
+const { findIGDBGame, enrichmentFields } = require('../lib/igdb');
 require('dotenv').config();
 
 const RAWG_KEY = process.env.RAWG_API_KEY;
 const RAWG_BASE = 'https://api.rawg.io/api';
-const IGDB_CLIENT_ID = process.env.IGDB_CLIENT_ID;
-const IGDB_CLIENT_SECRET = process.env.IGDB_CLIENT_SECRET;
 const RECOMMENDER_URL = process.env.RECOMMENDER_URL || 'http://localhost:8000';
 
 function triggerRecommenderRefresh() {
@@ -25,39 +24,6 @@ async function fetchFromRawg(endpoint) {
   const response = await fetch(url);
   if (!response.ok) throw new Error('RAWG API error');
   return response.json();
-}
-
-// IGDB token cache — Twitch tokens last ~60 days so one fetch covers a long time
-let _igdbToken = null;
-let _igdbTokenExpiry = 0;
-
-async function getIGDBToken() {
-  if (_igdbToken && Date.now() < _igdbTokenExpiry) return _igdbToken;
-  const resp = await fetch(
-    `https://id.twitch.tv/oauth2/token?client_id=${IGDB_CLIENT_ID}&client_secret=${IGDB_CLIENT_SECRET}&grant_type=client_credentials`,
-    { method: 'POST' }
-  );
-  if (!resp.ok) throw new Error('IGDB auth failed');
-  const data = await resp.json();
-  _igdbToken = data.access_token;
-  _igdbTokenExpiry = Date.now() + (data.expires_in - 300) * 1000; // expire 5 min early
-  return _igdbToken;
-}
-
-// Helper — fetch themes, game_modes, keywords from IGDB by slug
-async function fetchIGDBData(slug) {
-  const token = await getIGDBToken();
-  const resp = await fetch('https://api.igdb.com/v4/games', {
-    method: 'POST',
-    headers: {
-      'Client-ID': IGDB_CLIENT_ID,
-      'Authorization': `Bearer ${token}`,
-    },
-    body: `where slug = "${slug}"; fields themes.name,game_modes.name,keywords.name,cover.url,summary,storyline; limit 1;`,
-  });
-  if (!resp.ok) throw new Error(`IGDB error ${resp.status}`);
-  const results = await resp.json();
-  return results[0] || null;
 }
 
 // Helper — save a game from RAWG into your database
@@ -160,25 +126,22 @@ async function saveGameToDB(rawgGame) {
     );
   }
 
-  // Enrich with IGDB data (themes, game_modes, keywords) if not already set
+  // Enrich with IGDB data (themes, game_modes, keywords) unless both themes and
+  // game_modes are already set. Checking themes alone left games that had
+  // themes but no modes unenriched forever; lib/igdb also falls back to the
+  // name when RAWG's slug isn't IGDB's.
   try {
     const existing = await pool.query(
-      'SELECT themes FROM games WHERE id = $1',
+      'SELECT themes, game_modes FROM games WHERE id = $1',
       [gameId]
     );
-    const alreadyEnriched = existing.rows[0]?.themes?.length > 0;
+    const row = existing.rows[0];
+    const alreadyEnriched = row?.themes?.length > 0 && row?.game_modes?.length > 0;
 
-    if (!alreadyEnriched && slug) {
-      const igdb = await fetchIGDBData(slug);
-      if (igdb) {
-        const themes    = (igdb.themes     || []).map(t => t.name);
-        const gameModes = (igdb.game_modes || []).map(m => m.name);
-        const keywords  = (igdb.keywords   || []).slice(0, 50).map(k => k.name);
-        const rawCoverUrl = igdb.cover?.url;
-        // IGDB URLs start with // and use t_thumb; upgrade to https + t_cover_big
-        const coverImage = rawCoverUrl
-          ? `https:${rawCoverUrl.replace('t_thumb', 't_cover_big')}`
-          : null;
+    if (!alreadyEnriched && (slug || name)) {
+      const found = await findIGDBGame({ slug, name, releasedAt: released });
+      if (found) {
+        const { themes, gameModes, keywords, coverImage, summary, storyline } = enrichmentFields(found.game);
         await pool.query(
           `UPDATE games SET themes = $1, game_modes = $2, keywords = $3,
                            cover_image  = COALESCE($4, cover_image),
@@ -186,9 +149,10 @@ async function saveGameToDB(rawgGame) {
                            storyline    = COALESCE($6, storyline),
                            updated_at   = now()
            WHERE id = $7`,
-          [themes, gameModes, keywords, coverImage,
-           igdb.summary || null, igdb.storyline || null, gameId]
+          [themes, gameModes, keywords, coverImage, summary, storyline, gameId]
         );
+      } else {
+        console.warn(`[IGDB] no match for "${name}" (slug "${slug}")`);
       }
     }
   } catch (err) {
