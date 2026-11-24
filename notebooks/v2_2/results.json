@@ -1,0 +1,579 @@
+{
+  "shifts": {
+    "s_hours": 0.45,
+    "s_comp": 0.25,
+    "s_trophy": 2.5,
+    "s_online": 3.25,
+    "s_months": 7.0
+  },
+  "targets": {
+    "log_hours_per_game": {
+      "median": 3.78295,
+      "p25": 3.1041499999999997,
+      "p75": 4.129275,
+      "iqr": 1.025125,
+      "n": 20
+    },
+    "trophy_rate": {
+      "median": 0.551,
+      "p25": 0.4415,
+      "p75": 0.69,
+      "iqr": 0.24849999999999994,
+      "n": 19
+    },
+    "online_share": {
+      "median": 0.9212,
+      "p25": 0.614725,
+      "p75": 0.99065,
+      "iqr": 0.37592500000000006,
+      "n": 20
+    },
+    "completion_rate": {
+      "median": 0.4,
+      "p25": 0.2,
+      "p75": 0.6,
+      "iqr": 0.39999999999999997,
+      "n": 20
+    },
+    "log_activity": {
+      "median": 3.71175,
+      "p25": 3.2619749999999996,
+      "p75": 4.009650000000001,
+      "iqr": 0.747675000000001,
+      "n": 20
+    }
+  },
+  "check_500": {
+    "v2_core": {
+      "log_hours_per_game": {
+        "median": 1.587435526712745,
+        "p25": 1.1343093447594659,
+        "p75": 2.1797861862070005,
+        "iqr": 1.0454768414475346
+      },
+      "trophy_rate": {
+        "median": 0.10029498525073746,
+        "p25": 0.05405405405405406,
+        "p75": 0.1935483870967742,
+        "iqr": 0.13949433304272013
+      },
+      "online_share": {
+        "median": 0.3756090941233653,
+        "p25": 0.06997586397297782,
+        "p75": 0.7777071982783131,
+        "iqr": 0.7077313343053353
+      },
+      "completion_rate": {
+        "median": 0.16666666666666666,
+        "p25": 0.0,
+        "p75": 0.3333333333333333,
+        "iqr": 0.3333333333333333
+      },
+      "log_activity": {
+        "median": 2.423730944717407,
+        "p25": 1.7694851846389228,
+        "p75": 3.1734980138120847,
+        "iqr": 1.404012829173162
+      }
+    },
+    "v2_2": {
+      "log_hours_per_game": {
+        "median": 3.4087864654251367,
+        "p25": 2.9540490562784076,
+        "p75": 3.9588580042167734,
+        "iqr": 1.0048089479383657
+      },
+      "trophy_rate": {
+        "median": 0.5549227013832384,
+        "p25": 0.4652777777777778,
+        "p75": 0.6751968503937008,
+        "iqr": 0.20991907261592302
+      },
+      "online_share": {
+        "median": 0.9848148394454804,
+        "p25": 0.8523649487364859,
+        "p75": 1.0,
+        "iqr": 0.14763505126351406
+      },
+      "completion_rate": {
+        "median": 0.375,
+        "p25": 0.2,
+        "p75": 0.5714285714285714,
+        "iqr": 0.3714285714285714
+      },
+      "log_activity": {
+        "median": 4.092634690324842,
+        "p25": 3.223693536964173,
+        "p75": 4.744265096910105,
+        "iqr": 1.5205715599459322
+      }
+    },
+    "objective_v2_core": 13.290738884547782,
+    "objective_v2_2": 0.4255258342519108
+  },
+  "plausibility": {
+    "rule1 completions with r < 0.3 (not multiplayer-only)": 1,
+    "rule1 games with r < 0.3": 797,
+    "100% trophies on unfinished": 0,
+    "100% trophies with r < 1 + E": 0,
+    "multiplayer-only completion rate": 0.020742884708152436,
+    "multiplayer-only within 2 SE of 2%": true,
+    "signs": [
+      {
+        "pair": "log_hours_per_game ~ trophy_rate",
+        "expected": "+",
+        "v2-core": 0.6425564639587674,
+        "v2.2": 0.45688264466055184,
+        "as expected": true
+      },
+      {
+        "pair": "log_activity ~ trophy_rate",
+        "expected": "+",
+        "v2-core": 0.31085419092410765,
+        "v2.2": 0.25651594649372955,
+        "as expected": true
+      },
+      {
+        "pair": "completion_rate ~ trophy_rate",
+        "expected": "+",
+        "v2-core": 0.6587677261073048,
+        "v2.2": 0.665839688448605,
+        "as expected": true
+      },
+      {
+        "pair": "online_share ~ completion_rate",
+        "expected": "-",
+        "v2-core": 0.01835849120664208,
+        "v2.2": -0.10134491466855627,
+        "as expected": true
+      }
+    ],
+    "pass": false,
+    "note": "online share ~ completion is judged as for v2-core (explained confound), not as a pass/fail sign"
+  },
+  "silhouette": {
+    "seed 42": {
+      "2": 0.1779,
+      "3": 0.1918,
+      "4": 0.1986,
+      "5": 0.213,
+      "6": 0.2103,
+      "7": 0.194,
+      "8": 0.1909
+    },
+    "seed 0": {
+      "2": 0.1851,
+      "3": 0.1901,
+      "4": 0.1992,
+      "5": 0.2099,
+      "6": 0.207,
+      "7": 0.1934,
+      "8": 0.1739
+    },
+    "seed 1": {
+      "2": 0.1835,
+      "3": 0.1936,
+      "4": 0.2009,
+      "5": 0.217,
+      "6": 0.2187,
+      "7": 0.2022,
+      "8": 0.19
+    },
+    "seed 2": {
+      "2": 0.1797,
+      "3": 0.1902,
+      "4": 0.1939,
+      "5": 0.2067,
+      "6": 0.2046,
+      "7": 0.1804,
+      "8": 0.1732
+    },
+    "seed 3": {
+      "2": 0.1752,
+      "3": 0.1879,
+      "4": 0.1909,
+      "5": 0.2073,
+      "6": 0.2032,
+      "7": 0.1861,
+      "8": 0.1872
+    },
+    "seed 4": {
+      "2": 0.18,
+      "3": 0.1875,
+      "4": 0.1992,
+      "5": 0.2154,
+      "6": 0.2145,
+      "7": 0.1997,
+      "8": 0.1799
+    },
+    "mean": {
+      "2": 0.1802,
+      "3": 0.1902,
+      "4": 0.1971,
+      "5": 0.2116,
+      "6": 0.2097,
+      "7": 0.1926,
+      "8": 0.1825
+    }
+  },
+  "best_k_by_seed": {
+    "42": 5,
+    "0": 5,
+    "1": 6,
+    "2": 5,
+    "3": 5,
+    "4": 5
+  },
+  "k6_within_0.01_by_seed": {
+    "42": true,
+    "0": true,
+    "1": true,
+    "2": true,
+    "3": true,
+    "4": true
+  },
+  "rule_a": true,
+  "training": {
+    "silhouette_k6": 0.21032100537918932,
+    "stability": {
+      "mean_pairwise": 0.9873115542000164,
+      "min_pairwise": 0.9733062253938976,
+      "mean_vs_model": 0.9892100554492235
+    },
+    "seed_agreement_k6": [
+      0.7955302946042941,
+      0.9121232324695491
+    ],
+    "persona_ari": 0.27112978249110714
+  },
+  "match": {
+    "names_by_own_units": {
+      "5": "Devotee",
+      "1": "Competitor",
+      "0": "Explorer",
+      "4": "Casual",
+      "3": "The Main",
+      "2": "Completionist"
+    },
+    "distance_own_units": {
+      "Devotee": 2.478693147669965,
+      "Competitor": 1.313744173636188,
+      "Explorer": 0.9298506743940307,
+      "Casual": 0.4908171589742974,
+      "The Main": 1.1301060762355555,
+      "Completionist": 1.5224529707520174
+    },
+    "mutual_nearest": {
+      "Devotee": false,
+      "Competitor": true,
+      "Explorer": true,
+      "Casual": true,
+      "The Main": true,
+      "Completionist": true
+    },
+    "same_assignment_in_2_0_1_units": true,
+    "distance_in_2_0_1_units": {
+      "Devotee": 5.073895035345262,
+      "Competitor": 5.760949311280232,
+      "Explorer": 5.240632885880894,
+      "Casual": 4.423943689647006,
+      "The Main": 4.324410683957243,
+      "Completionist": 3.7917463074482467
+    },
+    "centres": [
+      {
+        "index": "Completionist",
+        "completion_rate": 0.6435,
+        "trophy_rate": 0.7245,
+        "genre_diversity": 0.834,
+        "log_hours_per_game": 3.464,
+        "top_game_share": 0.4516,
+        "log_activity": 3.5364,
+        "online_share": 0.9148,
+        "log_games_played": 1.9741,
+        "share": 0.1839
+      },
+      {
+        "index": "Explorer",
+        "completion_rate": 0.2944,
+        "trophy_rate": 0.5069,
+        "genre_diversity": 0.9103,
+        "log_hours_per_game": 3.2603,
+        "top_game_share": 0.3377,
+        "log_activity": 4.4625,
+        "online_share": 0.8807,
+        "log_games_played": 2.8676,
+        "share": 0.1866
+      },
+      {
+        "index": "Competitor",
+        "completion_rate": 0.5291,
+        "trophy_rate": 0.701,
+        "genre_diversity": 0.8189,
+        "log_hours_per_game": 4.6958,
+        "top_game_share": 0.4073,
+        "log_activity": 5.2666,
+        "online_share": 0.9119,
+        "log_games_played": 2.2081,
+        "share": 0.1428
+      },
+      {
+        "index": "Casual",
+        "completion_rate": 0.2249,
+        "trophy_rate": 0.4548,
+        "genre_diversity": 0.8275,
+        "log_hours_per_game": 2.8242,
+        "top_game_share": 0.4355,
+        "log_activity": 2.7445,
+        "online_share": 0.9053,
+        "log_games_played": 1.8674,
+        "share": 0.2184
+      },
+      {
+        "index": "Devotee",
+        "completion_rate": 0.4343,
+        "trophy_rate": 0.5847,
+        "genre_diversity": 0.7259,
+        "log_hours_per_game": 3.5372,
+        "top_game_share": 0.635,
+        "log_activity": 4.1415,
+        "online_share": 0.2519,
+        "log_games_played": 1.9664,
+        "share": 0.063
+      },
+      {
+        "index": "The Main",
+        "completion_rate": 0.3092,
+        "trophy_rate": 0.5282,
+        "genre_diversity": 0.5707,
+        "log_hours_per_game": 3.6283,
+        "top_game_share": 0.7556,
+        "log_activity": 4.4453,
+        "online_share": 0.979,
+        "log_games_played": 1.9099,
+        "share": 0.2052
+      }
+    ],
+    "feature_ranks_v2_2": {
+      "Completionist": {
+        "completion_rate": 1,
+        "trophy_rate": 1,
+        "genre_diversity": 2,
+        "log_hours_per_game": 4,
+        "top_game_share": 3,
+        "log_activity": 5,
+        "online_share": 2,
+        "log_games_played": 3
+      },
+      "Explorer": {
+        "completion_rate": 5,
+        "trophy_rate": 5,
+        "genre_diversity": 1,
+        "log_hours_per_game": 5,
+        "top_game_share": 6,
+        "log_activity": 2,
+        "online_share": 5,
+        "log_games_played": 1
+      },
+      "Competitor": {
+        "completion_rate": 2,
+        "trophy_rate": 2,
+        "genre_diversity": 4,
+        "log_hours_per_game": 1,
+        "top_game_share": 5,
+        "log_activity": 1,
+        "online_share": 3,
+        "log_games_played": 2
+      },
+      "Casual": {
+        "completion_rate": 6,
+        "trophy_rate": 6,
+        "genre_diversity": 3,
+        "log_hours_per_game": 6,
+        "top_game_share": 4,
+        "log_activity": 6,
+        "online_share": 4,
+        "log_games_played": 6
+      },
+      "Devotee": {
+        "completion_rate": 3,
+        "trophy_rate": 3,
+        "genre_diversity": 5,
+        "log_hours_per_game": 3,
+        "top_game_share": 2,
+        "log_activity": 4,
+        "online_share": 6,
+        "log_games_played": 4
+      },
+      "The Main": {
+        "completion_rate": 4,
+        "trophy_rate": 4,
+        "genre_diversity": 6,
+        "log_hours_per_game": 2,
+        "top_game_share": 1,
+        "log_activity": 3,
+        "online_share": 1,
+        "log_games_played": 5
+      }
+    },
+    "feature_ranks_2_0_1": {
+      "Completionist": {
+        "completion_rate": 1,
+        "trophy_rate": 1,
+        "genre_diversity": 3,
+        "log_hours_per_game": 2,
+        "top_game_share": 5,
+        "log_activity": 4,
+        "online_share": 5,
+        "log_games_played": 3
+      },
+      "Explorer": {
+        "completion_rate": 5,
+        "trophy_rate": 5,
+        "genre_diversity": 1,
+        "log_hours_per_game": 5,
+        "top_game_share": 6,
+        "log_activity": 5,
+        "online_share": 3,
+        "log_games_played": 1
+      },
+      "Competitor": {
+        "completion_rate": 2,
+        "trophy_rate": 2,
+        "genre_diversity": 2,
+        "log_hours_per_game": 1,
+        "top_game_share": 4,
+        "log_activity": 3,
+        "online_share": 2,
+        "log_games_played": 2
+      },
+      "Casual": {
+        "completion_rate": 6,
+        "trophy_rate": 6,
+        "genre_diversity": 4,
+        "log_hours_per_game": 6,
+        "top_game_share": 3,
+        "log_activity": 6,
+        "online_share": 4,
+        "log_games_played": 6
+      },
+      "Devotee": {
+        "completion_rate": 3,
+        "trophy_rate": 4,
+        "genre_diversity": 5,
+        "log_hours_per_game": 4,
+        "top_game_share": 1,
+        "log_activity": 2,
+        "online_share": 6,
+        "log_games_played": 5
+      },
+      "The Main": {
+        "completion_rate": 4,
+        "trophy_rate": 3,
+        "genre_diversity": 6,
+        "log_hours_per_game": 3,
+        "top_game_share": 2,
+        "log_activity": 1,
+        "online_share": 1,
+        "log_games_played": 4
+      }
+    }
+  },
+  "atypical_threshold": {
+    "v2.2": 2.85197069728665,
+    "2.0.1": 2.6405940306940363
+  },
+  "temperature": {
+    "0.5": {
+      "pure median": 79.0,
+      "pure p10": 47.0,
+      "pure p90": 96.0,
+      "mixed median": 75.0,
+      "at >= 90%": 0.2982298229822982
+    },
+    "0.6": {
+      "pure median": 71.0,
+      "pure p10": 43.0,
+      "pure p90": 92.0,
+      "mixed median": 67.0,
+      "at >= 90%": 0.1707170717071707
+    },
+    "0.75": {
+      "pure median": 62.0,
+      "pure p10": 39.0,
+      "pure p90": 85.0,
+      "mixed median": 58.0,
+      "at >= 90%": 0.013801380138013802
+    },
+    "1.0": {
+      "pure median": 50.0,
+      "pure p10": 33.900000000000006,
+      "pure p90": 72.0,
+      "mixed median": 48.0,
+      "at >= 90%": 0.0
+    }
+  },
+  "in_sample_NOT_validation": {
+    "2.0.1": {
+      "top1": {
+        "agree": 4,
+        "n": 20,
+        "share": 0.2,
+        "wilson_lo": 0.08065766257979806,
+        "wilson_hi": 0.41601743225189364,
+        "chance": 0.249605,
+        "p_value": 0.8105189481051894
+      },
+      "top2": {
+        "agree": 10,
+        "n": 20,
+        "share": 0.5,
+        "wilson_lo": 0.2992980081982123,
+        "wilson_hi": 0.7007019918017877,
+        "chance": 0.41246499999999997,
+        "p_value": 0.19318068193180682
+      },
+      "atypical": 17,
+      "top_counts": {
+        "Completionist": 10,
+        "Competitor": 6,
+        "The Main": 4
+      }
+    },
+    "v2.2": {
+      "top1": {
+        "agree": 7,
+        "n": 20,
+        "share": 0.35,
+        "wilson_lo": 0.18119182410108206,
+        "wilson_hi": 0.5671457233147638,
+        "chance": 0.294825,
+        "p_value": 0.3310668933106689
+      },
+      "top2": {
+        "agree": 10,
+        "n": 20,
+        "share": 0.5,
+        "wilson_lo": 0.2992980081982123,
+        "wilson_hi": 0.7007019918017877,
+        "chance": 0.504595,
+        "p_value": 0.6287371262873712
+      },
+      "atypical": 7,
+      "top_counts": {
+        "The Main": 10,
+        "Competitor": 4,
+        "Devotee": 3,
+        "Casual": 2,
+        "Completionist": 1
+      }
+    }
+  },
+  "serve_rule": {
+    "a_six_within_0.01_on_most_seeds": true,
+    "b_six_matched_one_to_one": true,
+    "b_mutual_nearest_all": false,
+    "b_descriptions": "judged in the report",
+    "c_plausibility": false
+  }
+}

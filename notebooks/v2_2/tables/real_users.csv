@@ -1,0 +1,6 @@
+user,games,2.0.1,v2.2 T=0.5,v2.2 T=0.6,v2.2 T=0.75,v2.2 atypical,v2.2 blend,v2.2 T=1.0
+user 1,12,Competitor 35% (atypical),Devotee 56/20,Devotee 49/21,Devotee 42/21,True,False,Devotee 35/20
+user 2,9,Competitor 44%,Casual 40/38,Casual 37/36,Casual 34/33,True,False,Casual 30/29
+user 3,10,Competitor 48%,Devotee 65/15,Devotee 57/17,Devotee 49/19,True,False,Devotee 40/20
+user 4,5,Completionist 81% (atypical),Devotee 95/3,Devotee 90/4,Devotee 82/7,True,False,Devotee 68/11
+user 5,12,Completionist 75% (atypical),Devotee 61/13,Devotee 53/15,Devotee 45/16,False,False,Devotee 37/17

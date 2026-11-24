@@ -1,0 +1,41 @@
+model,respondent,self,top 3,atypical,distance pct
+2.0.1,R01,online / multiplayer,"The Main 55%, Competitor 23%, Devotee 11%",True,98
+2.0.1,R02,many games & genres,"Completionist 61%, Competitor 31%, The Main 3%",True,100
+2.0.1,R03,finish & trophies,"The Main 34%, Completionist 26%, Competitor 23%",True,100
+2.0.1,R04,now and then,"The Main 40%, Competitor 37%, Devotee 12%",False,91
+2.0.1,R05,online / multiplayer,"Completionist 60%, Competitor 23%, The Main 11%",True,100
+2.0.1,R06,many games & genres,"Completionist 59%, Casual 13%, Competitor 12%",True,99
+2.0.1,R07,hours in a few favourites,"Completionist 45%, Competitor 36%, The Main 12%",True,100
+2.0.1,R08,hours in a few favourites,"Competitor 50%, Completionist 37%, The Main 7%",True,100
+2.0.1,R09,finish & trophies,"Competitor 50%, Completionist 34%, The Main 9%",True,100
+2.0.1,R10,finish & trophies,"Completionist 82%, Competitor 12%, Devotee 2%",True,100
+2.0.1,R11,hours in a few favourites,"Competitor 46%, Completionist 30%, The Main 16%",True,100
+2.0.1,R12,hours in a few favourites,"Competitor 49%, The Main 29%, Completionist 11%",False,77
+2.0.1,R13,online / multiplayer,"Completionist 42%, Competitor 27%, The Main 21%",True,99
+2.0.1,R14,many games & genres,"Completionist 62%, Competitor 19%, Devotee 10%",True,99
+2.0.1,R15,finish & trophies,"Completionist 77%, Competitor 13%, The Main 5%",True,100
+2.0.1,R16,now and then,"Completionist 74%, Competitor 10%, Devotee 9%",True,100
+2.0.1,R17,hours in a few favourites,"The Main 54%, Competitor 18%, Devotee 11%",False,94
+2.0.1,R18,now and then,"Completionist 86%, Competitor 8%, Devotee 2%",True,99
+2.0.1,R19,finish & trophies,"Competitor 35%, Completionist 28%, The Main 26%",True,100
+2.0.1,R20,many games & genres,"Competitor 33%, Completionist 31%, The Main 24%",True,100
+v2.2,R01,online / multiplayer,"The Main 74%, Casual 14%, Explorer 4%",False,76
+v2.2,R02,many games & genres,"Competitor 56%, Completionist 18%, Explorer 11%",False,69
+v2.2,R03,finish & trophies,"The Main 68%, Completionist 8%, Devotee 7%",True,99
+v2.2,R04,now and then,"The Main 59%, Casual 13%, Completionist 12%",False,41
+v2.2,R05,online / multiplayer,"The Main 51%, Completionist 25%, Competitor 11%",False,56
+v2.2,R06,many games & genres,"Casual 61%, Completionist 13%, Devotee 11%",True,99
+v2.2,R07,hours in a few favourites,"The Main 51%, Completionist 17%, Competitor 13%",False,65
+v2.2,R08,hours in a few favourites,"Competitor 69%, Explorer 12%, Completionist 9%",False,75
+v2.2,R09,finish & trophies,"Competitor 60%, The Main 13%, Completionist 10%",False,84
+v2.2,R10,finish & trophies,"Competitor 37%, Devotee 31%, Completionist 23%",True,100
+v2.2,R11,hours in a few favourites,"The Main 57%, Casual 14%, Competitor 10%",False,25
+v2.2,R12,hours in a few favourites,"Casual 49%, The Main 33%, Explorer 7%",False,77
+v2.2,R13,online / multiplayer,"The Main 54%, Casual 17%, Completionist 14%",False,80
+v2.2,R14,many games & genres,"Devotee 84%, Casual 5%, The Main 3%",True,96
+v2.2,R15,finish & trophies,"Completionist 48%, Competitor 20%, The Main 17%",False,94
+v2.2,R16,now and then,"Devotee 83%, Completionist 5%, The Main 5%",True,99
+v2.2,R17,hours in a few favourites,"The Main 46%, Casual 36%, Completionist 7%",True,99
+v2.2,R18,now and then,"Devotee 65%, Completionist 16%, Casual 7%",True,97
+v2.2,R19,finish & trophies,"The Main 72%, Casual 8%, Completionist 7%",False,59
+v2.2,R20,many games & genres,"The Main 62%, Casual 14%, Completionist 9%",False,81

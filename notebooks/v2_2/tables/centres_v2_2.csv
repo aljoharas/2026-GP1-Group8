@@ -1,0 +1,7 @@
+,completion_rate,trophy_rate,genre_diversity,log_hours_per_game,top_game_share,log_activity,online_share,log_games_played,share
+Completionist,0.644,0.725,0.834,3.464,0.452,3.536,0.915,1.974,0.184
+Explorer,0.294,0.507,0.91,3.26,0.338,4.462,0.881,2.868,0.187
+Competitor,0.529,0.701,0.819,4.696,0.407,5.267,0.912,2.208,0.143
+Casual,0.225,0.455,0.827,2.824,0.435,2.744,0.905,1.867,0.218
+Devotee,0.434,0.585,0.726,3.537,0.635,4.141,0.252,1.966,0.063
+The Main,0.309,0.528,0.571,3.628,0.756,4.445,0.979,1.91,0.205

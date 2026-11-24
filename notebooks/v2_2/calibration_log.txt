@@ -1,0 +1,139 @@
+start {'s_hours': 0.0, 's_comp': 0.0, 's_trophy': 0.0, 's_online': 0.0, 's_months': 0.0} -> 13.0086
+round 1 s_hours -> 0.35 | objective 4.9426 | evals 14
+round 1 s_comp -> 0.25 | objective 4.5946 | evals 30
+round 1 s_trophy -> 3.0 | objective 2.6642 | evals 50
+round 1 s_online -> 3.5 | objective 0.8014 | evals 70
+round 1 s_months -> 8.0 | objective 0.6482 | evals 78
+round 2 s_hours -> 0.4 | objective 0.4880 | evals 91
+round 2 s_comp -> 0.0 | objective 0.4273 | evals 107
+round 2 s_trophy -> 3.0 | objective 0.4273 | evals 127
+round 2 s_online -> 3.5 | objective 0.4273 | evals 147
+round 2 s_months -> 8.0 | objective 0.4273 | evals 155
+round 3 s_hours -> 0.45 | objective 0.3806 | evals 168
+round 3 s_comp -> 0.0 | objective 0.3806 | evals 183
+round 3 s_trophy -> 2.5 | objective 0.3668 | evals 203
+round 3 s_online -> 2.0 | objective 0.3039 | evals 223
+round 3 s_months -> 8.0 | objective 0.3039 | evals 231
+round 4 s_hours -> 0.45 | objective 0.3039 | evals 244
+round 4 s_comp -> 0.25 | objective 0.2947 | evals 260
+round 4 s_trophy -> 2.5 | objective 0.2947 | evals 280
+round 4 s_online -> 3.25 | objective 0.2819 | evals 300
+round 4 s_months -> 7.0 | objective 0.2661 | evals 308
+{
+ "targets": {
+  "log_hours_per_game": {
+   "median": 3.78295,
+   "p25": 3.1041499999999997,
+   "p75": 4.129275,
+   "iqr": 1.025125,
+   "n": 20
+  },
+  "trophy_rate": {
+   "median": 0.551,
+   "p25": 0.4415,
+   "p75": 0.69,
+   "iqr": 0.24849999999999994,
+   "n": 19
+  },
+  "online_share": {
+   "median": 0.9212,
+   "p25": 0.614725,
+   "p75": 0.99065,
+   "iqr": 0.37592500000000006,
+   "n": 20
+  },
+  "completion_rate": {
+   "median": 0.4,
+   "p25": 0.2,
+   "p75": 0.6,
+   "iqr": 0.39999999999999997,
+   "n": 20
+  },
+  "log_activity": {
+   "median": 3.71175,
+   "p25": 3.2619749999999996,
+   "p75": 4.009650000000001,
+   "iqr": 0.747675000000001,
+   "n": 20
+  }
+ },
+ "shifts": {
+  "s_hours": 0.45,
+  "s_comp": 0.25,
+  "s_trophy": 2.5,
+  "s_online": 3.25,
+  "s_months": 7.0
+ },
+ "objective_search": 0.26608954015781694,
+ "evaluations": 308,
+ "search_population_per_persona": 100,
+ "check_500_per_persona": {
+  "v2_core": {
+   "log_hours_per_game": {
+    "median": 1.587435526712745,
+    "p25": 1.1343093447594659,
+    "p75": 2.1797861862070005,
+    "iqr": 1.0454768414475346
+   },
+   "trophy_rate": {
+    "median": 0.10029498525073746,
+    "p25": 0.05405405405405406,
+    "p75": 0.1935483870967742,
+    "iqr": 0.13949433304272013
+   },
+   "online_share": {
+    "median": 0.3756090941233653,
+    "p25": 0.06997586397297782,
+    "p75": 0.7777071982783131,
+    "iqr": 0.7077313343053353
+   },
+   "completion_rate": {
+    "median": 0.16666666666666666,
+    "p25": 0.0,
+    "p75": 0.3333333333333333,
+    "iqr": 0.3333333333333333
+   },
+   "log_activity": {
+    "median": 2.423730944717407,
+    "p25": 1.7694851846389228,
+    "p75": 3.1734980138120847,
+    "iqr": 1.404012829173162
+   }
+  },
+  "v2_2": {
+   "log_hours_per_game": {
+    "median": 3.4087864654251367,
+    "p25": 2.9540490562784076,
+    "p75": 3.9588580042167734,
+    "iqr": 1.0048089479383657
+   },
+   "trophy_rate": {
+    "median": 0.5549227013832384,
+    "p25": 0.4652777777777778,
+    "p75": 0.6751968503937008,
+    "iqr": 0.20991907261592302
+   },
+   "online_share": {
+    "median": 0.9848148394454804,
+    "p25": 0.8523649487364859,
+    "p75": 1.0,
+    "iqr": 0.14763505126351406
+   },
+   "completion_rate": {
+    "median": 0.375,
+    "p25": 0.2,
+    "p75": 0.5714285714285714,
+    "iqr": 0.3714285714285714
+   },
+   "log_activity": {
+    "median": 4.092634690324842,
+    "p25": 3.223693536964173,
+    "p75": 4.744265096910105,
+    "iqr": 1.5205715599459322
+   }
+  },
+  "objective_v2_core": 13.290738884547782,
+  "objective_v2_2": 0.4255258342519108
+ },
+ "seconds": 488.10468912124634
+}

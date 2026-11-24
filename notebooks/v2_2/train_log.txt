@@ -1,0 +1,251 @@
+shifts {'s_hours': 0.45, 's_comp': 0.25, 's_trophy': 2.5, 's_online': 3.25, 's_months': 7.0}
+{
+ "v2_core": {
+  "log_hours_per_game": {
+   "median": 1.587435526712745,
+   "p25": 1.1343093447594659,
+   "p75": 2.1797861862070005,
+   "iqr": 1.0454768414475346
+  },
+  "trophy_rate": {
+   "median": 0.10029498525073746,
+   "p25": 0.05405405405405406,
+   "p75": 0.1935483870967742,
+   "iqr": 0.13949433304272013
+  },
+  "online_share": {
+   "median": 0.3756090941233653,
+   "p25": 0.06997586397297782,
+   "p75": 0.7777071982783131,
+   "iqr": 0.7077313343053353
+  },
+  "completion_rate": {
+   "median": 0.16666666666666666,
+   "p25": 0.0,
+   "p75": 0.3333333333333333,
+   "iqr": 0.3333333333333333
+  },
+  "log_activity": {
+   "median": 2.423730944717407,
+   "p25": 1.7694851846389228,
+   "p75": 3.1734980138120847,
+   "iqr": 1.404012829173162
+  }
+ },
+ "v2_2": {
+  "log_hours_per_game": {
+   "median": 3.4087864654251367,
+   "p25": 2.9540490562784076,
+   "p75": 3.9588580042167734,
+   "iqr": 1.0048089479383657
+  },
+  "trophy_rate": {
+   "median": 0.5549227013832384,
+   "p25": 0.4652777777777778,
+   "p75": 0.6751968503937008,
+   "iqr": 0.20991907261592302
+  },
+  "online_share": {
+   "median": 0.9848148394454804,
+   "p25": 0.8523649487364859,
+   "p75": 1.0,
+   "iqr": 0.14763505126351406
+  },
+  "completion_rate": {
+   "median": 0.375,
+   "p25": 0.2,
+   "p75": 0.5714285714285714,
+   "iqr": 0.3714285714285714
+  },
+  "log_activity": {
+   "median": 4.092634690324842,
+   "p25": 3.223693536964173,
+   "p75": 4.744265096910105,
+   "iqr": 1.5205715599459322
+  }
+ },
+ "objective_v2_core": 13.290738884547782,
+ "objective_v2_2": 0.4255258342519108
+}
+                                         check  count  out of                                           note
+            completed with r < 0.3 (all games)      4     906                                            NaN
+  of which multiplayer-only (rule 3's flat 2%)      3     109                                            NaN
+        of which not multiplayer-only (rule 1)      1     797                                            NaN
+           100% trophies on an unfinished game      0   14096                                            NaN
+      100% trophies, hunters' unfinished games      0       0                                            NaN
+              100% trophies with r < 1 + E (3)      0   10199                                            NaN
+              completed multiplayer-only games    129    6219 rate 2.07% vs 2% (binomial ±2 SE: 1.64%–2.36%)
+                      full sets (100%) overall    896   22976                                            NaN
+[
+ {
+  "pair": "log_hours_per_game ~ trophy_rate",
+  "expected": "+",
+  "v2-core": 0.6425564639587674,
+  "v2.2": 0.45688264466055184,
+  "as expected": true
+ },
+ {
+  "pair": "log_activity ~ trophy_rate",
+  "expected": "+",
+  "v2-core": 0.31085419092410765,
+  "v2.2": 0.25651594649372955,
+  "as expected": true
+ },
+ {
+  "pair": "completion_rate ~ trophy_rate",
+  "expected": "+",
+  "v2-core": 0.6587677261073048,
+  "v2.2": 0.665839688448605,
+  "as expected": true
+ },
+ {
+  "pair": "online_share ~ completion_rate",
+  "expected": "-",
+  "v2-core": 0.01835849120664208,
+  "v2.2": -0.10134491466855627,
+  "as expected": true
+ }
+]
+plausibility pass False
+   seed 42  seed 0  seed 1  seed 2  seed 3  seed 4   mean
+k                                                        
+2    0.178   0.185   0.183   0.180   0.175   0.180  0.180
+3    0.192   0.190   0.194   0.190   0.188   0.187  0.190
+4    0.199   0.199   0.201   0.194   0.191   0.199  0.197
+5    0.213   0.210   0.217   0.207   0.207   0.215  0.212
+6    0.210   0.207   0.219   0.205   0.203   0.214  0.210
+7    0.194   0.193   0.202   0.180   0.186   0.200  0.193
+8    0.191   0.174   0.190   0.173   0.187   0.180  0.183
+best k {42: 5, 0: 5, 1: 6, 2: 5, 3: 5, 4: 5} | 6 within 0.01 {42: True, 0: True, 1: True, 2: True, 3: True, 4: True} | rule a True
+{
+ "silhouette_k6": 0.21032100537918932,
+ "stability": {
+  "mean_pairwise": 0.9873115542000164,
+  "min_pairwise": 0.9733062253938976,
+  "mean_vs_model": 0.9892100554492235
+ },
+ "seed_agreement_k6": [
+  0.7955302946042941,
+  0.9121232324695491
+ ],
+ "persona_ari": 0.27112978249110714
+}
+{
+ "names_by_own_units": {
+  "5": "Devotee",
+  "1": "Competitor",
+  "0": "Explorer",
+  "4": "Casual",
+  "3": "The Main",
+  "2": "Completionist"
+ },
+ "distance_own_units": {
+  "Devotee": 2.478693147669965,
+  "Competitor": 1.313744173636188,
+  "Explorer": 0.9298506743940307,
+  "Casual": 0.4908171589742974,
+  "The Main": 1.1301060762355555,
+  "Completionist": 1.5224529707520174
+ },
+ "mutual_nearest": {
+  "Devotee": false,
+  "Competitor": true,
+  "Explorer": true,
+  "Casual": true,
+  "The Main": true,
+  "Completionist": true
+ },
+ "same_assignment_in_2_0_1_units": true,
+ "distance_in_2_0_1_units": {
+  "Devotee": 5.073895035345262,
+  "Competitor": 5.760949311280232,
+  "Explorer": 5.240632885880894,
+  "Casual": 4.423943689647006,
+  "The Main": 4.324410683957243,
+  "Completionist": 3.7917463074482467
+ }
+}
+              completion_rate       trophy_rate       genre_diversity       log_hours_per_game       top_game_share       log_activity       online_share       log_games_played      
+                        2.0.1  v2.2       2.0.1  v2.2           2.0.1  v2.2              2.0.1  v2.2          2.0.1  v2.2        2.0.1  v2.2        2.0.1  v2.2            2.0.1  v2.2
+Completionist            0.56  0.64        0.38  0.72            0.83  0.83               2.20  3.46           0.43  0.45         2.61  3.54         0.30  0.91             2.08  1.97
+Explorer                 0.12  0.29        0.08  0.51            0.93  0.91               1.20  3.26           0.27  0.34         2.20  4.46         0.35  0.88             2.92  2.87
+Competitor               0.28  0.53        0.17  0.70            0.83  0.82               2.50  4.70           0.43  0.41         3.10  5.27         0.77  0.91             2.14  2.21
+Casual                   0.08  0.22        0.07  0.45            0.81  0.83               1.07  2.82           0.46  0.44         1.52  2.74         0.34  0.91             1.86  1.87
+Devotee                  0.16  0.43        0.09  0.58            0.53  0.73               1.74  3.54           0.89  0.64         3.47  4.14         0.03  0.25             1.92  1.97
+The Main                 0.13  0.31        0.11  0.53            0.53  0.57               1.89  3.63           0.87  0.76         3.51  4.45         0.95  0.98             1.92  1.91
+               completion_rate  trophy_rate  genre_diversity  log_hours_per_game  top_game_share  log_activity  online_share  log_games_played
+Completionist                1            1                2                   4               3             5             2                 3
+Explorer                     5            5                1                   5               6             2             5                 1
+Competitor                   2            2                4                   1               5             1             3                 2
+Casual                       6            6                3                   6               4             6             4                 6
+Devotee                      3            3                5                   3               2             4             6                 4
+The Main                     4            4                6                   2               1             3             1                 5
+               completion_rate  trophy_rate  genre_diversity  log_hours_per_game  top_game_share  log_activity  online_share  log_games_played
+Completionist                1            1                3                   2               5             4             5                 3
+Explorer                     5            5                1                   5               6             5             3                 1
+Competitor                   2            2                2                   1               4             3             2                 2
+Casual                       6            6                4                   6               3             6             4                 6
+Devotee                      3            4                5                   4               1             2             6                 5
+The Main                     4            3                6                   3               2             1             1                 4
+      pure median  pure p10  pure p90  mixed median  at >= 90%
+0.50         79.0      47.0      96.0          75.0      0.298
+0.60         71.0      43.0      92.0          67.0      0.171
+0.75         62.0      39.0      85.0          58.0      0.014
+1.00         50.0      33.9      72.0          48.0      0.000
+{'v2.2': 2.85197069728665, '2.0.1': 2.6405940306940363} 0.0501050105010501
+{
+ "2.0.1": {
+  "top1": {
+   "agree": 4,
+   "n": 20,
+   "share": 0.2,
+   "wilson_lo": 0.08065766257979806,
+   "wilson_hi": 0.41601743225189364,
+   "chance": 0.249605,
+   "p_value": 0.8105189481051894
+  },
+  "top2": {
+   "agree": 10,
+   "n": 20,
+   "share": 0.5,
+   "wilson_lo": 0.2992980081982123,
+   "wilson_hi": 0.7007019918017877,
+   "chance": 0.41246499999999997,
+   "p_value": 0.19318068193180682
+  },
+  "atypical": 17,
+  "top_counts": {
+   "Completionist": 10,
+   "Competitor": 6,
+   "The Main": 4
+  }
+ },
+ "v2.2": {
+  "top1": {
+   "agree": 7,
+   "n": 20,
+   "share": 0.35,
+   "wilson_lo": 0.18119182410108206,
+   "wilson_hi": 0.5671457233147638,
+   "chance": 0.294825,
+   "p_value": 0.3310668933106689
+  },
+  "top2": {
+   "agree": 10,
+   "n": 20,
+   "share": 0.5,
+   "wilson_lo": 0.2992980081982123,
+   "wilson_hi": 0.7007019918017877,
+   "chance": 0.504595,
+   "p_value": 0.6287371262873712
+  },
+  "atypical": 7,
+  "top_counts": {
+   "The Main": 10,
+   "Competitor": 4,
+   "Devotee": 3,
+   "Casual": 2,
+   "Completionist": 1
+  }
+ }
+}
