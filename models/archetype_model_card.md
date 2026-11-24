@@ -21,6 +21,11 @@ for every archetype. The service:
 The nearest centre is the archetype. The match % is a softmax over the negative distances (temperature 0.75; see
 [Match scores](#match-scores)).
 
+**In the app**, the archetype is a small emblem badge after the user's @handle: a hexagon in the family colour, with
+the type's icon. Tapping it opens a details sheet with the name, family, match % and description, and the full mix of
+six bars behind "See your full mix". Friends see the emblem, name, family and description only. It isn't shown in
+Wrapped or Endgame.
+
 Since 2.0.0 the response also carries:
 
 - **`family`**: the top archetype's family (see [Families and blends](#families-and-blends)).
@@ -28,7 +33,7 @@ Since 2.0.0 the response also carries:
   families; otherwise `null`. The app shows it as "*primary*, with a touch of *secondary*", for example "Competitor,
   with a touch of The Main". There's never a blend for an atypical user.
 - **`atypical`** (2.0.1): `true` when the user's distance to their nearest centre is beyond what 95% of training
-  players have. The app then says "Closest match: *archetype*" instead of claiming a match. See
+  players have. The app then shows a faded emblem and "Closest match: *archetype*" instead of claiming a match. See
   [Atypical check](#atypical-check).
 - **`distance_percentile`** (2.0.1): where that distance falls among the training players, from 0 to 100. Python
   returns it; Node doesn't pass it to the app.
@@ -407,8 +412,9 @@ overstating the match.
   descriptions and temperature) by hash.
 
 **Effect:** an atypical user keeps the same scores and nearest archetype, but gets `atypical: true` and no blend.
-The app shows "Closest match: *archetype*" with no %, and a line saying the playstyle doesn't closely match any type
-yet. A model file without a threshold (1.0.0) always returns `atypical: false`.
+On the profile, the emblem badge is shown faded in a dashed outline. Its details sheet is titled "Closest match:
+*archetype*", shows the % as the "closest type" rather than a match, and adds "Your playstyle doesn't closely match any
+one type yet." A model file without a threshold (1.0.0) always returns `atypical: false`.
 
 | Who | Flagged atypical |
 |---|---|

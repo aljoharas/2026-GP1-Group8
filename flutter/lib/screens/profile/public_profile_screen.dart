@@ -9,7 +9,7 @@ import '../../services/archetype_service.dart';
 import '../../services/friend_service.dart';
 import '../../services/list_service.dart';
 import '../game/game_profile_screen.dart';
-import '../../widgets/archetype_card.dart';
+import '../../widgets/archetype_badge.dart';
 import 'list_detail_screen.dart';
 
 /// Another user's profile, opened from user search, the friends list, or a
@@ -409,8 +409,25 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                   color: kText,
                   letterSpacing: -0.5)),
           const SizedBox(height: 2),
-          Text('@${username.toLowerCase().replaceAll(' ', '_')}',
-              style: const TextStyle(fontSize: 12, color: muted)),
+          Row(
+            children: [
+              Flexible(
+                child: Text('@${username.toLowerCase().replaceAll(' ', '_')}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: muted)),
+              ),
+              // Friends only: name, family and description, never scores
+              if (_canSeeArchetype) ...[
+                const SizedBox(width: 6),
+                ArchetypeBadge(
+                  archetype: _archetype,
+                  loading: _archetypeLoading,
+                  error: _archetypeError,
+                  friendView: true,
+                ),
+              ],
+            ],
+          ),
           if (bio.trim().isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(bio,
@@ -578,20 +595,6 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     return ListView(
       padding: const EdgeInsets.only(top: 8, bottom: 32),
       children: [
-        if (_canSeeArchetype) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
-            child: ArchetypeCard(
-              archetype: _archetype,
-              loading: _archetypeLoading,
-              error: _archetypeError,
-              onRetry: _loadArchetype,
-              friendView: true,
-              username: username,
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
         _sectionHeader(
           'Currently Playing',
           onSeeAll: playing.isEmpty

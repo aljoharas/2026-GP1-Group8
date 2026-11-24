@@ -22,7 +22,7 @@ import 'list_editor_sheet.dart';
 import 'privacy_policy_screen.dart';
 import '../../providers/logged_games_provider.dart';
 import 'settings_screen.dart';
-import '../../widgets/archetype_card.dart';
+import '../../widgets/archetype_badge.dart';
 import '../../widgets/platinum_celebration.dart';
 import 'help_center_screen.dart';
 
@@ -914,8 +914,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   color: kText,
                   letterSpacing: -0.5)),
           const SizedBox(height: 2),
-          Text('@${username.toLowerCase().replaceAll(' ', '_')}',
-              style: const TextStyle(fontSize: 12, color: muted)),
+          Row(
+            children: [
+              Flexible(
+                child: Text('@${username.toLowerCase().replaceAll(' ', '_')}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: muted)),
+              ),
+              const SizedBox(width: 6),
+              ArchetypeBadge(
+                archetype: _archetype,
+                loading: _archetypeLoading,
+                error: _archetypeError,
+              ),
+            ],
+          ),
           if (bio.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(bio,
@@ -951,16 +964,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return ListView(
       padding: const EdgeInsets.only(top: 8, bottom: 90),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
-          child: ArchetypeCard(
-            archetype: _archetype,
-            loading: _archetypeLoading,
-            error: _archetypeError,
-            onRetry: _loadArchetype,
-          ),
-        ),
-        const SizedBox(height: 24),
         _sectionHeader('Currently Playing', 'See All', onAction: playing.isEmpty ? null : () {
           Navigator.push(context, MaterialPageRoute(
             builder: (_) => _MyGamesAllScreen(

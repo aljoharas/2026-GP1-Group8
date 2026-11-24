@@ -62,7 +62,7 @@ summarised in the model card under "Experiments not adopted".
   `description`.
 
 **Flutter**
-- [ ] `flutter test test/archetype_test.dart test/archetype_golden_test.dart` (36 passing).
+- [ ] `flutter test test/archetype_test.dart test/archetype_golden_test.dart` (48 passing).
 - [ ] The build points at the deployed Node URL.
 
 **Monitoring after release**
@@ -76,8 +76,8 @@ summarised in the model card under "Experiments not adopted".
 1. `cp models/archetype_model_v1.json models/archetype_model.json`, or set
    `ARCHETYPE_MODEL_PATH=.../archetype_model_v1.json`.
 2. Restart the Python service. The log should say `archetype model 1.0.0 loaded`.
-3. With 1.0.0, `family` is `null`, `atypical` is `false`, and `blend` still follows the 10-point rule. The Flutter card
-   handles all three: no family label, no "Closest match".
+3. With 1.0.0, `family` is `null`, `atypical` is `false`, and `blend` still follows the 10-point rule. The Flutter badge
+   and sheet handle all three: no family label, no "Closest match".
 
 **Back to 2.0.1:** restore the file (`git checkout models/archetype_model.json`) and restart.
 

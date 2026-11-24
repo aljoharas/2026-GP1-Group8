@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loadout/models/archetype.dart';
 import 'package:loadout/services/archetype_service.dart';
-import 'package:loadout/widgets/archetype_card.dart';
+import 'package:loadout/widgets/archetype_badge.dart';
+import 'package:loadout/widgets/archetype_emblem.dart';
 
 const _desc = {
   'Competitor': 'Online, competitive, and in it for the long sessions.',
@@ -117,120 +118,196 @@ void main() {
     });
   });
 
-  testWidgets('normal card: "<Archetype> · <top %>% match", description, family, tap hint', (tester) async {
-    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(mineJson))));
-    expect(find.text('Competitor · 48% match'), findsOneWidget);
-    expect(find.text('Online, competitive, and in it for the long sessions.'), findsOneWidget);
-    expect(find.text('Committed family'), findsOneWidget);
-    expect(find.text('Tap to see your full mix'), findsOneWidget);
+  // ── Badge ──────────────────────────────────────────────────────────────────
 
-    await tester.tap(find.byType(ArchetypeCard));
+  Finder badge() => find.byKey(const ValueKey('archetype-badge'));
+  Iterable<ArchetypeEmblem> emblems(WidgetTester t) => t.widgetList<ArchetypeEmblem>(find.byType(ArchetypeEmblem));
+
+  testWidgets('normal badge: one 22px emblem, tooltip and screen-reader label with the match %', (tester) async {
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: Archetype.fromJson(mineJson))));
+    final e = emblems(tester).single;
+    expect((e.archetype, e.size, e.faded), ('Competitor', 22.0, false));
+    expect(find.bySemanticsLabel('Archetype: Competitor, 48% match. Double-tap for details'), findsOneWidget);
+    expect(find.byType(Tooltip), findsOneWidget);
+    expect(tester.widget<Tooltip>(find.byType(Tooltip)).message, 'Competitor · 48% match');
+  });
+
+  testWidgets('the tooltip shows on long-press', (tester) async {
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: Archetype.fromJson(mineJson))));
+    await tester.longPress(badge());
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Competitor · 48% match'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('blend badge: primary 22px + secondary 16px at 75%, 3px apart', (tester) async {
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: Archetype.fromJson(blendJson))));
+    final e = emblems(tester).toList();
+    expect([for (final x in e) (x.archetype, x.size, x.opacity)],
+        [('Competitor', 22.0, 1.0), ('Completionist', 16.0, 0.75)]);
+    final gap = tester.getTopLeft(find.byType(ArchetypeEmblem).at(1)).dx - tester.getTopRight(find.byType(ArchetypeEmblem).at(0)).dx;
+    expect(gap, 3);
+    expect(archetypeBadgeTooltip(Archetype.fromJson(blendJson)), 'Competitor, with a touch of Completionist · 35% match');
+  });
+
+  testWidgets('closest-match badge: faded emblem in a dashed container', (tester) async {
+    final a = Archetype.fromJson(atypicalJson);
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: a)));
+    expect(emblems(tester).single.faded, isTrue);
+    final visual = tester.widget<Container>(find.byKey(const ValueKey('archetype-badge-visual')));
+    expect((visual.decoration as BoxDecoration).color, const Color(0xFF16161E));
+    expect((visual.decoration as BoxDecoration).border, isNull, reason: 'the dashed border is painted, not a solid one');
+    expect(archetypeBadgeTooltip(a), 'Closest match: Completionist');
+    expect(find.bySemanticsLabel('Closest match: Completionist. Double-tap for details'), findsOneWidget);
+  });
+
+  testWidgets('locked badge on your own profile: lock and 3/5; hidden on a friend\'s', (tester) async {
+    final a = Archetype.fromJson(lockedJson);
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: a)));
+    expect(find.text('3/5'), findsOneWidget);
+    expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+    expect(find.bySemanticsLabel('Archetype locked: log 2 more games'), findsOneWidget);
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: a, friendView: true)));
+    expect(badge(), findsNothing);
+    expect(find.text('3/5'), findsNothing);
+  });
+
+  testWidgets('loading shows a 32×30 skeleton; an error hides the badge', (tester) async {
+    await tester.pumpWidget(app(const ArchetypeBadge(loading: true)));
+    expect(find.byType(ArchetypeEmblem), findsNothing);
+    expect(find.byWidgetPredicate((w) => w is SizedBox && w.width == 32 && w.height == 30), findsOneWidget);
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: Archetype.fromJson(mineJson), error: 'boom')));
+    expect(badge(), findsNothing);
+    expect(find.byType(ArchetypeEmblem), findsNothing);
+  });
+
+  testWidgets('the tap target is at least 44×44 while the badge itself stays small', (tester) async {
+    for (final json in [mineJson, blendJson, atypicalJson, lockedJson]) {
+      await tester.pumpWidget(app(Row(children: [ArchetypeBadge(archetype: Archetype.fromJson(json))])));
+      final hit = tester.getSize(badge());
+      expect(hit.width, greaterThanOrEqualTo(44));
+      expect(hit.height, greaterThanOrEqualTo(44));
+      expect(tester.getSize(find.byKey(const ValueKey('archetype-badge-visual'))).height, lessThan(44));
+    }
+  });
+
+  testWidgets("a friend's badge never shows a % in its tooltip or label", (tester) async {
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: Archetype.fromJson(friendJson), friendView: true)));
+    expect(tester.widget<Tooltip>(find.byType(Tooltip)).message, 'Explorer');
+    expect(find.bySemanticsLabel('Archetype: Explorer. Double-tap for details'), findsOneWidget);
+  });
+
+  // ── Details sheet ──────────────────────────────────────────────────────────
+
+  Future<void> openSheet(WidgetTester tester, Map<String, dynamic> json, {bool friendView = false}) async {
+    await tester.pumpWidget(app(ArchetypeBadge(archetype: Archetype.fromJson(json), friendView: friendView)));
+    await tester.tap(badge());
     await tester.pumpAndSettle();
-    expect(find.byType(ArchetypeMixSheet), findsOneWidget);
-    for (final name in ['Competitor', 'Devotee', 'The Main', 'Completionist', 'Explorer', 'Casual']) {
-      expect(find.descendant(of: find.byType(ArchetypeMixSheet), matching: find.text(name)), findsOneWidget);
+    expect(find.byType(ArchetypeDetailsSheet), findsOneWidget);
+  }
+
+  Finder inSheet(Finder f) => find.descendant(of: find.byType(ArchetypeDetailsSheet), matching: f);
+
+  testWidgets('normal sheet: 56px emblem, name, family, the match % and the description; full mix collapsed', (tester) async {
+    await openSheet(tester, mineJson);
+    expect(tester.widget<ArchetypeEmblem>(inSheet(find.byType(ArchetypeEmblem)).first).size, 56);
+    expect(inSheet(find.text('Competitor')), findsOneWidget);
+    expect(inSheet(find.text('Committed player')), findsOneWidget);
+    expect(inSheet(find.text('48% match')), findsOneWidget);
+    expect(inSheet(find.text('Online, competitive, and in it for the long sessions.')), findsOneWidget);
+    expect(inSheet(find.text('See your full mix')), findsOneWidget);
+    expect(inSheet(find.text('22%')), findsNothing, reason: 'the full mix starts collapsed');
+  });
+
+  testWidgets('"See your full mix" expands to six bars (highest first) and the two reasons', (tester) async {
+    await openSheet(tester, mineJson);
+    await tester.tap(inSheet(find.text('See your full mix')));
+    await tester.pumpAndSettle();
+    final percents = ['48%', '22%', '18%', '7%', '3%', '2%'];
+    for (final p in percents) {
+      expect(inSheet(find.text(p)), findsOneWidget);
     }
-    for (final p in ['48%', '22%', '18%', '7%', '3%', '2%']) {
-      expect(find.descendant(of: find.byType(ArchetypeMixSheet), matching: find.text(p)), findsOneWidget);
-    }
+    final ys = [for (final p in percents) tester.getTopLeft(inSheet(find.text(p))).dy];
+    expect(ys, [...ys]..sort());
     expect(find.text('A typical game gets about 41 hours from you'), findsOneWidget);
     expect(find.text('You average about 168 hours in each month you play'), findsOneWidget);
-    expect(find.text('You play when life gives you time.'), findsOneWidget);
   });
 
-  testWidgets('the family label is hidden when family is null', (tester) async {
-    final noFamily = Map<String, dynamic>.from(mineJson)..remove('family');
-    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(noFamily))));
-    expect(find.text('Competitor · 48% match'), findsOneWidget);
-    expect(find.textContaining('family'), findsNothing);
+  testWidgets('blend sheet: the blend title, both percentages, both descriptions with the primary first', (tester) async {
+    await openSheet(tester, blendJson);
+    expect(inSheet(find.text('Competitor, with a touch of Completionist')), findsOneWidget);
+    expect(inSheet(find.text('Competitor 35% · Completionist 25%')), findsOneWidget);
+    final primary = inSheet(find.textContaining('Online, competitive', findRichText: true));
+    final secondary = inSheet(find.textContaining('You see more of your games', findRichText: true));
+    expect(primary, findsOneWidget);
+    expect(secondary, findsOneWidget);
+    expect(tester.getTopLeft(primary).dy, lessThan(tester.getTopLeft(secondary).dy));
   });
 
-  testWidgets('blend card: "<primary>, with a touch of <secondary>", top %, primary description', (tester) async {
-    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(blendJson))));
-    expect(find.text('Competitor, with a touch of Completionist'), findsOneWidget);
-    expect(find.text('35% Competitor'), findsOneWidget);
-    expect(find.text('Online, competitive, and in it for the long sessions.'), findsOneWidget);
-    expect(find.textContaining('· 35% match'), findsNothing);
-    await tester.tap(find.byType(ArchetypeCard));
+  testWidgets('closest-match sheet: title, its %, description and the honesty line', (tester) async {
+    await openSheet(tester, atypicalJson);
+    expect(inSheet(find.text('Closest match: Completionist')), findsOneWidget);
+    expect(inSheet(find.text('81% closest type')), findsOneWidget);
+    expect(inSheet(find.text("Your playstyle doesn't closely match any one type yet.")), findsOneWidget);
+    expect(tester.widget<ArchetypeEmblem>(inSheet(find.byType(ArchetypeEmblem)).first).faded, isTrue);
+  });
+
+  testWidgets('locked sheet: games left and 3/5 progress, no mix', (tester) async {
+    await openSheet(tester, lockedJson);
+    expect(inSheet(find.text('Log 2 more games to unlock your archetype')), findsOneWidget);
+    expect(inSheet(find.text('3/5 games logged')), findsOneWidget);
+    expect(tester.widget<LinearProgressIndicator>(inSheet(find.byType(LinearProgressIndicator))).value, closeTo(0.6, 1e-9));
+    expect(inSheet(find.text('See your full mix')), findsNothing);
+  });
+
+  testWidgets("friend sheet: emblem, name, family and description only, never a percentage", (tester) async {
+    final friend = {...friendJson, 'family': 'Light'};
+    await openSheet(tester, friend, friendView: true);
+    expect(inSheet(find.text('Explorer')), findsOneWidget);
+    expect(inSheet(find.text('Light player')), findsOneWidget);
+    expect(inSheet(find.text('Always trying something new, across lots of genres.')), findsOneWidget);
+    expect(inSheet(find.textContaining('%')), findsNothing);
+    expect(inSheet(find.text('See your full mix')), findsNothing);
+    // Even a full own payload shown in friend view leaks nothing
+    Navigator.of(tester.element(find.byType(ArchetypeDetailsSheet))).pop();
     await tester.pumpAndSettle();
-    expect(find.descendant(of: find.byType(ArchetypeMixSheet), matching: find.text('Competitor, with a touch of Completionist')),
-        findsOneWidget);
+    await openSheet(tester, mineJson, friendView: true);
+    expect(inSheet(find.textContaining('%')), findsNothing);
+    expect(inSheet(find.text('See your full mix')), findsNothing);
   });
 
-  testWidgets('atypical card: "Closest match", no %, no blend, the honesty line; sheet says none is close', (tester) async {
-    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(atypicalJson))));
-    expect(find.text('Closest match: Completionist'), findsOneWidget);
-    expect(find.text("Your playstyle doesn't closely match any one type yet."), findsOneWidget);
-    expect(find.textContaining('%'), findsNothing);
-    expect(find.textContaining('with a touch of'), findsNothing);
-    expect(find.textContaining('family'), findsNothing);
-    expect(find.text('Tap to see your full mix'), findsOneWidget);
+  test('family labels', () {
+    expect(familyLabel('Light'), 'Light player');
+    expect(familyLabel('One-game'), 'One-game player');
+    expect(familyLabel(null), isNull);
+    expect(archetypeColour('Explorer'), kLightFamily);
+    expect(archetypeColour('Competitor'), kCommittedFamily);
+    expect(archetypeColour('The Main'), kOneGameFamily);
+  });
 
-    await tester.tap(find.byType(ArchetypeCard));
-    await tester.pumpAndSettle();
-    final sheet = find.byType(ArchetypeMixSheet);
-    expect(find.descendant(of: sheet, matching: find.text('Closest match: Completionist')), findsOneWidget);
-    expect(find.descendant(of: sheet, matching: find.text('These show how close you are to each type; none is a close match.')),
-        findsOneWidget);
-    // All six bars, highest first, and the reasons
-    for (final p in ['81%', '7%', '5%', '4%', '2%', '1%']) {
-      expect(find.descendant(of: sheet, matching: find.text(p)), findsOneWidget);
+  test('every emblem path parses', () {
+    expect(archetypeIconPaths.keys.toSet(), archetypeFamily.keys.toSet());
+    // Path.getBounds() includes arc control points, so sample the drawn outline instead
+    for (final entry in archetypeIconPaths.entries) {
+      for (final metric in parseSvgPath(entry.value).computeMetrics()) {
+        for (double t = 0; t <= metric.length; t += 0.25) {
+          final pos = metric.getTangentForOffset(t)!.position;
+          expect(pos.dx, inInclusiveRange(0, 24), reason: entry.key);
+          expect(pos.dy, inInclusiveRange(0, 24), reason: entry.key);
+        }
+      }
     }
-    expect(find.text("You've unlocked 88% of the trophies in your games"), findsOneWidget);
-  });
-
-  testWidgets('the normal sheet has no "none is a close match" line', (tester) async {
-    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(mineJson))));
-    await tester.tap(find.byType(ArchetypeCard));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('none is a close match'), findsNothing);
-  });
-
-  testWidgets('below 5 games the card asks for more logs and is not tappable', (tester) async {
-    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(lockedJson))));
-    expect(find.text('Log a few more games to unlock your archetype'), findsOneWidget);
-    expect(find.text('3 of 5 games logged'), findsOneWidget);
-    expect(find.text('Tap to see your full mix'), findsNothing);
-    await tester.tap(find.byType(ArchetypeCard));
-    await tester.pumpAndSettle();
-    expect(find.byType(ArchetypeMixSheet), findsNothing);
-  });
-
-  testWidgets("a friend's card shows name and description only and never opens a mix", (tester) async {
-    await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(friendJson), friendView: true, username: 'sara')));
-    expect(find.text('Explorer'), findsOneWidget);
-    expect(find.text('Always trying something new, across lots of genres.'), findsOneWidget);
-    expect(find.textContaining('% match'), findsNothing);
-    expect(find.text('Tap to see your full mix'), findsNothing);
-    await tester.tap(find.byType(ArchetypeCard));
-    await tester.pumpAndSettle();
-    expect(find.byType(ArchetypeMixSheet), findsNothing);
-  });
-
-  testWidgets("a friend's card ignores scores, family, blend and atypical even if they were somehow present", (tester) async {
-    for (final json in [mineJson, blendJson, atypicalJson]) {
-      await tester.pumpWidget(app(ArchetypeCard(archetype: Archetype.fromJson(json), friendView: true)));
-      expect(find.text(json['archetype'] as String), findsOneWidget);
-      expect(find.textContaining('%'), findsNothing);
-      expect(find.textContaining('family'), findsNothing);
-      expect(find.textContaining('with a touch of'), findsNothing);
-      expect(find.textContaining('Closest match'), findsNothing);
-      expect(find.textContaining('closely match'), findsNothing);
-    }
-  });
-
-  testWidgets('loading shows placeholders, not text', (tester) async {
-    await tester.pumpWidget(app(const ArchetypeCard(loading: true)));
-    expect(find.text('PLAYER ARCHETYPE'), findsOneWidget);
-    expect(find.textContaining('match'), findsNothing);
-  });
-
-  testWidgets('an error offers a retry', (tester) async {
-    var retried = 0;
-    await tester.pumpWidget(app(ArchetypeCard(error: archetypeErrorMessage(503), onRetry: () => retried++)));
-    expect(find.text('Archetypes are taking a short break. Try again soon.'), findsOneWidget);
-    await tester.tap(find.text('Try again'));
-    expect(retried, 1);
+    expect(() => parseSvgPath('M3 12a9 9'), throwsFormatException);
+    expect(() => parseSvgPath('Q1 2 3 4'), throwsFormatException);
+    final hex = parseSvgPath('M12 1.4l9.2 5.3v10.6L12 22.6l-9.2-5.3V6.7z');
+    final b = hex.getBounds();
+    expect(b.left, closeTo(2.8, 1e-6));
+    expect(b.right, closeTo(21.2, 1e-6));
+    expect(b.top, closeTo(1.4, 1e-6));
+    expect(b.bottom, closeTo(22.6, 1e-6));
+    final circle = parseSvgPath('M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0').getBounds();
+    expect(circle.width, closeTo(18, 0.05));
+    expect(circle.height, closeTo(18, 0.05));
   });
 
   test('error messages per status', () {
