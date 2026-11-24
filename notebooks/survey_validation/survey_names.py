@@ -144,3 +144,24 @@ def decide(respondent: str, raw: str) -> tuple[str, str, str]:
     if key not in DECISIONS:
         raise KeyError(f"no decision for {raw!r}")
     return DECISIONS[key]
+
+
+# Mode overrides, applied after the lookup (title -> (online, multiplayer-only, reason))
+MODE_OVERRIDES: dict[str, tuple[bool, bool, str]] = {
+    "Grand Theft Auto VI": (False, False,
+                            "GTA VI's online mode has not launched, so both respondents could only have played the "
+                            "story; offline regardless of what IGDB lists (genres kept). Approved at the Step 1 "
+                            "checkpoint."),
+}
+
+# Alternative matches for the Step 3 sensitivity, decided before scoring:
+# (respondent, raw name casefolded) -> (title, RAWG slug or None, reason)
+ALTERNATIVES: dict[tuple[str, str], tuple[str, str | None, str]] = {
+    ("R03", "woflenstien"): ("Wolfenstein: Youngblood", None, "the co-op entry instead of Wolfenstein II"),
+    ("R02", "the last of us"): ("The Last of Us Remastered", None,
+                                "the 2013 game (Remastered) with its online Factions mode, instead of Part I"),
+    ("R15", "the last of us"): ("The Last of Us Remastered", None,
+                                "the 2013 game (Remastered) with its online Factions mode, instead of Part I"),
+    ("R02", "five nights at freddy"): ("Five Nights at Freddy's: Security Breach", None,
+                                       "the large recent entry instead of the first game"),
+}

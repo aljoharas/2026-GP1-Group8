@@ -29,11 +29,11 @@ Fortnite,Fortnite,Fortnite Battle Royale,Action;Shooter,True,False,high,RAWG sea
 God of War,God of war,God of War (2018),Action,False,False,low,app games table (pinned slug),"'God of War' is both the 2005 original and the 2018 game; the 2018 game is the most plausible (26-50 h, finished, 100% trophies) and the most recent main entry with that title | the app's 'God Of War' row is tagged Simulation only; RAWG's god-of-war-2 is the 2018 game",,,1
 God of War Ragnarök,GoW Ragnarok,God of War: Ragnarök,Action,False,False,high,app games table,abbreviation,,,1
 Grand Theft Auto V,Grand Theft Auto 5,Grand Theft Auto V,Action,True,False,high,app games table,number written as 5,,,1
-Grand Theft Auto VI,Grand Theft Auto 6,Grand Theft Auto VI,Action,True,False,low,app games table,number written as 6; check whether it was out when answered,,,1
+Grand Theft Auto VI,Grand Theft Auto 6,Grand Theft Auto VI,Action,False,False,low,app games table,"number written as 6; check whether it was out when answered | mode override: GTA VI's online mode has not launched, so both respondents could only have played the story; offline regardless of what IGDB lists (genres kept). Approved at the Step 1 checkpoint.",,,1
 Grand Theft Auto V,Gta,Grand Theft Auto V,Action,True,False,low,app games table,series without a number; 200+ hours and finished fits GTA V best,,,1
 Grand Theft Auto V,GTA V,Grand Theft Auto V,Action,True,False,high,app games table,abbreviation,,,1
 Grand Theft Auto V,Gta5,Grand Theft Auto V,Action,True,False,high,app games table,abbreviation,,,1
-Grand Theft Auto VI,GTA6,Grand Theft Auto VI,Action,True,False,low,app games table,abbreviation; check whether it was out when answered,,,1
+Grand Theft Auto VI,GTA6,Grand Theft Auto VI,Action,False,False,low,app games table,"abbreviation; check whether it was out when answered | mode override: GTA VI's online mode has not launched, so both respondents could only have played the story; offline regardless of what IGDB lists (genres kept). Approved at the Step 1 checkpoint.",,,1
 Hogwarts Legacy,Hogwarts legacy,Hogwarts Legacy,Action;RPG,False,False,high,app games table,exact title,,,1
 Hollow Knight,Hollow knight,Hollow Knight,Indie;Platformer;Action,False,False,high,app games table,exact title,,,2
 Hollow Knight: Silksong,Hollow Knight: silksong,Hollow Knight: Silksong,Indie;Platformer;Adventure;Action,False,False,high,app games table,exact title,,,1

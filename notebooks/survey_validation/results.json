@@ -1,0 +1,717 @@
+{
+  "n": 20,
+  "self_counts": {
+    "finish & trophies": 5,
+    "hours in a few favourites": 5,
+    "many games & genres": 4,
+    "online / multiplayer": 3,
+    "now and then": 3
+  },
+  "frequency": {
+    "Daily": 13,
+    "Weekly": 6,
+    "Monthly": 1
+  },
+  "months": {
+    "2": 1,
+    "6": 1,
+    "7": 1,
+    "8": 1,
+    "10": 2,
+    "11": 3,
+    "12": 11
+  },
+  "main_served": {
+    "top1": {
+      "agree": 4,
+      "n": 20,
+      "share": 0.2,
+      "wilson_lo": 0.08065766257979806,
+      "wilson_hi": 0.41601743225189364,
+      "chance": 0.249605,
+      "p_value": 0.8105189481051894
+    },
+    "top2": {
+      "agree": 10,
+      "n": 20,
+      "share": 0.5,
+      "wilson_lo": 0.2992980081982123,
+      "wilson_hi": 0.7007019918017877,
+      "chance": 0.41246499999999997,
+      "p_value": 0.19318068193180682
+    }
+  },
+  "main_v1": {
+    "top1": {
+      "agree": 6,
+      "n": 20,
+      "share": 0.3,
+      "wilson_lo": 0.1454772448676043,
+      "wilson_hi": 0.5189728183535235,
+      "chance": 0.20716,
+      "p_value": 0.1690830916908309
+    },
+    "top2": {
+      "agree": 10,
+      "n": 20,
+      "share": 0.5,
+      "wilson_lo": 0.2992980081982123,
+      "wilson_hi": 0.7007019918017877,
+      "chance": 0.40559500000000004,
+      "p_value": 0.20957904209579042
+    }
+  },
+  "confusion_served": {
+    "finish & trophies": {
+      "Completionist": 2,
+      "Explorer": 0,
+      "Competitor": 2,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 1
+    },
+    "many games & genres": {
+      "Completionist": 3,
+      "Explorer": 0,
+      "Competitor": 1,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 0
+    },
+    "hours in a few favourites": {
+      "Completionist": 1,
+      "Explorer": 0,
+      "Competitor": 3,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 1
+    },
+    "online / multiplayer": {
+      "Completionist": 2,
+      "Explorer": 0,
+      "Competitor": 0,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 1
+    },
+    "now and then": {
+      "Completionist": 2,
+      "Explorer": 0,
+      "Competitor": 0,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 1
+    }
+  },
+  "confusion_v1": {
+    "finish & trophies": {
+      "Completionist": 2,
+      "Explorer": 0,
+      "Competitor": 2,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 1
+    },
+    "many games & genres": {
+      "Completionist": 0,
+      "Explorer": 0,
+      "Competitor": 3,
+      "Casual": 1,
+      "Devotee": 0,
+      "The Main": 0
+    },
+    "hours in a few favourites": {
+      "Completionist": 0,
+      "Explorer": 0,
+      "Competitor": 4,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 1
+    },
+    "online / multiplayer": {
+      "Completionist": 0,
+      "Explorer": 0,
+      "Competitor": 2,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 1
+    },
+    "now and then": {
+      "Completionist": 2,
+      "Explorer": 0,
+      "Competitor": 1,
+      "Casual": 0,
+      "Devotee": 0,
+      "The Main": 0
+    }
+  },
+  "per_respondent": [
+    {
+      "respondent": "R01",
+      "self-description": "online / multiplayer",
+      "mapped": "Competitor / The Main",
+      "top 3 (2.0.0)": "The Main 55%, Competitor 23%, Devotee 11%",
+      "blend": "",
+      "top-1 agrees": true,
+      "top-2 agrees": true,
+      "v1 top": "The Main",
+      "v1 top-1 agrees": true
+    },
+    {
+      "respondent": "R02",
+      "self-description": "many games & genres",
+      "mapped": "Explorer",
+      "top 3 (2.0.0)": "Completionist 61%, Competitor 31%, The Main 3%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R03",
+      "self-description": "finish & trophies",
+      "mapped": "Completionist",
+      "top 3 (2.0.0)": "The Main 34%, Completionist 26%, Competitor 23%",
+      "blend": "The Main, with a touch of Completionist",
+      "top-1 agrees": false,
+      "top-2 agrees": true,
+      "v1 top": "The Main",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R04",
+      "self-description": "now and then",
+      "mapped": "Casual",
+      "top 3 (2.0.0)": "The Main 40%, Competitor 37%, Devotee 12%",
+      "blend": "The Main, with a touch of Competitor",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R05",
+      "self-description": "online / multiplayer",
+      "mapped": "Competitor / The Main",
+      "top 3 (2.0.0)": "Completionist 60%, Competitor 23%, The Main 11%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": true,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": true
+    },
+    {
+      "respondent": "R06",
+      "self-description": "many games & genres",
+      "mapped": "Explorer",
+      "top 3 (2.0.0)": "Completionist 59%, Casual 13%, Competitor 12%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Casual",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R07",
+      "self-description": "hours in a few favourites",
+      "mapped": "Devotee / The Main",
+      "top 3 (2.0.0)": "Completionist 45%, Competitor 36%, The Main 12%",
+      "blend": "Completionist, with a touch of Competitor",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R08",
+      "self-description": "hours in a few favourites",
+      "mapped": "Devotee / The Main",
+      "top 3 (2.0.0)": "Competitor 50%, Completionist 37%, The Main 7%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R09",
+      "self-description": "finish & trophies",
+      "mapped": "Completionist",
+      "top 3 (2.0.0)": "Competitor 50%, Completionist 34%, The Main 9%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": true,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R10",
+      "self-description": "finish & trophies",
+      "mapped": "Completionist",
+      "top 3 (2.0.0)": "Completionist 82%, Competitor 12%, Devotee 2%",
+      "blend": "",
+      "top-1 agrees": true,
+      "top-2 agrees": true,
+      "v1 top": "Completionist",
+      "v1 top-1 agrees": true
+    },
+    {
+      "respondent": "R11",
+      "self-description": "hours in a few favourites",
+      "mapped": "Devotee / The Main",
+      "top 3 (2.0.0)": "Competitor 46%, Completionist 30%, The Main 16%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R12",
+      "self-description": "hours in a few favourites",
+      "mapped": "Devotee / The Main",
+      "top 3 (2.0.0)": "Competitor 49%, The Main 29%, Completionist 11%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": true,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R13",
+      "self-description": "online / multiplayer",
+      "mapped": "Competitor / The Main",
+      "top 3 (2.0.0)": "Completionist 42%, Competitor 27%, The Main 21%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": true,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": true
+    },
+    {
+      "respondent": "R14",
+      "self-description": "many games & genres",
+      "mapped": "Explorer",
+      "top 3 (2.0.0)": "Completionist 62%, Competitor 19%, Devotee 10%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R15",
+      "self-description": "finish & trophies",
+      "mapped": "Completionist",
+      "top 3 (2.0.0)": "Completionist 77%, Competitor 13%, The Main 5%",
+      "blend": "",
+      "top-1 agrees": true,
+      "top-2 agrees": true,
+      "v1 top": "Completionist",
+      "v1 top-1 agrees": true
+    },
+    {
+      "respondent": "R16",
+      "self-description": "now and then",
+      "mapped": "Casual",
+      "top 3 (2.0.0)": "Completionist 74%, Competitor 10%, Devotee 9%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Completionist",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R17",
+      "self-description": "hours in a few favourites",
+      "mapped": "Devotee / The Main",
+      "top 3 (2.0.0)": "The Main 54%, Competitor 18%, Devotee 11%",
+      "blend": "",
+      "top-1 agrees": true,
+      "top-2 agrees": true,
+      "v1 top": "The Main",
+      "v1 top-1 agrees": true
+    },
+    {
+      "respondent": "R18",
+      "self-description": "now and then",
+      "mapped": "Casual",
+      "top 3 (2.0.0)": "Completionist 86%, Competitor 8%, Devotee 2%",
+      "blend": "",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Completionist",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R19",
+      "self-description": "finish & trophies",
+      "mapped": "Completionist",
+      "top 3 (2.0.0)": "Competitor 35%, Completionist 28%, The Main 26%",
+      "blend": "Competitor, with a touch of Completionist",
+      "top-1 agrees": false,
+      "top-2 agrees": true,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    },
+    {
+      "respondent": "R20",
+      "self-description": "many games & genres",
+      "mapped": "Explorer",
+      "top 3 (2.0.0)": "Competitor 33%, Completionist 31%, The Main 24%",
+      "blend": "Competitor, with a touch of Completionist",
+      "top-1 agrees": false,
+      "top-2 agrees": false,
+      "v1 top": "Competitor",
+      "v1 top-1 agrees": false
+    }
+  ],
+  "sensitivities": [
+    {
+      "variant": "main",
+      "n": 20,
+      "top1 agree": 4,
+      "top1 share": 0.2,
+      "top1 wilson_lo": 0.08065766257979806,
+      "top1 wilson_hi": 0.41601743225189364,
+      "top1 chance": 0.249605,
+      "top1 p_value": 0.8105189481051894,
+      "top2 agree": 10,
+      "top2 share": 0.5,
+      "top2 wilson_lo": 0.2992980081982123,
+      "top2 wilson_hi": 0.7007019918017877,
+      "top2 chance": 0.41246499999999997,
+      "top2 p_value": 0.19318068193180682
+    },
+    {
+      "variant": "games played = 5",
+      "n": 20,
+      "top1 agree": 4,
+      "top1 share": 0.2,
+      "top1 wilson_lo": 0.08065766257979806,
+      "top1 wilson_hi": 0.41601743225189364,
+      "top1 chance": 0.249605,
+      "top1 p_value": 0.8105189481051894,
+      "top2 agree": 10,
+      "top2 share": 0.5,
+      "top2 wilson_lo": 0.2992980081982123,
+      "top2 wilson_hi": 0.7007019918017877,
+      "top2 chance": 0.41246499999999997,
+      "top2 p_value": 0.19318068193180682
+    },
+    {
+      "variant": "activity = training mean",
+      "n": 20,
+      "top1 agree": 4,
+      "top1 share": 0.2,
+      "top1 wilson_lo": 0.08065766257979806,
+      "top1 wilson_hi": 0.41601743225189364,
+      "top1 chance": 0.24203000000000002,
+      "top1 p_value": 0.7924207579242076,
+      "top2 agree": 10,
+      "top2 share": 0.5,
+      "top2 wilson_lo": 0.2992980081982123,
+      "top2 wilson_hi": 0.7007019918017877,
+      "top2 chance": 0.41226,
+      "top2 p_value": 0.17598240175982402
+    },
+    {
+      "variant": "alternative matches",
+      "n": 20,
+      "top1 agree": 4,
+      "top1 share": 0.2,
+      "top1 wilson_lo": 0.08065766257979806,
+      "top1 wilson_hi": 0.41601743225189364,
+      "top1 chance": 0.249605,
+      "top1 p_value": 0.8105189481051894,
+      "top2 agree": 10,
+      "top2 share": 0.5,
+      "top2 wilson_lo": 0.2992980081982123,
+      "top2 wilson_hi": 0.7007019918017877,
+      "top2 chance": 0.41246499999999997,
+      "top2 p_value": 0.19318068193180682
+    },
+    {
+      "variant": "without R13",
+      "n": 19,
+      "top1 agree": 4,
+      "top1 share": 0.21052631578947367,
+      "top1 wilson_lo": 0.08507676632916253,
+      "top1 wilson_hi": 0.43334278443814167,
+      "top1 chance": 0.23390526315789475,
+      "top1 p_value": 0.7132286771322868,
+      "top2 agree": 9,
+      "top2 share": 0.47368421052631576,
+      "top2 wilson_lo": 0.2732980516117956,
+      "top2 wilson_hi": 0.6829219075488682,
+      "top2 chance": 0.38544736842105265,
+      "top2 p_value": 0.21207879212078792
+    }
+  ],
+  "sensitivity_changes": {
+    "games played = 5": [],
+    "activity = training mean": [
+      {
+        "respondent": "R04",
+        "main top": "The Main",
+        "variant top": "Competitor",
+        "main top-1 agrees": false,
+        "variant top-1 agrees": false,
+        "main top 3": "The Main 40%, Competitor 37%, Devotee 12%",
+        "variant top 3": "Competitor 38%, The Main 35%, Devotee 12%"
+      },
+      {
+        "respondent": "R06",
+        "main top": "Completionist",
+        "variant top": "Completionist",
+        "main top-1 agrees": false,
+        "variant top-1 agrees": false,
+        "main top 3": "Completionist 59%, Casual 13%, Competitor 12%",
+        "variant top 3": "Completionist 62%, Competitor 15%, Casual 8%"
+      },
+      {
+        "respondent": "R20",
+        "main top": "Competitor",
+        "variant top": "Completionist",
+        "main top-1 agrees": false,
+        "variant top-1 agrees": false,
+        "main top 3": "Competitor 33%, Completionist 31%, The Main 24%",
+        "variant top 3": "Completionist 34%, Competitor 32%, The Main 22%"
+      }
+    ],
+    "alternative matches": [],
+    "without R13": []
+  },
+  "distributions": {
+    "completion_rate": {
+      "survey (n = 20)": "0.40 (0.20\u20130.60)",
+      "v2-core training (3,333)": "0.17 (0.00\u20130.33)",
+      "v1 training (667)": "0.45 (0.25\u20130.68)",
+      "real Steam, v3 (2,408)": "\u2013"
+    },
+    "trophy_rate": {
+      "survey (n = 20)": "0.55 (0.44\u20130.69)",
+      "v2-core training (3,333)": "0.10 (0.05\u20130.19)",
+      "v1 training (667)": "0.31 (0.25\u20130.40)",
+      "real Steam, v3 (2,408)": "\u2013"
+    },
+    "genre_diversity": {
+      "survey (n = 20)": "0.49 (0.37\u20130.62)",
+      "v2-core training (3,333)": "0.81 (0.67\u20130.91)",
+      "v1 training (667)": "0.77 (0.54\u20130.92)",
+      "real Steam, v3 (2,408)": "0.59 (0.43\u20130.72)"
+    },
+    "log_hours_per_game": {
+      "survey (n = 20)": "3.78 (3.10\u20134.13)",
+      "v2-core training (3,333)": "1.59 (1.13\u20132.18)",
+      "v1 training (667)": "1.64 (1.08\u20132.20)",
+      "real Steam, v3 (2,408)": "2.06 (1.59\u20132.58)"
+    },
+    "top_game_share": {
+      "survey (n = 20)": "0.55 (0.32\u20130.65)",
+      "v2-core training (3,333)": "0.45 (0.32\u20130.68)",
+      "v1 training (667)": "0.39 (0.27\u20130.79)",
+      "real Steam, v3 (2,408)": "0.46 (0.31\u20130.65)"
+    },
+    "log_activity": {
+      "survey (n = 20)": "3.71 (3.26\u20134.01)",
+      "v2-core training (3,333)": "2.42 (1.77\u20133.17)",
+      "v1 training (667)": "2.62 (1.74\u20133.42)",
+      "real Steam, v3 (2,408)": "\u2013"
+    },
+    "online_share": {
+      "survey (n = 20)": "0.92 (0.61\u20130.99)",
+      "v2-core training (3,333)": "0.38 (0.07\u20130.78)",
+      "v1 training (667)": "0.32 (0.04\u20130.74)",
+      "real Steam, v3 (2,408)": "0.92 (0.64\u20131.00)"
+    },
+    "log_games_played": {
+      "survey (n = 20)": "1.61 (1.61\u20131.61)",
+      "v2-core training (3,333)": "2.08 (1.79\u20132.40)",
+      "v1 training (667)": "2.08 (1.79\u20132.40)",
+      "real Steam, v3 (2,408)": "2.48 (1.95\u20133.22)"
+    }
+  },
+  "closer_simulation": {
+    "completion_rate": {
+      "survey median": 0.4,
+      "v2-core median": 0.1666666666666666,
+      "v1 median": 0.4545454545454545,
+      "closer": "v1"
+    },
+    "trophy_rate": {
+      "survey median": 0.551,
+      "v2-core median": 0.1002949852507374,
+      "v1 median": 0.3057324840764331,
+      "closer": "v1"
+    },
+    "log_activity": {
+      "survey median": 3.7117304878990356,
+      "v2-core median": 2.423730944717407,
+      "v1 median": 2.617395832834079,
+      "closer": "v1"
+    }
+  },
+  "trophy_hunter": {
+    "unfinished games with >= 51% trophies": 14,
+    "by kind": {
+      "online (not multiplayer-only)": 10,
+      "multiplayer-only": 3,
+      "offline": 1
+    },
+    "respondents with >= 2 such offline games": 0,
+    "those respondents": [],
+    "unfinished games overall": 56
+  },
+  "completionist_vs_competitor": {
+    "rows": [
+      {
+        "respondent": "R02",
+        "model top": "Completionist",
+        "self-description": "many games & genres",
+        "completion_rate": 0.4,
+        "trophy_rate": 0.71,
+        "online_share": 0.6409090909090909
+      },
+      {
+        "respondent": "R05",
+        "model top": "Completionist",
+        "self-description": "online / multiplayer",
+        "completion_rate": 0.6,
+        "trophy_rate": 0.67,
+        "online_share": 0.9604950023798191
+      },
+      {
+        "respondent": "R06",
+        "model top": "Completionist",
+        "self-description": "many games & genres",
+        "completion_rate": 0.2,
+        "trophy_rate": 0.63,
+        "online_share": 0.5362318840579711
+      },
+      {
+        "respondent": "R07",
+        "model top": "Completionist",
+        "self-description": "hours in a few favourites",
+        "completion_rate": 0.6,
+        "trophy_rate": 0.478,
+        "online_share": 0.9294947121034077
+      },
+      {
+        "respondent": "R08",
+        "model top": "Competitor",
+        "self-description": "hours in a few favourites",
+        "completion_rate": 0.2,
+        "trophy_rate": 0.62875,
+        "online_share": 1.0
+      },
+      {
+        "respondent": "R09",
+        "model top": "Competitor",
+        "self-description": "finish & trophies",
+        "completion_rate": 0.4,
+        "trophy_rate": 0.505,
+        "online_share": 1.0
+      },
+      {
+        "respondent": "R10",
+        "model top": "Completionist",
+        "self-description": "finish & trophies",
+        "completion_rate": 1.0,
+        "trophy_rate": 0.96875,
+        "online_share": 0.275049115913556
+      },
+      {
+        "respondent": "R11",
+        "model top": "Competitor",
+        "self-description": "hours in a few favourites",
+        "completion_rate": 0.2,
+        "trophy_rate": 0.528,
+        "online_share": 1.0
+      },
+      {
+        "respondent": "R12",
+        "model top": "Competitor",
+        "self-description": "hours in a few favourites",
+        "completion_rate": 0.2,
+        "trophy_rate": 0.28,
+        "online_share": 0.912906610703043
+      },
+      {
+        "respondent": "R13",
+        "model top": "Completionist",
+        "self-description": "online / multiplayer",
+        "completion_rate": 0.4,
+        "trophy_rate": 0.56625,
+        "online_share": 0.9946714031971581
+      },
+      {
+        "respondent": "R14",
+        "model top": "Completionist",
+        "self-description": "many games & genres",
+        "completion_rate": 0.4,
+        "trophy_rate": 0.429,
+        "online_share": 0.0
+      },
+      {
+        "respondent": "R15",
+        "model top": "Completionist",
+        "self-description": "finish & trophies",
+        "completion_rate": 0.8,
+        "trophy_rate": 0.925,
+        "online_share": 0.7984531392174704
+      },
+      {
+        "respondent": "R16",
+        "model top": "Completionist",
+        "self-description": "now and then",
+        "completion_rate": 0.8,
+        "trophy_rate": 0.751,
+        "online_share": 0.0
+      },
+      {
+        "respondent": "R18",
+        "model top": "Completionist",
+        "self-description": "now and then",
+        "completion_rate": 0.6,
+        "trophy_rate": 0.802,
+        "online_share": 0.21523472099202834
+      },
+      {
+        "respondent": "R19",
+        "model top": "Competitor",
+        "self-description": "finish & trophies",
+        "completion_rate": 0.4,
+        "trophy_rate": 0.454,
+        "online_share": 0.9496164213145345
+      },
+      {
+        "respondent": "R20",
+        "model top": "Competitor",
+        "self-description": "many games & genres",
+        "completion_rate": 0.2,
+        "trophy_rate": 0.551,
+        "online_share": 0.9411764705882354
+      }
+    ],
+    "medians": {
+      "Competitor": {
+        "completion_rate": 0.2,
+        "trophy_rate": 0.5165,
+        "online_share": 0.9748082106572673
+      },
+      "Completionist": {
+        "completion_rate": 0.6,
+        "trophy_rate": 0.69,
+        "online_share": 0.5885704874835309
+      }
+    }
+  },
+  "served_top_counts": {
+    "Completionist": 10,
+    "Competitor": 6,
+    "The Main": 4
+  },
+  "blends": 5
+}

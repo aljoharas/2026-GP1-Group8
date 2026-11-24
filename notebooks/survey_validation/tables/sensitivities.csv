@@ -1,0 +1,6 @@
+variant,n,top1 agree,top1 share,top1 wilson_lo,top1 wilson_hi,top1 chance,top1 p_value,top2 agree,top2 share,top2 wilson_lo,top2 wilson_hi,top2 chance,top2 p_value
+main,20,4,0.2,0.0807,0.416,0.2496,0.8105,10,0.5,0.2993,0.7007,0.4125,0.1932
+games played = 5,20,4,0.2,0.0807,0.416,0.2496,0.8105,10,0.5,0.2993,0.7007,0.4125,0.1932
+activity = training mean,20,4,0.2,0.0807,0.416,0.242,0.7924,10,0.5,0.2993,0.7007,0.4123,0.176
+alternative matches,20,4,0.2,0.0807,0.416,0.2496,0.8105,10,0.5,0.2993,0.7007,0.4125,0.1932
+without R13,19,4,0.2105,0.0851,0.4333,0.2339,0.7132,9,0.4737,0.2733,0.6829,0.3854,0.2121

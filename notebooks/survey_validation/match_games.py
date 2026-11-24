@@ -144,6 +144,9 @@ def main():
         modes = f.get("game_modes") or []
         online = wrapped.is_online(tuple(modes))
         mp_only = online and not any("single" in m.casefold() for m in modes)
+        override = SN.MODE_OVERRIDES.get(e["title"])
+        if override:
+            online, mp_only = override[0], override[1]
         # confidence = is this the right game; data gaps don't lower it (they're the app's data)
         conf = e["decision_confidence"]
         flags, gaps = [], []
@@ -163,7 +166,8 @@ def main():
             "genres": ";".join(f.get("genres") or []), "game_modes": ";".join(modes),
             "modes source": f.get("modes_source", "app games table" if modes else ""),
             "online": online, "multiplayer-only": mp_only, "confidence": conf,
-            "decision": e["reason"] + (f" | {f['note']}" if f.get("note") and f.get("matched_title") else ""),
+            "decision": e["reason"] + (f" | {f['note']}" if f.get("note") and f.get("matched_title") else "")
+                        + (f" | mode override: {override[2]}" if override else ""),
             "lookup flags": "; ".join(flags), "data gaps": "; ".join(gaps),
             "hours": e["hours"], "status": e["status"], "trophies": e["trophies"],
         })
@@ -184,5 +188,28 @@ def main():
     print(out["source"].value_counts().to_string())
 
 
+def alternatives():
+    """The Step 3 alternative matches (SN.ALTERNATIVES), looked up the same way (RAWG search + IGDB),
+    written to survey_game_matches_alternatives.csv."""
+    items = [{"title": t, "need": "rawg+igdb", "respondent": rid, "raw_key": raw, "reason": why}
+             for (rid, raw), (t, _slug, why) in SN.ALTERNATIVES.items()]
+    SCRATCH.mkdir(exist_ok=True)
+    (SCRATCH / "alt_in.json").write_text(json.dumps(items, indent=2))
+    subprocess.run(["node", str(HERE / "lookup_games.js"), str(SCRATCH / "alt_in.json"), str(SCRATCH / "alt_out.json")], check=True)
+    rows = []
+    for r in json.loads((SCRATCH / "alt_out.json").read_text()):
+        modes = r.get("game_modes") or []
+        online = wrapped.is_online(tuple(modes))
+        rows.append({"respondent": r["respondent"], "raw key": r["raw_key"], "alternative title": r["title"],
+                     "matched title": r.get("rawg_name"), "exact": r.get("rawg_exact"), "genres": ";".join(r.get("genres") or []),
+                     "game_modes": ";".join(modes), "online": online,
+                     "multiplayer-only": online and not any("single" in m.casefold() for m in modes),
+                     "reason": r["reason"], "error": r.get("error")})
+    out = pd.DataFrame(rows)
+    out.to_csv(HERE / "survey_game_matches_alternatives.csv", index=False)
+    print(out[["respondent", "alternative title", "matched title", "exact", "genres", "game_modes", "online"]].to_string(index=False))
+
+
 if __name__ == "__main__":
     main()
+    alternatives()
