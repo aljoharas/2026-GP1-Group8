@@ -175,10 +175,32 @@ def load_model(path: Path = MODEL_PATH) -> dict:
     families = [c.get("family") for c in model["clusters"]]
     if any(f is not None for f in families) and not all(isinstance(f, str) and f.strip() for f in families):
         raise ValueError("model JSON gives a family to some clusters but not all")
+    threshold = model.get("atypical_distance_threshold")
+    if threshold is not None and (not isinstance(threshold, (int, float)) or threshold <= 0):
+        raise ValueError("atypical_distance_threshold must be a number > 0")
+    quantiles = model.get("training_distance_quantiles")
+    if quantiles is not None and (len(quantiles) != 101 or any(b < a for a, b in zip(quantiles, quantiles[1:]))):
+        raise ValueError("training_distance_quantiles must be 101 increasing percentiles")
     model["_mean"] = np.array(model["scaler"]["mean"], dtype=float)
     model["_scale"] = np.array(model["scaler"]["scale"], dtype=float)
     model["_centres"] = np.array([c["centre_scaled"] for c in model["clusters"]], dtype=float)
     return model
+
+
+def atypical_check(z: np.ndarray, model: dict) -> tuple[bool, int | None]:
+    """(atypical, distance_percentile) for a scaled user. atypical: the distance to the
+    nearest centre is beyond the model's atypical_distance_threshold (the 95th percentile of
+    the training players' nearest-centre distances). distance_percentile: where that distance
+    falls among the training players (0-100). A model without a threshold (1.0.0) gives
+    (False, None).
+    """
+    threshold = model.get("atypical_distance_threshold")
+    if threshold is None:
+        return False, None
+    nearest = float(np.sqrt(((model["_centres"] - z) ** 2).sum(axis=1)).min())
+    quantiles = model.get("training_distance_quantiles")
+    percentile = None if quantiles is None else int(round(float(np.interp(nearest, quantiles, np.arange(101)))))
+    return nearest > threshold, percentile
 
 
 def scale_features(features: dict, model: dict) -> np.ndarray:
@@ -292,7 +314,9 @@ def blend_of(clusters: list[dict], order: list[int], percents: list[int]) -> dic
 
 def archetype_response(games: list[dict], model: dict) -> dict:
     """The /archetype body for one user's games (build_games). family is the top
-    archetype's family (None for a model without families); blend, see blend_of."""
+    archetype's family (None for a model without families); blend, see blend_of,
+    is None when the user is atypical (close to no type); atypical and
+    distance_percentile, see atypical_check."""
     features = compute_features(games)
     if features is None:
         return {
@@ -308,11 +332,14 @@ def archetype_response(games: list[dict], model: dict) -> dict:
     order = sorted(range(len(percents)), key=lambda i: (-percents[i], -probabilities[i], i))
     nearest = order[0]
     clusters = model["clusters"]
+    atypical, distance_percentile = atypical_check(z, model)
     return {
         "archetype": clusters[nearest]["name"],
         "description": clusters[nearest]["description"],
         "family": clusters[nearest].get("family"),
-        "blend": blend_of(clusters, order, percents),
+        "blend": None if atypical else blend_of(clusters, order, percents),
+        "atypical": atypical,
+        "distance_percentile": distance_percentile,
         "scores": [
             {"archetype": clusters[i]["name"], "description": clusters[i]["description"], "percent": percents[i]}
             for i in order

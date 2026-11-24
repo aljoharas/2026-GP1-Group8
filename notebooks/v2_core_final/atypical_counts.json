@@ -1,0 +1,182 @@
+{
+  "threshold": 2.6405940306940363,
+  "training_flagged_share": 0.0501050105010501,
+  "survey": {
+    "n": 20,
+    "flagged": 17,
+    "rows": [
+      {
+        "respondent": "R01",
+        "top": "The Main",
+        "atypical": true,
+        "distance_percentile": 98
+      },
+      {
+        "respondent": "R02",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R03",
+        "top": "The Main",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R04",
+        "top": "The Main",
+        "atypical": false,
+        "distance_percentile": 91
+      },
+      {
+        "respondent": "R05",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R06",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 99
+      },
+      {
+        "respondent": "R07",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R08",
+        "top": "Competitor",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R09",
+        "top": "Competitor",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R10",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R11",
+        "top": "Competitor",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R12",
+        "top": "Competitor",
+        "atypical": false,
+        "distance_percentile": 77
+      },
+      {
+        "respondent": "R13",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 99
+      },
+      {
+        "respondent": "R14",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 99
+      },
+      {
+        "respondent": "R15",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R16",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R17",
+        "top": "The Main",
+        "atypical": false,
+        "distance_percentile": 94
+      },
+      {
+        "respondent": "R18",
+        "top": "Completionist",
+        "atypical": true,
+        "distance_percentile": 99
+      },
+      {
+        "respondent": "R19",
+        "top": "Competitor",
+        "atypical": true,
+        "distance_percentile": 100
+      },
+      {
+        "respondent": "R20",
+        "top": "Competitor",
+        "atypical": true,
+        "distance_percentile": 100
+      }
+    ],
+    "distance_percentile_median": 100.0
+  },
+  "real_users": {
+    "n": 5,
+    "flagged": 3,
+    "rows": [
+      {
+        "user": "user 1",
+        "games": 12,
+        "archetype": "Competitor",
+        "top %": 35,
+        "atypical": true,
+        "distance_percentile": 100,
+        "blend": null
+      },
+      {
+        "user": "user 2",
+        "games": 9,
+        "archetype": "Competitor",
+        "top %": 44,
+        "atypical": false,
+        "distance_percentile": 95,
+        "blend": null
+      },
+      {
+        "user": "user 3",
+        "games": 10,
+        "archetype": "Competitor",
+        "top %": 48,
+        "atypical": false,
+        "distance_percentile": 82,
+        "blend": null
+      },
+      {
+        "user": "user 4",
+        "games": 5,
+        "archetype": "Completionist",
+        "top %": 81,
+        "atypical": true,
+        "distance_percentile": 100,
+        "blend": null
+      },
+      {
+        "user": "user 5",
+        "games": 12,
+        "archetype": "Completionist",
+        "top %": 75,
+        "atypical": true,
+        "distance_percentile": 100,
+        "blend": null
+      }
+    ]
+  }
+}

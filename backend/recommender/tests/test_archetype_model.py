@@ -69,7 +69,7 @@ V1_PATH = MODEL_PATH.with_name("archetype_model_v1.json")
 
 
 def test_served_model_is_v2_with_the_confirmed_names_and_families(model):
-    assert model["version"] == "2.0.0"
+    assert model["version"] == "2.0.1"
     assert model["k"] == 6
     assert {c["name"]: c["family"] for c in model["clusters"]} == FAMILIES
     completionist = next(c for c in model["clusters"] if c["name"] == "Completionist")
@@ -99,3 +99,33 @@ def test_a_model_with_families_on_only_some_clusters_is_refused(model, tmp_path)
     path.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="family"):
         archetypes.load_model(path)
+
+
+# 2.0.0's scoring fields (features, imputation, scaler, temperature, centres, names, families,
+# descriptions), hashed before 2.0.1 added the atypical check
+V200_SCORING_SHA256 = "908a6cc09f0b058122260810e77d9e98ff4d67bf3ee2019f6ddeeba58e597af2"
+
+
+def test_2_0_1_scores_exactly_like_2_0_0(model):
+    import hashlib
+    core = {k: model[k] for k in ("features", "imputation", "scaler", "scoring", "min_games", "k")}
+    core["clusters"] = [{k: c[k] for k in ("id", "name", "family", "description", "centre_scaled", "centre")}
+                        for c in model["clusters"]]
+    assert hashlib.sha256(json.dumps(core, sort_keys=True).encode()).hexdigest() == V200_SCORING_SHA256
+
+
+def test_atypical_threshold_is_the_training_95th_percentile(model):
+    q = model["training_distance_quantiles"]
+    assert len(q) == 101 and q == sorted(q)
+    assert model["atypical_distance_threshold"] == pytest.approx(q[95])
+    assert model["atypical"]["percentile"] == 95 and model["atypical"]["training_players"] == 3333
+    assert model["atypical"]["flagged_share_of_training"] == pytest.approx(0.05, abs=0.002)
+
+
+def test_a_bad_threshold_is_refused(model, tmp_path):
+    for bad in ({"atypical_distance_threshold": -1}, {"training_distance_quantiles": [1.0, 0.5] + [2.0] * 99}):
+        data = {**json.loads(json.dumps(model)), **bad}
+        path = tmp_path / "m.json"
+        path.write_text(json.dumps(data))
+        with pytest.raises(ValueError):
+            archetypes.load_model(path)

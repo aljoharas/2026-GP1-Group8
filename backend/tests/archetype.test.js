@@ -56,7 +56,7 @@ test('ownArchetype keeps Python scores that already add up to 100', () => {
   assert.deepEqual(out.scores.map((s) => s.percent), [62, 21, 7, 5, 3, 2]);
   assert.equal(out.scores.length, 6);
   assert.deepEqual(Object.keys(out).sort(),
-    ['archetype', 'blend', 'description', 'family', 'games_played', 'model_version', 'reasons', 'scores']);
+    ['archetype', 'atypical', 'blend', 'description', 'family', 'games_played', 'model_version', 'reasons', 'scores']);
 });
 
 test('ownArchetype passes on family and a blend', () => {
@@ -86,8 +86,26 @@ test('ownArchetype passes on a cross-family blend', () => {
   assert.deepEqual(out.blend, { primary: 'Competitor', secondary: 'The Main' });
 });
 
-test('friendArchetype never shows family or blend', () => {
-  const out = friendArchetype({ ...PY_BODY, family: 'One-game', blend: { primary: 'Devotee', secondary: 'The Main' } });
+test('ownArchetype passes on atypical, drops any blend then, and never passes distance_percentile', () => {
+  const out = ownArchetype({
+    ...PY_BODY, family: 'One-game', atypical: true, distance_percentile: 99,
+    blend: { primary: 'Devotee', secondary: 'The Main' },
+  });
+  assert.equal(out.atypical, true);
+  assert.equal(out.blend, null);
+  assert.equal('distance_percentile' in out, false);
+});
+
+test('ownArchetype: atypical is false unless Python sends exactly true', () => {
+  assert.equal(ownArchetype(PY_BODY).atypical, false); // a v1 body has no atypical
+  assert.equal(ownArchetype({ ...PY_BODY, atypical: 'yes' }).atypical, false);
+  const blended = ownArchetype({ ...PY_BODY, atypical: false, blend: { primary: 'Devotee', secondary: 'The Main' } });
+  assert.deepEqual(blended.blend, { primary: 'Devotee', secondary: 'The Main' });
+});
+
+test('friendArchetype never shows family, blend or atypical', () => {
+  const out = friendArchetype({ ...PY_BODY, family: 'One-game', atypical: true, distance_percentile: 99,
+    blend: { primary: 'Devotee', secondary: 'The Main' } });
   assert.deepEqual(Object.keys(out).sort(), ['archetype', 'description']);
 });
 

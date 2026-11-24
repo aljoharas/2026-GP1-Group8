@@ -132,8 +132,8 @@ def devotee_games():
 
 def test_response_shape(model):
     body = archetypes.archetype_response(devotee_games(), model)
-    assert set(body) == {"archetype", "description", "family", "blend", "scores", "reasons", "games_played",
-                         "model_version"}
+    assert set(body) == {"archetype", "description", "family", "blend", "atypical", "distance_percentile",
+                         "scores", "reasons", "games_played", "model_version"}
     assert body["family"] == next(c["family"] for c in model["clusters"] if c["name"] == body["archetype"])
     names = [c["name"] for c in model["clusters"]]
     assert sorted(s["archetype"] for s in body["scores"]) == sorted(names)
@@ -273,7 +273,59 @@ def test_rollback_to_v1_is_a_file_swap(monkeypatch):
     body = archetypes.archetype_response(devotee_games(), v1)
     assert body["archetype"] == "Devotee" and body["model_version"] == "1.0.0"
     assert body["family"] is None and body["blend"] is None
+    assert body["atypical"] is False and body["distance_percentile"] is None
     tie = _between(v1, "Competitor", "The Main", monkeypatch)
     top2 = [s["archetype"] for s in tie["scores"][:2]]
     assert tie["family"] is None
     assert tie["blend"] == {"primary": top2[0], "secondary": top2[1]}
+
+
+
+# --- atypical (2.0.1) ---------------------------------------------------------------------
+
+def _far_from_everything(model, monkeypatch, factor=4.0):
+    """Features far outside the training cloud: every scaled value at +factor SD from the
+    mean, except shares capped at their valid range."""
+    mean, scale = model["_mean"], model["_scale"]
+    f = {name: float(mean[i] + factor * scale[i]) for i, name in enumerate(FEATURE_NAMES)}
+    for share in ("completion_rate", "trophy_rate", "genre_diversity", "top_game_share", "online_share"):
+        f[share] = min(f[share], 1.0)
+    monkeypatch.setattr(archetypes, "compute_features", lambda games: dict(f))
+    return archetypes.archetype_response([game(10) for _ in range(5)], model)
+
+
+def test_a_user_on_a_centre_is_not_atypical(model, monkeypatch):
+    body = _at(model, "Competitor", monkeypatch)
+    assert body["atypical"] is False
+    assert body["distance_percentile"] == 0
+
+
+def test_a_user_far_from_every_centre_is_atypical_with_no_blend(model, monkeypatch):
+    body = _far_from_everything(model, monkeypatch)
+    assert body["atypical"] is True
+    assert body["distance_percentile"] == 100
+    assert body["blend"] is None
+    assert body["archetype"] == body["scores"][0]["archetype"], "the closest type is still named"
+    assert sum(s["percent"] for s in body["scores"]) == 100
+
+
+def test_atypical_suppresses_a_near_tie_blend(model, monkeypatch):
+    """A near-tie that would blend gets no blend once the user is beyond the threshold."""
+    tie = _between(model, "Competitor", "The Main", monkeypatch)
+    assert tie["blend"] is not None and tie["atypical"] is False
+    strict = {**model, "atypical_distance_threshold": 1e-6}
+    tie_strict = _between(strict, "Competitor", "The Main", monkeypatch)
+    assert tie_strict["atypical"] is True and tie_strict["blend"] is None
+    assert tie_strict["scores"] == tie["scores"], "the check never changes the scores"
+
+
+def test_atypical_check_boundary(model):
+    t = model["atypical_distance_threshold"]
+    c = model["_centres"][0]
+    direction = np.zeros_like(c)
+    direction[0] = 1.0
+    # Points along an axis from a centre: the nearest centre may be another one, so check the rule itself
+    for step in (0.5, 1.0, 2.0, 4.0):
+        z = c + step * direction
+        nearest = float(np.sqrt(((model["_centres"] - z) ** 2).sum(axis=1)).min())
+        assert archetypes.atypical_check(z, model)[0] == (nearest > t)

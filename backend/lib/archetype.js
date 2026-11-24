@@ -70,7 +70,10 @@ function ownArchetype(body) {
     // blend: { primary, secondary } when the top two are within 10 points, whatever
     // their families, else null. The app shows "<primary>, with a touch of <secondary>".
     family: typeof body.family === 'string' ? body.family : null,
-    blend: blendOf(body.blend),
+    // atypical (2.0.1+): the user is far from every type (beyond the training 95th
+    // percentile); then there is never a blend. false for a model without the check.
+    atypical: body.atypical === true,
+    blend: body.atypical === true ? null : blendOf(body.blend),
     scores,
     reasons: (body.reasons || []).slice(0, 2),
     games_played: body.games_played,
