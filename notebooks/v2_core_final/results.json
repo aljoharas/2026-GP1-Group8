@@ -1,0 +1,214 @@
+{
+  "plausibility": [
+    {
+      "check": "completed with r < 0.3 (all games)",
+      "count": 29,
+      "out of": 10250,
+      "note": ""
+    },
+    {
+      "check": "  of which multiplayer-only (rule 3's flat 2%)",
+      "count": 27,
+      "out of": 1155,
+      "note": ""
+    },
+    {
+      "check": "  of which not multiplayer-only (rule 1)",
+      "count": 2,
+      "out of": 9095,
+      "note": ""
+    },
+    {
+      "check": "100% trophies on an unfinished game",
+      "count": 0,
+      "out of": 18180,
+      "note": ""
+    },
+    {
+      "check": "100% trophies, hunters' unfinished games",
+      "count": 0,
+      "out of": 0,
+      "note": ""
+    },
+    {
+      "check": "100% trophies with r < 1 + E (3)",
+      "count": 0,
+      "out of": 19472,
+      "note": ""
+    },
+    {
+      "check": "completed multiplayer-only games",
+      "count": 77,
+      "out of": 3268,
+      "note": "rate 2.36% vs 2% (binomial \u00b12 SE: 1.51%\u20132.49%)"
+    },
+    {
+      "check": "full sets (100%) overall",
+      "count": 5,
+      "out of": 22643,
+      "note": ""
+    }
+  ],
+  "expected_signs": {
+    "log_hours_per_game ~ trophy_rate": 0.6425564639587674,
+    "log_activity ~ trophy_rate": 0.3108542272474207,
+    "completion_rate ~ trophy_rate": 0.6587677261073048,
+    "online_share ~ completion_rate": 0.01835849120664208
+  },
+  "online_completion": {
+    "pooled": 0.01835849120664208,
+    "partial_given_hours": -0.1855788674904431,
+    "within_persona": {
+      "casual": -0.013791858537892991,
+      "competitor": -0.18565215713477293,
+      "completionist": -0.1643729369404722,
+      "devotee": -0.16574131308692808,
+      "explorer": -0.030580483156728958,
+      "mixed": -0.05007011927296719
+    },
+    "completed_by_game_kind": {
+      "multiplayer-only": {
+        "size": 3268,
+        "mean": 0.023561811505507957
+      },
+      "offline": {
+        "size": 20125,
+        "mean": 0.21724223602484471
+      },
+      "online with single-player": {
+        "size": 9495,
+        "mean": 0.2209583991574513
+      }
+    }
+  },
+  "persona_means": {
+    "casual": {
+      "completion_rate": 0.051616666666666665,
+      "trophy_rate": 0.05992323723664082
+    },
+    "competitor": {
+      "completion_rate": 0.28522340992340994,
+      "trophy_rate": 0.15419189509432027
+    },
+    "completionist": {
+      "completion_rate": 0.4846205960705961,
+      "trophy_rate": 0.3556035302396734
+    },
+    "devotee": {
+      "completion_rate": 0.13327857142857144,
+      "trophy_rate": 0.08096185812700128
+    },
+    "explorer": {
+      "completion_rate": 0.09820223867735163,
+      "trophy_rate": 0.07467634040355624
+    },
+    "mixed": {
+      "completion_rate": 0.21099778787447124,
+      "trophy_rate": 0.14349652769857493
+    }
+  },
+  "draws": {
+    "fallback": [
+      30692,
+      2023,
+      173,
+      0
+    ],
+    "hours_source": {
+      "game": 18178,
+      "global": 14710
+    }
+  },
+  "imputation": {
+    "trophy_rate": 0.1446310556660707,
+    "genre_diversity": 0.7741382420097214
+  },
+  "players": 3333,
+  "silhouette": 0.26012659903628815,
+  "stability": {
+    "mean_pairwise": 0.9990163671915279,
+    "min_pairwise": 0.9980731471742424,
+    "mean_vs_model": 0.9973168254420317
+  },
+  "persona_ari": 0.5839683288921614,
+  "agreement_k6_seeds_0_4": {
+    "0": {
+      "seed 42 players": 0.9670919784982421,
+      "seed 0 players": 0.9651824097458545
+    },
+    "1": {
+      "seed 42 players": 0.9243203770886549,
+      "seed 1 players": 0.9089516477595279
+    },
+    "2": {
+      "seed 42 players": 0.9678809722888517,
+      "seed 2 players": 0.9684470525381128
+    },
+    "3": {
+      "seed 42 players": 0.969667572839847,
+      "seed 3 players": 0.9567251626076854
+    },
+    "4": {
+      "seed 42 players": 0.9581908692728819,
+      "seed 4 players": 0.9526161885228008
+    }
+  },
+  "agreement_range": [
+    0.9089516477595279,
+    0.969667572839847
+  ],
+  "cluster_names_by_match": {
+    "0": "Devotee",
+    "1": "Competitor",
+    "5": "Completionist",
+    "3": "Casual",
+    "4": "The Main",
+    "2": "Explorer"
+  },
+  "match_distance_v1_sd": {
+    "Devotee": 1.7822930004976114,
+    "Competitor": 1.1291821763845524,
+    "Completionist": 1.839336997741656,
+    "Casual": 1.7675593321870944,
+    "The Main": 1.8830706325090274,
+    "Explorer": 1.5816183905737629
+  },
+  "shares": {
+    "Devotee": 0.13621362136213622,
+    "Competitor": 0.18001800180018002,
+    "Explorer": 0.1785178517851785,
+    "Casual": 0.26162616261626165,
+    "The Main": 0.09450945094509451,
+    "Completionist": 0.1491149114911491
+  },
+  "temperature_simulated": {
+    "0.5": {
+      "pure median": 88.0,
+      "pure p10": 55.0,
+      "pure p90": 97.0,
+      "mixed median": 78.0,
+      "at >= 90%": 0.40744074407440745
+    },
+    "0.6": {
+      "pure median": 81.0,
+      "pure p10": 50.0,
+      "pure p90": 94.0,
+      "mixed median": 70.0,
+      "at >= 90%": 0.23342334233423342
+    },
+    "0.75": {
+      "pure median": 72.0,
+      "pure p10": 45.0,
+      "pure p90": 88.0,
+      "mixed median": 61.0,
+      "at >= 90%": 0.05340534053405341
+    },
+    "1.0": {
+      "pure median": 59.0,
+      "pure p10": 38.0,
+      "pure p90": 76.0,
+      "mixed median": 50.0,
+      "at >= 90%": 0.0
+    }
+  }
+}

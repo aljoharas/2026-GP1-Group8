@@ -5,8 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../core/sticky_tab_bar.dart';
+import '../../models/archetype.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/game_provider.dart';
+import '../../services/archetype_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/game_service.dart';
 import '../../services/list_service.dart';
@@ -20,6 +22,7 @@ import 'list_editor_sheet.dart';
 import 'privacy_policy_screen.dart';
 import '../../providers/logged_games_provider.dart';
 import 'settings_screen.dart';
+import '../../widgets/archetype_badge.dart';
 import '../../widgets/platinum_celebration.dart';
 import 'help_center_screen.dart';
 
@@ -59,6 +62,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   List<Map<String, dynamic>> _lists = [];
   bool _listsLoading = true;
 
+  Archetype? _archetype;
+  bool _archetypeLoading = true;
+  String? _archetypeError;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +75,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _loadFavorites();
       _loadFriendsCount();
       _loadLists();
+      _loadArchetype();
+    });
+  }
+
+  Future<void> _loadArchetype() async {
+    setState(() {
+      _archetypeLoading = true;
+      _archetypeError = null;
+    });
+    final result = await ArchetypeService().getMine();
+    if (!mounted) return;
+    setState(() {
+      _archetypeLoading = false;
+      if (result['success'] == true) {
+        _archetype = result['archetype'] as Archetype;
+      } else {
+        _archetypeError = result['message'] as String? ?? "Couldn't load the archetype.";
+      }
     });
   }
 
@@ -760,6 +785,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     await Future.wait([
       context.read<LoggedGamesProvider>().loadFromBackend(),
       _loadFavorites(),
+      _loadArchetype(),
     ]);
   }
 
@@ -888,8 +914,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   color: kText,
                   letterSpacing: -0.5)),
           const SizedBox(height: 2),
-          Text('@${username.toLowerCase().replaceAll(' ', '_')}',
-              style: const TextStyle(fontSize: 12, color: muted)),
+          Row(
+            children: [
+              Flexible(
+                child: Text('@${username.toLowerCase().replaceAll(' ', '_')}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: muted)),
+              ),
+              const SizedBox(width: 6),
+              ArchetypeBadge(
+                archetype: _archetype,
+                loading: _archetypeLoading,
+                error: _archetypeError,
+              ),
+            ],
+          ),
           if (bio.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(bio,

@@ -1,0 +1,6 @@
+user,games,v1 (T = 0.75),v2-core T = 0.5,top % T = 0.5,v2-core T = 0.6,top % T = 0.6,v2-core T = 0.75,top % T = 0.75,v2-core T = 1.0,top % T = 1.0,v2-core archetype,changed vs v1
+user 1,12,Competitor 48% / Devotee 22%,Competitor 42% / Completionist 26%,42,Competitor 39% / Completionist 26%,39,Competitor 35% / Completionist 25%,35,Competitor 31% / Completionist 24%,31,Competitor,False
+user 2,12,Completionist 49% / Competitor 31%,Completionist 89% / Competitor 9%,89,Completionist 83% / Competitor 13%,83,Completionist 75% / Competitor 16%,75,Completionist 62% / Competitor 20%,62,Completionist,False
+user 3,9,Competitor 57% / The Main 27%,Competitor 54% / The Main 33%,54,Competitor 49% / The Main 32%,49,Competitor 44% / The Main 31%,44,Competitor 37% / The Main 29%,37,Competitor,False
+user 4,10,Competitor 64% / Devotee 11%,Competitor 59% / Completionist 33%,59,Competitor 54% / Completionist 33%,54,Competitor 48% / Completionist 33%,48,Competitor 41% / Completionist 30%,41,Competitor,False
+user 5,5,Completionist 64% / Devotee 17%,Completionist 94% / Competitor 3%,94,Completionist 89% / Competitor 5%,89,Completionist 81% / Competitor 7%,81,Completionist 68% / Competitor 11%,68,Completionist,False

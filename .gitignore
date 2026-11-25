@@ -93,3 +93,9 @@ flutter/lib/core/constants.dart
 flutter/lib/core/constants.dart
 flutter/lib/core/constants.dart
 flutter/lib/core/constants.dart
+
+# ===== Archetype training data (Steam 200k + derived distributions) =====
+data/
+
+# Golden-test failure images (local only)
+flutter/test/failures/

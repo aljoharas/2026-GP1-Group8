@@ -1,0 +1,8 @@
+,completion_rate,completion_rate,trophy_rate,trophy_rate,genre_diversity,genre_diversity,log_hours_per_game,log_hours_per_game,top_game_share,top_game_share,log_activity,log_activity,online_share,online_share,log_games_played,log_games_played
+,v1,v2-core,v1,v2-core,v1,v2-core,v1,v2-core,v1,v2-core,v1,v2-core,v1,v2-core,v1,v2-core
+Completionist,0.779,0.556,0.633,0.382,0.799,0.828,2.029,2.203,0.404,0.428,2.439,2.607,0.271,0.301,2.137,2.078
+Explorer,0.352,0.119,0.282,0.085,0.971,0.935,1.13,1.204,0.18,0.275,1.988,2.202,0.323,0.348,2.939,2.919
+Devotee,0.412,0.162,0.295,0.095,0.331,0.534,1.755,1.743,0.942,0.891,3.811,3.469,0.022,0.033,1.98,1.92
+The Main,0.449,0.129,0.29,0.108,0.315,0.532,1.706,1.893,0.921,0.868,3.734,3.514,0.961,0.95,2.0,1.924
+Competitor,0.464,0.283,0.303,0.168,0.797,0.834,2.649,2.505,0.387,0.432,3.057,3.102,0.788,0.773,2.125,2.139
+Casual,0.367,0.082,0.288,0.074,0.785,0.805,0.937,1.069,0.366,0.462,1.423,1.516,0.324,0.341,1.855,1.864
