@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 120 120">
+  <rect x="14" y="22" width="92" height="62" rx="7" fill="#D9D6FF"/>
+  <rect x="21" y="29" width="78" height="48" rx="3" fill="#2A1196"/>
+  <text x="60" y="55" text-anchor="middle" font-family="Inter" font-weight="900" font-size="14" letter-spacing="1" fill="#EEEDFF">THE END</text>
+  <rect x="42" y="61" width="36" height="3" rx="1.5" fill="#D9D6FF" opacity="0.55"/>
+  <rect x="47" y="67" width="26" height="3" rx="1.5" fill="#D9D6FF" opacity="0.35"/>
+  <rect x="53" y="84" width="14" height="7" fill="#D9D6FF"/>
+  <rect x="38" y="91" width="44" height="6" rx="3" fill="#D9D6FF"/>
+  <circle cx="101" cy="24" r="13" fill="#FFFFFF"/>
+  <path d="M94.5 24.5l4.5 4.5 8.5-9" fill="none" stroke="#2D14C6" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

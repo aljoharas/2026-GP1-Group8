@@ -6,6 +6,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../models/wrapped.dart';
 import '../wrapped_card.dart';
@@ -21,6 +22,18 @@ IconData _icon(PlayerType type) => switch (type) {
   PlayerType.theCloser => Icons.task_alt_outlined,
   PlayerType.theJuggler => Icons.layers_outlined,
   PlayerType.saveAndQuit => Icons.save_outlined,
+};
+
+/// The illustration shown in place of the icon when there's no photo.
+/// If it can't load, the icon above is shown instead.
+String _artAsset(PlayerType type) => 'assets/endgame/${type.key}.svg';
+
+String _artLabel(PlayerType type) => switch (type) {
+  PlayerType.creditsChaser => 'A TV showing THE END, with a check mark',
+  PlayerType.foreverInProgress => 'Three games, each with an unfinished progress bar',
+  PlayerType.theCloser => 'A clipboard checklist with every game ticked off',
+  PlayerType.theJuggler => 'Three game controllers tossed in the air in an arc',
+  PlayerType.saveAndQuit => 'A game pause menu with Save and Quit, Quit selected',
 };
 
 class PlayerTypeCard extends StatefulWidget implements WrappedCard {
@@ -135,14 +148,21 @@ class _PlayerTypeCardState extends WrappedCardState<PlayerTypeCard> {
                   child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
                 );
               },
-              child: ShaderMask(
-                blendMode: BlendMode.srcIn,
-                shaderCallback: (bounds) => LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: _palette.accent,
-                ).createShader(bounds),
-                child: Icon(_icon(type), size: side),
+              child: SvgPicture.asset(
+                _artAsset(type),
+                width: min(200.0, constraints.biggest.shortestSide),
+                height: min(200.0, constraints.biggest.shortestSide),
+                fit: BoxFit.contain,
+                semanticsLabel: _artLabel(type),
+                errorBuilder: (_, _, _) => ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (bounds) => LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: _palette.accent,
+                  ).createShader(bounds),
+                  child: Icon(_icon(type), size: side),
+                ),
               ),
             ),
           ],

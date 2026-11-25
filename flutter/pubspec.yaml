@@ -25,6 +25,7 @@ dependencies:
   shared_preferences: ^2.5.5
   gal: ^3.0.1
   share_plus: ^13.3.1
+  flutter_svg: ^2.3.4
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -54,3 +55,4 @@ flutter:
     - assets/images/
     - assets/wrapped/
     - assets/wrapped/types/
+    - assets/endgame/
