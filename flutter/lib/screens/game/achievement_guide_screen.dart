@@ -755,15 +755,21 @@ class GuideNodeSheet extends StatelessWidget {
   }
 
   List<Widget> _trophyBody() => [
-        if (node.description != null) ...[
-          const SizedBox(height: 16),
-          Text(node.description!, style: const TextStyle(color: _muted, fontSize: 13, height: 1.4)),
-        ],
-        if (node.steps.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _steps(node.steps),
-        ],
+        const SizedBox(height: 16),
+        _details(node.description, node.steps, const TextStyle(color: _muted, fontSize: 13, height: 1.4)),
       ];
+
+  // Two or more steps replace the description; otherwise the description is
+  // shown, or a placeholder when there is none. `steps` are already filtered
+  // by visibleSteps() when the guide is parsed.
+  Widget _details(String? description, List<String> steps, TextStyle descriptionStyle) {
+    if (steps.length >= 2) return _steps(steps);
+    return Text(
+      description ?? 'No description available.',
+      key: const Key('guide-description'),
+      style: descriptionStyle,
+    );
+  }
 
   List<Widget> _platinumBody() => [
         const SizedBox(height: 16),
@@ -854,12 +860,10 @@ class GuideNodeSheet extends StatelessWidget {
                                 Text(_pct(t.rarity!), style: TextStyle(color: _rarityColor(t.rarity), fontSize: 11, fontWeight: FontWeight.w600)),
                             ],
                           ),
-                          if (t.description != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(t.description!, style: const TextStyle(color: _muted, fontSize: 12, height: 1.35)),
-                            ),
-                          if (t.steps.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: _steps(t.steps)),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: _details(t.description, t.steps, const TextStyle(color: _muted, fontSize: 12, height: 1.35)),
+                          ),
                         ],
                       ),
                     ),

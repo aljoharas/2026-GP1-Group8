@@ -284,4 +284,77 @@ void main() {
       });
     });
   });
+
+  group('GuideNodeSheet steps vs description', () {
+    const desc = 'Defeat the final boss.';
+    const step1 = 'Stock up on healing items';
+    const step2 = 'Dodge the slam attack';
+    const placeholder = 'No description available.';
+
+    Map<String, dynamic> trophy({String? description, List<String> steps = const []}) => {
+          'id': 't1',
+          'name': 'Boss Slayer',
+          'description': description,
+          'steps': steps,
+          'confidence': 'high',
+        };
+
+    Future<void> pumpSheet(WidgetTester tester, Map<String, dynamic> json) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(400, 1400);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: GuideNodeSheet(node: GuideNode.fromJson(json)))));
+    }
+
+    Map<String, dynamic> trophyNode(Map<String, dynamic> t) => {...t, 'order': 1, 'kind': 'trophy'};
+
+    Map<String, dynamic> ladderNode(Map<String, dynamic> t) => {
+          'order': 1,
+          'id': 'ladder:t1',
+          'name': 'Boss Slayer',
+          'kind': 'ladder',
+          'tiers': [
+            {'label': 'I', 'trophies': [t]},
+          ],
+        };
+
+    for (final kind in ['trophy', 'ladder tier']) {
+      final wrap = kind == 'trophy' ? trophyNode : ladderNode;
+
+      testWidgets('$kind: 2 steps show the steps and hide the description', (tester) async {
+        await pumpSheet(tester, wrap(trophy(description: desc, steps: [step1, step2])));
+        expect(find.byKey(const Key('guide-steps')), findsOneWidget);
+        expect(find.text(step1), findsOneWidget);
+        expect(find.text(step2), findsOneWidget);
+        expect(find.text(desc), findsNothing);
+        expect(find.text(placeholder), findsNothing);
+      });
+
+      testWidgets('$kind: 1 step shows the description', (tester) async {
+        await pumpSheet(tester, wrap(trophy(description: desc, steps: [step1])));
+        expect(find.text(desc), findsOneWidget);
+        expect(find.byKey(const Key('guide-steps')), findsNothing);
+        expect(find.text(step1), findsNothing);
+      });
+
+      testWidgets('$kind: no steps shows the description', (tester) async {
+        await pumpSheet(tester, wrap(trophy(description: desc)));
+        expect(find.text(desc), findsOneWidget);
+        expect(find.byKey(const Key('guide-steps')), findsNothing);
+      });
+
+      testWidgets('$kind: no description and no steps shows the placeholder', (tester) async {
+        await pumpSheet(tester, wrap(trophy()));
+        expect(find.text(placeholder), findsOneWidget);
+        expect(find.byKey(const Key('guide-steps')), findsNothing);
+      });
+
+      testWidgets('$kind: steps hidden by visibleSteps() do not count toward 2', (tester) async {
+        // The second step restates the description, so only one step is visible.
+        await pumpSheet(tester, wrap(trophy(description: desc, steps: [step1, 'Defeat the final boss'])));
+        expect(find.text(desc), findsOneWidget);
+        expect(find.byKey(const Key('guide-steps')), findsNothing);
+      });
+    }
+  });
 }
