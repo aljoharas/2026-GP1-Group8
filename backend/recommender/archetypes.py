@@ -40,6 +40,9 @@ REASONS_LIMIT = 2
 # A blend is returned when the top two archetypes are this close (percentage
 # points), whatever their families: "<primary>, with a touch of <secondary>"
 BLEND_MAX_GAP = 10
+# Post-cluster rule (2.0.2): below the model's competitor_min_online_share, a user
+# cannot be this archetype, whose own definition is online play
+COMPETITOR = "Competitor"
 
 # Where a game's trophy_rate denominator came from (build_games' counts)
 TROPHY_RAWG = "rawg_count"
@@ -181,26 +184,45 @@ def load_model(path: Path = MODEL_PATH) -> dict:
     quantiles = model.get("training_distance_quantiles")
     if quantiles is not None and (len(quantiles) != 101 or any(b < a for a, b in zip(quantiles, quantiles[1:]))):
         raise ValueError("training_distance_quantiles must be 101 increasing percentiles")
+    min_online = model.get("competitor_min_online_share")
+    if min_online is not None:
+        if not isinstance(min_online, (int, float)) or not 0 <= min_online <= 1:
+            raise ValueError("competitor_min_online_share must be a number in [0, 1]")
+        if COMPETITOR not in [c["name"] for c in model["clusters"]]:
+            raise ValueError(f"competitor_min_online_share needs a cluster named {COMPETITOR}")
     model["_mean"] = np.array(model["scaler"]["mean"], dtype=float)
     model["_scale"] = np.array(model["scaler"]["scale"], dtype=float)
     model["_centres"] = np.array([c["centre_scaled"] for c in model["clusters"]], dtype=float)
     return model
 
 
-def atypical_check(z: np.ndarray, model: dict) -> tuple[bool, int | None]:
+def atypical_check(z: np.ndarray, model: dict, centres: np.ndarray | None = None) -> tuple[bool, int | None]:
     """(atypical, distance_percentile) for a scaled user. atypical: the distance to the
     nearest centre is beyond the model's atypical_distance_threshold (the 95th percentile of
     the training players' nearest-centre distances). distance_percentile: where that distance
     falls among the training players (0-100). A model without a threshold (1.0.0) gives
-    (False, None).
+    (False, None). centres: the centres the user may match (default: all of them).
     """
     threshold = model.get("atypical_distance_threshold")
     if threshold is None:
         return False, None
-    nearest = float(np.sqrt(((model["_centres"] - z) ** 2).sum(axis=1)).min())
+    centres = model["_centres"] if centres is None else centres
+    nearest = float(np.sqrt(((centres - z) ** 2).sum(axis=1)).min())
     quantiles = model.get("training_distance_quantiles")
     percentile = None if quantiles is None else int(round(float(np.interp(nearest, quantiles, np.arange(101)))))
     return nearest > threshold, percentile
+
+
+def excluded_clusters(features: dict, model: dict) -> list[int]:
+    """Indices of the clusters a user cannot match (post-cluster rules). Competitor is
+    excluded when online_share is below competitor_min_online_share (the 5th percentile
+    among the training players nearest to Competitor). A model without the threshold
+    (2.0.1 and earlier) excludes nothing.
+    """
+    threshold = model.get("competitor_min_online_share")
+    if threshold is None or features["online_share"] >= threshold:
+        return []
+    return [i for i, c in enumerate(model["clusters"]) if c["name"] == COMPETITOR]
 
 
 def scale_features(features: dict, model: dict) -> np.ndarray:
@@ -316,7 +338,9 @@ def archetype_response(games: list[dict], model: dict) -> dict:
     """The /archetype body for one user's games (build_games). family is the top
     archetype's family (None for a model without families); blend, see blend_of,
     is None when the user is atypical (close to no type); atypical and
-    distance_percentile, see atypical_check."""
+    distance_percentile, see atypical_check. Archetypes excluded by a post-cluster
+    rule (excluded_clusters) take no part in the scores, blend or atypical check and
+    are listed last at 0%, so scores always has every archetype and adds up to 100."""
     features = compute_features(games)
     if features is None:
         return {
@@ -327,12 +351,18 @@ def archetype_response(games: list[dict], model: dict) -> dict:
             "model_version": model["version"],
         }
     z = scale_features(features, model)
-    probabilities = match_probabilities(z, model["_centres"], model["scoring"]["temperature"])
-    percents = largest_remainder(probabilities)
-    order = sorted(range(len(percents)), key=lambda i: (-percents[i], -probabilities[i], i))
-    nearest = order[0]
     clusters = model["clusters"]
-    atypical, distance_percentile = atypical_check(z, model)
+    excluded = excluded_clusters(features, model)
+    allowed = [i for i in range(len(clusters)) if i not in excluded]
+    # Scored over the allowed archetypes only; an excluded one is listed last at 0%
+    probabilities = np.zeros(len(clusters))
+    probabilities[allowed] = match_probabilities(z, model["_centres"][allowed], model["scoring"]["temperature"])
+    percents = [0] * len(clusters)
+    for i, p in zip(allowed, largest_remainder(probabilities[allowed])):
+        percents[i] = p
+    order = sorted(allowed, key=lambda i: (-percents[i], -probabilities[i], i)) + excluded
+    nearest = order[0]
+    atypical, distance_percentile = atypical_check(z, model, model["_centres"][allowed])
     return {
         "archetype": clusters[nearest]["name"],
         "description": clusters[nearest]["description"],

@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Model | K-Means, k = 6, frozen as JSON (`models/archetype_model.json`) |
-| Version | **2.0.1** (seed 42): 2.0.0 plus the [atypical check](#atypical-check), with scoring otherwise identical. Replaces 1.0.0, which is kept as `models/archetype_model_v1.json` for rollback. |
-| Trained by | `notebooks/v2_core_final.py --write-model` (2.0.0), then `notebooks/v2_core_final/atypical_threshold.py` (2.0.1). The v2 analysis notebook and the `sim_v2*` reports are archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`. |
+| Version | **2.0.2** (seed 42): 2.0.0 plus the [atypical check](#atypical-check) (2.0.1) and one [post-cluster rule](#post-cluster-rules) (2.0.2). Centres, scaler and k are unchanged since 2.0.0. Replaces 1.0.0, which is kept as `models/archetype_model_v1.json` for rollback. |
+| Trained by | `notebooks/v2_core_final.py --write-model` (2.0.0), then `notebooks/v2_core_final/atypical_threshold.py` (2.0.1), then `notebooks/v2_core_final/competitor_online_rule.py` (2.0.2). The v2 analysis notebook and the `sim_v2*` reports are archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`. |
 | Served by | Python service, `GET /archetype?uid=...`, behind Node `GET /users/me/archetype` |
 | Status | **Prototype. Not validated on real users.** It was trained on simulated players only, and a first survey (n = 20) found no agreement with self-descriptions beyond chance. See [Survey validation](#survey-validation). |
 
@@ -16,9 +16,11 @@ for every archetype. The service:
 1. computes the user's 8 features;
 2. fills a missing trophy rate or genre diversity with the training mean;
 3. scales the features with the saved scaler;
-4. measures the distance to each cluster centre.
+4. measures the distance to each cluster centre;
+5. leaves out any archetype a [post-cluster rule](#post-cluster-rules) excludes (2.0.2: Competitor for a user with
+   little online play).
 
-The nearest centre is the archetype. The match % is a softmax over the negative distances (temperature 0.75; see
+The nearest remaining centre is the archetype. The match % is a softmax over the negative distances (temperature 0.75; see
 [Match scores](#match-scores)).
 
 **In the app**, the archetype is a small emblem badge after the user's @handle: a hexagon in the family colour, with
@@ -411,6 +413,9 @@ overstating the match.
 - Nothing else changed from 2.0.0. A test pins 2.0.0's scoring fields (scaler, imputation, centres, names, families,
   descriptions and temperature) by hash.
 
+Since 2.0.2 the distance is to the nearest centre the user may match: when a [post-cluster rule](#post-cluster-rules)
+excludes Competitor, the check uses the nearest of the other five.
+
 **Effect:** an atypical user keeps the same scores and nearest archetype, but gets `atypical: true` and no blend.
 On the profile, the emblem badge is shown faded in a dashed outline. Its details sheet is titled "Closest match:
 *archetype*", shows the % as the "closest type" rather than a match, and adds "Your playstyle doesn't closely match any
@@ -425,9 +430,46 @@ one type yet." A model file without a threshold (1.0.0) always returns `atypical
 **Most real players are flagged.** The flag is honest about that, but it also shows the model's training population
 doesn't cover the players it's meant for. See below.
 
+## Post-cluster rules
+
+Rules applied after the distances are measured. They never move a centre, the scaler or k; they only take an
+archetype out of the running for a user who plainly contradicts its definition. There's one, added in 2.0.2.
+
+**Competitor needs online play.** A user whose `online_share` is below `competitor_min_online_share` (**0.330**)
+can't be Competitor. Their softmax (T = 0.75) is computed over the other five archetypes. The largest-remainder
+percentages, the blend rule and the atypical check then run as before, with the atypical check using the nearest
+remaining centre. Competitor is still listed, last and at 0%, so `scores` always has all six archetypes and adds up
+to 100. Node and the app need no change. A user at or above the threshold is scored exactly as in 2.0.1.
+
+**Why.** Competitor's own definition is online: "Online, competitive, and in it for the long sessions", with a centre
+online share of 0.77. But Competitor is a hub (see [Families check](#families-check)): its centre sits between the others.
+A user with long per-game hours could land there with no online play at all, because the simulated Devotee's side
+games are much shorter than real users log (see [Limitations](#limitations)). For example, one 150h offline game plus
+six 25h offline side games scored Competitor 37% / Devotee 30% under 2.0.1.
+
+**How the threshold was derived** (`notebooks/v2_core_final/competitor_online_rule.py`). It's taken from the
+training data, not chosen by hand, in the same way as the atypical threshold:
+- Take the 3,333 v2-core training players. The script first checks it reproduces the model's training shares.
+- Keep the 600 whose nearest centre is Competitor.
+- `competitor_min_online_share` is the **5th percentile** of their online share. Their 1st, 10th and 50th percentiles
+  are 0.16, 0.43 and 0.83.
+- The rule and its derivation are stored in the model JSON under `competitor_online_rule`.
+
+**Effect (2.0.1 → 2.0.2):**
+
+| Who | Change |
+|---|---|
+| Training players (3,333) | **30 (0.9%)** change archetype, all from Competitor: to Completionist 12, Devotee 11, Casual 4, Explorer 3. That's 5% of the 600 Competitors, by construction. Atypical 167 → 175, blends 256 → 236. |
+| Real app users (9 with ≥ 5 manual games, 2026-11-27) | **1** changes: Competitor 48% / Completionist 33% → Completionist 63% / Devotee 13% (online share 0.29). Three others are below the threshold but weren't Competitor; only their second match changes. |
+| Survey respondents (20) | **No archetype changes.** Top-1 agreement stays 4 / 20 (p = 0.81) and top-2 stays 10 / 20 (chance 41% → 43%, p 0.19 → 0.31). Four respondents had Competitor second; it's now Devotee. |
+
+**What it doesn't fix.** The rule only acts on offline users. A devotee whose main game is online but whose side
+games are long (300h online + six 25h offline: online share 0.67) is still Competitor 40% / The Main 36%. The cause,
+side-game hours in the simulation, is listed under [Limitations](#limitations).
+
 ## Survey validation
 
-The frozen model (2.0.0, which scores identically to 2.0.1) was tested on **20 survey respondents**. All consented;
+The frozen model (2.0.0, which scores identically to 2.0.1) was tested on **20 survey respondents** (2.0.2's effect on the same 20 is under [Post-cluster rules](#post-cluster-rules)). All consented;
 they were used only as a test set, and nothing was retrained or renamed. Each listed 5 games with hours, status and
 trophy share, plus active months and a self-description. Rules were fixed before scoring. The full report (`survey_validation/report.md`) is
 archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`.
@@ -489,6 +531,9 @@ blend rule changed. The rollback with the new rule is covered by `test_rollback_
   [Families check](#families-check)). Model, families and temperature unchanged.
 - **2.0.1: atypical check added** (`atypical_distance_threshold`, `training_distance_quantiles`). Scoring is identical
   to 2.0.0. The API adds `atypical` and `distance_percentile`, and there's no blend when the user is atypical.
+- **2.0.2: Competitor online rule** (`competitor_min_online_share`, `competitor_online_rule`; see
+  [Post-cluster rules](#post-cluster-rules)). A user with online share below 0.330 can't be Competitor. Centres, scaler
+  and k are unchanged, and so is the response shape: Competitor is then listed last at 0%.
 
 1.0.0's earlier review changes still apply: truncated library sampling, the 8th feature `log_games_played`, RAWG
 trophy denominators, and the tightened trophy fallback.
@@ -549,6 +594,21 @@ recalibration should treat online share separately, and calibrate on data that l
 - **The Main vs Devotee** depends on whether a single game is online, so one game's IGDB `game_modes` can flip a user
   between them.
 - **The 25% mixed share and w ~ U(0.3, 0.7) are assumptions.**
+- **Simulated side-game hours are far below hand-logged ones.** The devotee persona's side games are drawn from Steam
+  quantiles 0.05–0.50 (0.2–4.4h), so a pure devotee's side games have a **median of 1.4h**, against 9.4h per game for a
+  pure competitor. That gives the Devotee centre an hours per game of 1.74 (about 5h), because `log_hours_per_game`
+  averages over every game, side games included. Real users rarely log games that short. A devotee who also logs
+  10–25h side games looks like "long sessions per game", which is Competitor's signature. The
+  [post-cluster rule](#post-cluster-rules) covers the offline case only.
+
+### Future work
+
+- **Hours per game over the side games only** (the proper fix for the side-game mismatch): compute
+  `log_hours_per_game` over every game except the top one, so the main game's hours count only through
+  `top_game_share`. This changes a feature, so it needs a new feature set, a retrain, a new major model version and a
+  model card update. It wasn't done in 2.0.2. Simply widening the devotee's side-game quantiles was tested and not
+  adopted: it moved 41 of 500 pure devotees into Competitor (from 1), and its 0.80 upper bound would have no more
+  source than the 0.50 it replaced.
 
 ## Validation plan
 
@@ -572,6 +632,7 @@ allows more than 5 games.
    tables in `notebooks/v2_core_final/` and the training players' features (`v2core_training_features.csv`). Seed 42 reproduces every number here; only `trained_at` changes.
 4. Run `python notebooks/v2_core_final/atypical_threshold.py` to turn 2.0.0 into 2.0.1. It reads
    `notebooks/v2_core_final/v2core_training_features.csv`, the same 3,333 players.
+   Then run `python notebooks/v2_core_final/competitor_online_rule.py` to turn 2.0.1 into 2.0.2. It reads the same file.
 5. The report figures in `docs/archetypes/figures/` are drawn by `python notebooks/v2_core_final/figures.py`.
 6. 1.0.0 was trained by `archetypes_training.ipynb`, now archived in `archetypes dataset/archive_2026-11-25` and at Git tag `archetypes-experiments-archive`; it writes
    `models/archetype_model_v1.json`, which stays in the repo as the rollback file.

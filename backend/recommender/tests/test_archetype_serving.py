@@ -329,3 +329,71 @@ def test_atypical_check_boundary(model):
         z = c + step * direction
         nearest = float(np.sqrt(((model["_centres"] - z) ** 2).sum(axis=1)).min())
         assert archetypes.atypical_check(z, model)[0] == (nearest > t)
+
+
+# --- Competitor online rule (2.0.2) ----------------------------------------------------------
+
+def _without_rule(model):
+    return {k: v for k, v in model.items() if k != "competitor_min_online_share"}
+
+
+def _with(model, monkeypatch, **changes):
+    """A user on the Competitor centre, with some features changed."""
+    f = {**next(c["centre"] for c in model["clusters"] if c["name"] == "Competitor"), **changes}
+    monkeypatch.setattr(archetypes, "compute_features", lambda games: dict(f))
+    return archetypes.archetype_response([game(10) for _ in range(5)], model)
+
+
+def test_offline_competitor_like_player_is_not_competitor(model, monkeypatch):
+    body = _with(model, monkeypatch, online_share=0.0)
+    before = _with(_without_rule(model), monkeypatch, online_share=0.0)
+    assert before["archetype"] == "Competitor", "without the rule this user is a Competitor"
+    assert body["archetype"] != "Competitor"
+    assert body["scores"][-1] == {"archetype": "Competitor", "description": next(
+        c["description"] for c in model["clusters"] if c["name"] == "Competitor"), "percent": 0}
+    assert len(body["scores"]) == len(model["clusters"])
+    assert sum(s["percent"] for s in body["scores"]) == 100
+    assert "Competitor" not in (body["blend"] or {}).values()
+
+
+def test_realistic_offline_devotee_is_not_competitor(model):
+    """One 150h offline game and six 25h offline side games: Competitor under 2.0.1."""
+    games = [game(150, genres=("Action", "RPG"), name="Main")] + \
+            [game(25, genres=(g,)) for g in ("Adventure", "RPG", "Shooter", "Indie", "Strategy", "Puzzle")]
+    assert archetypes.archetype_response(games, _without_rule(model))["archetype"] == "Competitor"
+    body = archetypes.archetype_response(games, model)
+    assert body["archetype"] == "Devotee"
+    assert body["scores"][-1]["archetype"] == "Competitor" and body["scores"][-1]["percent"] == 0
+
+
+def test_online_player_is_unaffected(model, monkeypatch):
+    for online in (model["competitor_min_online_share"], 0.5, 0.77, 1.0):
+        with_rule = _with(model, monkeypatch, online_share=online)
+        without = _with(_without_rule(model), monkeypatch, online_share=online)
+        assert with_rule == without
+
+
+def test_rule_percentages_always_add_up_to_100(model, monkeypatch):
+    rng = np.random.default_rng(3)
+    mean, scale = model["_mean"], model["_scale"]
+    for _ in range(300):
+        f = {n: float(mean[i] + rng.normal(0, 1.5) * scale[i]) for i, n in enumerate(FEATURE_NAMES)}
+        for share in ("completion_rate", "trophy_rate", "genre_diversity", "top_game_share"):
+            f[share] = min(max(f[share], 0.0), 1.0)
+        f["online_share"] = float(rng.uniform(0, model["competitor_min_online_share"]))
+        monkeypatch.setattr(archetypes, "compute_features", lambda games: dict(f))
+        body = archetypes.archetype_response([game(10) for _ in range(5)], model)
+        assert sum(s["percent"] for s in body["scores"]) == 100
+        assert len(body["scores"]) == len(model["clusters"])
+        assert body["archetype"] != "Competitor" and body["scores"][-1]["archetype"] == "Competitor"
+
+
+def test_rule_atypical_uses_the_nearest_remaining_centre(model, monkeypatch):
+    f = {**next(c["centre"] for c in model["clusters"] if c["name"] == "Competitor"), "online_share": 0.0}
+    z = archetypes.scale_features(f, model)
+    allowed = [i for i, c in enumerate(model["clusters"]) if c["name"] != "Competitor"]
+    remaining = float(np.sqrt(((model["_centres"][allowed] - z) ** 2).sum(axis=1)).min())
+    strict = {**model, "atypical_distance_threshold": remaining - 1e-6}
+    loose = {**model, "atypical_distance_threshold": remaining + 1e-6}
+    assert _with(strict, monkeypatch, online_share=0.0)["atypical"] is True
+    assert _with(loose, monkeypatch, online_share=0.0)["atypical"] is False

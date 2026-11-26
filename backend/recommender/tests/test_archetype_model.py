@@ -69,7 +69,7 @@ V1_PATH = MODEL_PATH.with_name("archetype_model_v1.json")
 
 
 def test_served_model_is_v2_with_the_confirmed_names_and_families(model):
-    assert model["version"] == "2.0.1"
+    assert model["version"] == "2.0.2"
     assert model["k"] == 6
     assert {c["name"]: c["family"] for c in model["clusters"]} == FAMILIES
     completionist = next(c for c in model["clusters"] if c["name"] == "Completionist")
@@ -106,7 +106,8 @@ def test_a_model_with_families_on_only_some_clusters_is_refused(model, tmp_path)
 V200_SCORING_SHA256 = "908a6cc09f0b058122260810e77d9e98ff4d67bf3ee2019f6ddeeba58e597af2"
 
 
-def test_2_0_1_scores_exactly_like_2_0_0(model):
+def test_2_0_x_centres_and_scoring_fields_are_unchanged_since_2_0_0(model):
+    """2.0.1 (atypical) and 2.0.2 (Competitor online rule) only add fields."""
     import hashlib
     core = {k: model[k] for k in ("features", "imputation", "scaler", "scoring", "min_games", "k")}
     core["clusters"] = [{k: c[k] for k in ("id", "name", "family", "description", "centre_scaled", "centre")}
@@ -128,4 +129,35 @@ def test_a_bad_threshold_is_refused(model, tmp_path):
         path = tmp_path / "m.json"
         path.write_text(json.dumps(data))
         with pytest.raises(ValueError):
+            archetypes.load_model(path)
+
+
+# --- Competitor online rule (2.0.2) -------------------------------------------------------
+
+TRAIN_FEATURES = MODEL_PATH.parents[1] / "notebooks" / "v2_core_final" / "v2core_training_features.csv"
+
+
+def test_competitor_min_online_share_is_the_training_5th_percentile(model):
+    import numpy as np
+    import pandas as pd
+    rule = model["competitor_online_rule"]
+    assert rule["percentile"] == 5 and rule["training_players"] == 3333
+    X = pd.read_csv(TRAIN_FEATURES)
+    x = X[FEATURE_NAMES].fillna(pd.Series(model["imputation"])).to_numpy(dtype=float)
+    z = (x - np.array(model["scaler"]["mean"])) / np.array(model["scaler"]["scale"])
+    c = np.array([cl["centre_scaled"] for cl in model["clusters"]])
+    nearest = np.sqrt(((z[:, None, :] - c[None, :, :]) ** 2).sum(axis=2)).argmin(axis=1)
+    competitor = [cl["name"] for cl in model["clusters"]].index("Competitor")
+    online = X.loc[nearest == competitor, "online_share"]
+    assert len(online) == rule["competitor_players"] == 600
+    assert model["competitor_min_online_share"] == pytest.approx(np.percentile(online, 5))
+    assert 0.2 < model["competitor_min_online_share"] < 0.5, "not ~0: the rule actually bites"
+
+
+def test_a_bad_competitor_threshold_is_refused(model, tmp_path):
+    for bad in (-0.1, 1.5, "0.3"):
+        data = {**json.loads(json.dumps(model)), "competitor_min_online_share": bad}
+        path = tmp_path / "m.json"
+        path.write_text(json.dumps(data))
+        with pytest.raises(ValueError, match="competitor_min_online_share"):
             archetypes.load_model(path)
