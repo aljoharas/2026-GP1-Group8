@@ -516,6 +516,8 @@ of a recalibrated model.
 `models/archetype_model_v1.json` is the unchanged 1.0.0 model. Rolling back is a file swap: copy it over
 `models/archetype_model.json` (or set `ARCHETYPE_MODEL_PATH`) and restart the service.
 
+To return to 2.0.1 (not v1), run `git show 4c732eb~1:models/archetype_model.json > models/archetype_model.json` and restart the Python service.
+
 The code serves both versions. With 1.0.0, `family` is `null`, `atypical` is `false` (there's no threshold), and
 `blend` follows the same family-agnostic rule (within 10 points). Everything else is as before. Serving both files locally was checked on 2026-11-17, before the
 blend rule changed. The rollback with the new rule is covered by `test_rollback_to_v1_is_a_file_swap`.
